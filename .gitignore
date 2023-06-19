@@ -4,12 +4,9 @@
 .DS_Store
 **/.DS_Store
 
-.mirrord
+.mirrord/
 
-### Intellij ###
-intellij-ext/.gradle
-intellij-ext/.idea
-intellij-ext/.qodana
-intellij-ext/build
-intellij-ext/libmirrord_layer.*
-intellij-ext/bin
+.gradle/
+.qodana/
+build/
+bin/
