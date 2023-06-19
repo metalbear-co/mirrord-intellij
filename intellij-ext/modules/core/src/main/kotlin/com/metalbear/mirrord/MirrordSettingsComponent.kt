@@ -15,7 +15,7 @@ class MirrordSettingsComponent {
     private val versionCheckEnabled = JBCheckBox("Version check")
     val panel: JPanel
     init {
-        val externalLink = ActionLink("Read more") { _ -> BrowserUtil.browse("https://github.com/metalbear-co/mirrord/blob/main/TELEMETRY.md") }
+        val externalLink = ActionLink("Read more") { _ -> BrowserUtil.browse("https://github.com/metalbear-co/mirrord-intellij/blob/main/TELEMETRY.md") }
         panel = FormBuilder.createFormBuilder().setAlignLabelOnRight(true)
             .addLabeledComponent(telemetryEnabled, externalLink)
             .addComponent(versionCheckEnabled)

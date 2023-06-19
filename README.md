@@ -1,12 +1,11 @@
-<div align="center">
-
-![mirrord logo](./images/logo.svg)
-
-</div>
+<p align="center">
+  <img src="images/icon.png" width="20%">
+</p>
+<h1 align="center">mirrord</h1>
 
 [![Discord](https://img.shields.io/discord/933706914808889356?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/metalbear)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
 
 mirrord lets developers run local processes in the context of their cloud environment.
@@ -14,117 +13,22 @@ It’s meant to provide the benefits of running your service on a cloud environm
 going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
 It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
 
-# Contents
+This repository is for the IntelliJ plugin.
+mirrord main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
-- [Contents](#contents)
-  - [Getting Started](#getting-started)
-  - [VS Code Extension](#vs-code-extension)
-    - [Installation](#installation)
-    - [How To Use](#how-to-use)
-  - [IntelliJ Plugin](#intellij-plugin)
-    - [Installation](#installation-1)
-    - [How To Use](#how-to-use-1)
-  - [CLI Tool](#cli-tool)
-    - [Installation](#installation-2)
-    - [How To Use](#how-to-use-2)
-  - [How It Works](#how-it-works)
-  - [FAQ](#faq)
-  - [Contributing](#contributing)
-  - [Help and Community](#help-and-community)
-  - [Code of Conduct](#code-of-conduct)
-  - [License](#license)
-
----
-
-## Getting Started
-
-- [VS Code Extension](#vs-code-extension)
-- [IntelliJ Plugin](#intellij-plugin)
-- [CLI Tool](#cli-tool)
-
-> mirrord uses your machine's default kubeconfig for access to the Kubernetes API.
-
----
-
-## VS Code Extension
-
-### Installation
-
-Get the extension [here](https://marketplace.visualstudio.com/items?itemName=MetalBear.mirrord).
-
-### How To Use
-
-- Click "Enable mirrord" on the status bar
-- Start debugging your project
-- Choose pod to impersonate
-- The debugged process will be plugged into the selected pod by mirrord
-
-<p align="center">
-  <img src="./images/vscode.gif">
-</p>
-
----
-
-## IntelliJ Plugin
-
-### Installation
+## Installation
 
 Get the plugin [here](https://plugins.jetbrains.com/plugin/19772-mirrord).
 
-### How To Use
+## How To Use
 
 - Click the mirrord icon in the Navigation Toolbar
 - Start debugging your project
-- Choose a namespace and pod to impersonate
-- The debugged process will be plugged into the selected pod by mirrord
+- Choose a pod to impersonate or choose to run in the "targetless" mode
+- The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
 
 <p align="center">
   <img src="./intellij-ext/src/main/resources/META-INF/usage.gif">
-</p>
-
----
-
-## CLI Tool
-
-### Installation
-
-You can use either
-
-```sh
-brew install metalbear-co/mirrord/mirrord
-```
-
-or
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash
-```
-
-- Windows isn't currently supported (you can use WSL)
-
-### How To Use
-
-```sh
-mirrord exec <process command> --target <target-path>
-```
-
-e.g.
-
-```sh
-mirrord exec node app.js --target pod/my-pod
-```
-
----
-
-## How It Works
-
-When you select a pod to impersonate, mirrord launches a privileged pod on the same node as the pod you selected.
-The new pod is then used to connect your local process and the impersonated pod: it mirrors incoming traffic from the pod to your process,
-routes outgoing traffic from your process through the pod, and does the same for file reads, file writes, and environment variables.
-You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
-
-<p align="center">
-  <img src="./images/how_it_works.svg" alt="How It Works"/>
 </p>
 
 ## FAQ
@@ -135,7 +39,7 @@ or on [Discord](https://discord.gg/metalbear).
 
 ## Contributing
 
-Contributions are very welcome. Start by checking out our [open issues](https://github.com/metalbear-co/mirrord/issues), and by going through our [contributing guide](CONTRIBUTING.md).
+Contributions are very welcome. Start by checking out our [open issues](https://github.com/metalbear-co/mirrord-intellij/issues), and by going through our [contributing guide](CONTRIBUTING.md).
 We're available on [Discord](https://discord.gg/metalbear) for any questions.
 
 ## Help and Community
