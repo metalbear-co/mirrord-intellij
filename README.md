@@ -16,9 +16,20 @@ It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. Y
 This repository is for the IntelliJ plugin.
 mirrord main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
+--
+Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
+
 ## Installation
 
-Get the plugin [here](https://plugins.jetbrains.com/plugin/19772-mirrord).
+- Using IDE built-in plugin system:
+  
+  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "mirrord-intellij-plugin"</kbd> >
+  <kbd>Install Plugin</kbd>
+  
+- Manually:
+
+  Download the latest release and install it manually using
+  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ## How To Use
 
@@ -28,7 +39,7 @@ Get the plugin [here](https://plugins.jetbrains.com/plugin/19772-mirrord).
 - The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
 
 <p align="center">
-  <img src="./intellij-ext/src/main/resources/META-INF/usage.gif">
+  <img src="./src/main/resources/META-INF/usage.gif">
 </p>
 
 ## FAQ
