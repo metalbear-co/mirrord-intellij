@@ -147,8 +147,8 @@ tasks {
 
     prepareSandbox {
         // binaries to copy from $projectDir/bin to $pluginDir/bin with same path.
-        // besides mirrord binaries, we have custom delve until delve 20 is widely used
-        val binaries = listOf("macos/mirrord", "linux/arm64/mirrord", "linux/x86-64/mirrord", "macos/arm64/dlv", "macos/x86-64/dlv")
+        // we have custom delve until delve 20 is widely used
+        val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
         binaries.forEach {
                 binary -> from(file(project.projectDir.resolve("bin").resolve(binary))) {
                     // into treats last part as directory, so need to drop it.

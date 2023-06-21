@@ -8,16 +8,24 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
 
+This repository is for the IntelliJ plugin.
+mirrord main repository can be found [here](https://github.com/metalbear-co/mirrord).
+
+<!-- Plugin description -->
+
 mirrord lets developers run local processes in the context of their cloud environment.
 It’s meant to provide the benefits of running your service on a cloud environment (e.g. staging) without actually
 going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
 It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
 
-This repository is for the IntelliJ plugin.
-mirrord main repository can be found [here](https://github.com/metalbear-co/mirrord).
+## How To Use
 
---
-Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
+- Click the mirrord icon in the Navigation Toolbar
+- Start debugging your project
+- Choose a pod to impersonate or choose to run in the "targetless" mode
+- The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
+
+<!-- Plugin description end -->
 
 ## Installation
 
@@ -30,13 +38,6 @@ Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBr
 
   Download the latest release and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
-
-## How To Use
-
-- Click the mirrord icon in the Navigation Toolbar
-- Start debugging your project
-- Choose a pod to impersonate or choose to run in the "targetless" mode
-- The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
 
 <p align="center">
   <img src="./src/main/resources/META-INF/usage.gif">
@@ -65,3 +66,6 @@ Please take a few minutes to review our [Code of Conduct](./CODE_OF_CONDUCT.md).
 ## License
 
 [MIT](./LICENSE)
+
+--
+Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
