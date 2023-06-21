@@ -1,26 +1,12 @@
-out
-dist
-node_modules
-__pycache__
-.vscode-test/
-*.vsix
+.idea/
+.vscode/
+
 .DS_Store
 **/.DS_Store
-target
+
+.mirrord/
+
+.gradle/
+.qodana/
 build/
-.mirrord
-
-### go tests ###
-*.go_test_app
-
-### VSCode ###
-vscode-ext/bin
-
-### Intellij ###
-intellij-ext/.gradle
-intellij-ext/.idea
-intellij-ext/.qodana
-intellij-ext/build
-intellij-ext/libmirrord_layer.*
-intellij-ext/bin
-.idea/
+bin/
