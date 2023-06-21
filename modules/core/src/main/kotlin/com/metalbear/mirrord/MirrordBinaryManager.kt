@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -44,17 +45,31 @@ object MirrordBinaryManager {
     }
 
     /**
-     * @return path to the local installation of mirrord
+     * @return executable found by `which mirrord`
      */
-    private fun getLocalBinary(requiredVersion: String?): String? {
-        try {
+    private fun findBinaryInPath(wslDistribution: WSLDistribution?): String {
+        return if (wslDistribution == null) {
             val child = Runtime.getRuntime().exec(arrayOf("which", "mirrord"))
             val result = child.waitFor()
             if (result != 0) {
                 throw RuntimeException("`which` failed with code $result")
             }
-            val foundInPath = child.inputReader().readLine().trim()
+            child.inputReader().readLine().trim()
+        } else {
+            val output = wslDistribution.executeOnWsl(1000, "which", "mirrord")
+            if (output.exitCode != 0) {
+                throw RuntimeException("`which` failed with code ${output.exitCode}")
+            }
+            output.stdoutLines.first().trim()
+        }
+    }
 
+    /**
+     * @return path to the local installation of mirrord
+     */
+    private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): String? {
+        try {
+            val foundInPath = this.findBinaryInPath(wslDistribution)
             if (requiredVersion == null || requiredVersion == this.getVersion(foundInPath)) {
                 return foundInPath
             }
@@ -181,10 +196,10 @@ object MirrordBinaryManager {
      *
      * @throws  RuntimeException
      */
-    fun getBinary(project: Project, product: String): String {
-        val timeout = if (this.getLocalBinary(null) == null) 10L else 1L
+    fun getBinary(project: Project, product: String, wslDistribution: WSLDistribution?): String {
+        val timeout = if (this.getLocalBinary(null, wslDistribution) == null) 10L else 1L
         val latestVersion = this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout), project)
-        this.getLocalBinary(latestVersion)?.let {
+        this.getLocalBinary(latestVersion, wslDistribution)?.let {
             return it
         }
 

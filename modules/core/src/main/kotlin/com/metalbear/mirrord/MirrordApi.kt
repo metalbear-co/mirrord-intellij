@@ -55,7 +55,7 @@ object MirrordApi {
     private val logger = MirrordLogger.logger
 
     private fun cliPath(wslDistribution: WSLDistribution?, project: Project, product: String): String {
-        val path = MirrordBinaryManager.getBinary(project, product)
+        val path = MirrordBinaryManager.getBinary(project, product, wslDistribution)
         wslDistribution?.let {
             return it.getWslPath(path)!!
         }
