@@ -88,7 +88,7 @@ object MirrordBinaryManager {
                 }
 
                 val url = StringBuilder(versionEndpoint)
-                        .append("?source=1")
+                        .append("?source=3")
                         .append("&version=")
                         .append(URLEncoder.encode(version, Charset.defaultCharset()))
                         .append("&platform=")
@@ -98,7 +98,7 @@ object MirrordBinaryManager {
                 val client = HttpClient.newHttpClient()
                 val request = HttpRequest
                         .newBuilder(URI(url))
-                        .header("useragent", product)
+                        .header("user-agent", product)
                         .timeout(timeout)
                         .GET()
                         .build()
@@ -110,8 +110,8 @@ object MirrordBinaryManager {
 
         ProgressManager.getInstance().run(versionCheckTask)
 
-        try {
-            return environment.get(timeout.seconds, TimeUnit.SECONDS)
+        return try {
+            environment.get(timeout.seconds, TimeUnit.SECONDS)
         } catch (e: Exception) {
             throw RuntimeException("failed to check the latest supported version of mirrord", e)
         }
@@ -145,8 +145,9 @@ object MirrordBinaryManager {
 
                 val bytes = ByteArray(size)
                 var bytesRead = 0
-                while (true) {
-                    val readNow = stream.read(bytes, bytesRead, 1024)
+                while (bytesRead < size) {
+                    val toRead = minOf(4096, size - bytesRead)
+                    val readNow = stream.read(bytes, bytesRead, toRead)
                     if (readNow == -1) {
                         break
                     }

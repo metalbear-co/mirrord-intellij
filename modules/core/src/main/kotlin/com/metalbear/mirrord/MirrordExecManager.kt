@@ -37,8 +37,27 @@ object MirrordExecManager {
 
         pods ?: return null
 
-        MirrordLogger.logger.debug("returning pods")
-        return MirrordExecDialog.selectTargetDialog(pods)
+        val application = ApplicationManager.getApplication()
+        // In some cases, we're executing from a `ReadAction` context, which means we
+        // can't block and wait for a WriteAction (such as invokeAndWait).
+        // Executing it in a thread pool seems to fix :)
+        // Update: We found out that if we're on DispatchThread we can just
+        // run our function, and if we don't we get into a deadlock.
+        // We have yet come to understand what exactly is going on, which is slightly annoying.
+        return if (application.isDispatchThread) {
+            MirrordLogger.logger.debug("choosing target on current thread")
+            MirrordExecDialog.selectTargetDialog(pods)
+        } else {
+            MirrordLogger.logger.debug("choosing target on pooled thread")
+            var target: String? = null
+            application.executeOnPooledThread {
+                application.invokeAndWait {
+                    MirrordLogger.logger.debug("choosing target from invoke")
+                    target = MirrordExecDialog.selectTargetDialog(pods)
+                }
+            }.get()
+            target
+        }
     }
 
     private fun getConfigPath(project: Project): String? {
@@ -72,26 +91,8 @@ object MirrordExecManager {
         MirrordLogger.logger.debug("target selection")
         var target: String? = null
         if (!MirrordConfigAPI.isTargetSet(project)) {
-            val application = ApplicationManager.getApplication()
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            // In some cases, we're executing from a `ReadAction` context, which means we
-            // can't block and wait for a WriteAction (such as invokeAndWait).
-            // Executing it in a thread pool seems to fix, fml.
-            // Update: We found out that if we're on DispatchThread we can just
-            // run our function, and if we don't we get into a deadlock.
-            // I have yet come to understand what exactly is going on. fmlv2
-            if (application.isDispatchThread) {
-                MirrordLogger.logger.debug("Running from current thread")
-                target = chooseTarget(wslDistribution, project, product)
-            } else {
-                application.executeOnPooledThread {
-                    MirrordLogger.logger.debug("executing on pooled thread")
-                    application.invokeAndWait {
-                        MirrordLogger.logger.debug("choosing target from invoke")
-                        target = chooseTarget(wslDistribution, project, product)
-                    }
-                }.get()
-            }
+            target = chooseTarget(wslDistribution, project, product)
             if (target == null) {
                 MirrordLogger.logger.warn("mirrord loading canceled")
                 MirrordNotifier.notify("mirrord loading canceled.", NotificationType.WARNING, project)
