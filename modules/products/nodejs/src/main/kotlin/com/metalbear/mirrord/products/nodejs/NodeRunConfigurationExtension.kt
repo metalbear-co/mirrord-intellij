@@ -28,7 +28,7 @@ class NodeRunConfigurationExtension: AbstractNodeRunConfigurationExtension() {
             else -> null
         }
 
-        MirrordExecManager.start(wsl, project)?.let {
+        MirrordExecManager.start(wsl, project, "npm")?.let {
                 env ->
             val config = configuration as NodeJsRunConfiguration
             config.envs = config.envs + env;

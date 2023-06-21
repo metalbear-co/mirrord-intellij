@@ -24,7 +24,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         }
 
 
-        MirrordExecManager.start(wsl, project)?.let {
+        MirrordExecManager.start(wsl, project, "rider")?.let {
             env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)

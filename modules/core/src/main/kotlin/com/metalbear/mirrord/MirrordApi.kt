@@ -51,12 +51,11 @@ data class MirrordExecution(
  * Interact with mirrord CLI using this API.
  */
 object MirrordApi {
-    private const val cliBinary = "mirrord"
     const val targetlessTargetName = "No Target (\"targetless\")"
     private val logger = MirrordLogger.logger
 
-    private fun cliPath(wslDistribution: WSLDistribution?): String {
-        val path = MirrordPathManager.getBinary(cliBinary, true)!!
+    private fun cliPath(wslDistribution: WSLDistribution?, project: Project, product: String): String {
+        val path = MirrordBinaryManager.getBinary(project, product)
         wslDistribution?.let {
             return it.getWslPath(path)!!
         }
@@ -64,10 +63,10 @@ object MirrordApi {
     }
 
     /** run mirrord ls, return list of pods + targetless target. */
-    fun listPods(configFile: String?, project: Project?, wslDistribution: WSLDistribution?): List<String>? {
+    fun listPods(configFile: String?, project: Project, wslDistribution: WSLDistribution?, product: String): List<String>? {
         logger.debug("listing pods")
 
-        val commandLine = GeneralCommandLine(cliPath(wslDistribution), "ls", "-o", "json")
+        val commandLine = GeneralCommandLine(cliPath(wslDistribution, project, product), "ls", "-o", "json")
         configFile?.let {
             logger.debug("adding configFile to command line")
             commandLine.addParameter("-f")
@@ -130,10 +129,11 @@ object MirrordApi {
         target: String?,
         configFile: String?,
         executable: String?,
-        project: Project?,
-        wslDistribution: WSLDistribution?
+        project: Project,
+        wslDistribution: WSLDistribution?,
+        product: String,
     ): MirrordExecution? {
-        val commandLine = GeneralCommandLine(cliPath(wslDistribution), "ext").apply {
+        val commandLine = GeneralCommandLine(cliPath(wslDistribution, project, product), "ext").apply {
             target?.let {
                 addParameter("-t")
                 addParameter(it)

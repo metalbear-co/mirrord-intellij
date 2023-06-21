@@ -45,7 +45,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             }
             val project = configuration.getProject()
 
-            MirrordExecManager.start(wsl, project)?.let {
+            MirrordExecManager.start(wsl, project, "goland")?.let {
                 env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)

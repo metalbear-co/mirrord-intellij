@@ -45,7 +45,7 @@ class IdeaRunConfigurationExtension: RunConfigurationExtension() {
 
         val mirrordEnv = HashMap<String, String>()
         MirrordLogger.logger.debug("calling start")
-        MirrordExecManager.start(wsl, project)?.let {
+        MirrordExecManager.start(wsl, project, "idea")?.let {
                 env ->
             for (entry in env.entries.iterator()) {
                 mirrordEnv[entry.key] =  entry.value

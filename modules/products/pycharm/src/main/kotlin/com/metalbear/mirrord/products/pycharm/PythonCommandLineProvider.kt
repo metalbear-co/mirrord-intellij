@@ -1,10 +1,8 @@
 package com.metalbear.mirrord.products.pycharm
 
 import com.intellij.execution.ExecutionException
-import com.intellij.execution.wsl.WslPath
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.SystemInfo
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonExecution
 import com.jetbrains.python.run.PythonRunParams
@@ -30,7 +28,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                     }
                 }
 
-                MirrordExecManager.start(wsl, project)?.let {
+                MirrordExecManager.start(wsl, project, "pycharm")?.let {
                         env ->
                     for (entry in env.entries.iterator()) {
                         pythonExecution.addEnvironmentVariable(entry.key, entry.value)

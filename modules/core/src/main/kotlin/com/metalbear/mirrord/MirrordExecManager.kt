@@ -19,7 +19,7 @@ object MirrordExecManager {
     /** returns null if the user closed or cancelled target selection, otherwise the chosen target, which is either a
      * pod or the targetless target
      */
-    private fun chooseTarget(wslDistribution: WSLDistribution?, project: Project): String? {
+    private fun chooseTarget(wslDistribution: WSLDistribution?, project: Project, product: String): String? {
         MirrordLogger.logger.debug("choose target called")
         val path = MirrordConfigAPI.getConfigPath(project)
         val configPath = when (path.exists()) {
@@ -28,12 +28,12 @@ object MirrordExecManager {
         }
 
         // includes targetless target.
-        val pods =
-            MirrordApi.listPods(
+        val pods = MirrordApi.listPods(
                 configPath,
                 project,
-                wslDistribution
-            )
+                wslDistribution,
+                product,
+        )
 
         pods ?: return null
 
@@ -51,12 +51,12 @@ object MirrordExecManager {
     }
 
 
-    fun start(wslDistribution: WSLDistribution?, project: Project): Map<String, String>? {
-        return start(wslDistribution, project, null)?.first
+    fun start(wslDistribution: WSLDistribution?, project: Project, product: String): Map<String, String>? {
+        return start(wslDistribution, project, null, product)?.first
     }
 
     /** Starts mirrord, shows dialog for selecting pod if target not set and returns env to set. */
-    fun start(wslDistribution: WSLDistribution?, project: Project, executable: String?): Pair<Map<String, String>, String?>? {
+    fun start(wslDistribution: WSLDistribution?, project: Project, executable: String?, product: String): Pair<Map<String, String>, String?>? {
         if (!enabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
@@ -82,13 +82,13 @@ object MirrordExecManager {
             // I have yet come to understand what exactly is going on. fmlv2
             if (application.isDispatchThread) {
                 MirrordLogger.logger.debug("Running from current thread")
-                target = chooseTarget(wslDistribution, project)
+                target = chooseTarget(wslDistribution, project, product)
             } else {
                 application.executeOnPooledThread {
                     MirrordLogger.logger.debug("executing on pooled thread")
                     application.invokeAndWait {
                         MirrordLogger.logger.debug("choosing target from invoke")
-                        target = chooseTarget(wslDistribution, project)
+                        target = chooseTarget(wslDistribution, project, product)
                     }
                 }.get()
             }
@@ -104,7 +104,7 @@ object MirrordExecManager {
             }
         }
 
-        val executionInfo = MirrordApi.exec(target, getConfigPath(project), executable, project, wslDistribution)
+        val executionInfo = MirrordApi.exec(target, getConfigPath(project), executable, project, wslDistribution, product)
 
         executionInfo?.let {
             executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "45000-65535"
