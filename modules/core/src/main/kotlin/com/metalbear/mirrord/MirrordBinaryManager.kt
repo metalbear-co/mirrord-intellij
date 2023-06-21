@@ -93,12 +93,15 @@ object MirrordBinaryManager {
                         .append(URLEncoder.encode(version, Charset.defaultCharset()))
                         .append("&platform=")
                         .append(URLEncoder.encode(SystemInfo.getOsName(), Charset.defaultCharset()))
-                        .append("&useragent=")
-                        .append(URLEncoder.encode(product, Charset.defaultCharset()))
                         .toString()
 
                 val client = HttpClient.newHttpClient()
-                val request = HttpRequest.newBuilder(URI(url)).timeout(timeout).GET().build()
+                val request = HttpRequest
+                        .newBuilder(URI(url))
+                        .header("useragent", product)
+                        .timeout(timeout)
+                        .GET()
+                        .build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
 
                 environment.complete(response.body())
