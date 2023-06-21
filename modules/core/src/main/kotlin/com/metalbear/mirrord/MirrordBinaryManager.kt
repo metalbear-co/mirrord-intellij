@@ -107,7 +107,7 @@ object MirrordBinaryManager {
                         .append("&version=")
                         .append(URLEncoder.encode(version, Charset.defaultCharset()))
                         .append("&platform=")
-                        .append(URLEncoder.encode(SystemInfo.getOsName(), Charset.defaultCharset()))
+                        .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
                         .toString()
 
                 val client = HttpClient.newHttpClient()
@@ -144,7 +144,7 @@ object MirrordBinaryManager {
                 throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
             }
         } else {
-            throw RuntimeException("Unsupported platform: " + SystemInfo.getOsName())
+            throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
         }
 
         val environment = CompletableFuture<ByteArray>()

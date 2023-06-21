@@ -18,7 +18,7 @@ object MirrordPathManager {
             SystemInfo.isLinux -> "linux"
             SystemInfo.isMac -> "macos"
             SystemInfo.isWindows -> "linux"
-            else -> throw RuntimeException("Unsupported platform: " + SystemInfo.getOsName())
+            else -> throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
         }
 
         val arch = when {
