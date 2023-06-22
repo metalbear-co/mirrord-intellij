@@ -27,7 +27,6 @@ object MirrordExecManager {
             false -> null
         }
 
-        // includes targetless target.
         val pods = MirrordApi.listPods(
                 cli,
                 configPath,
@@ -110,8 +109,8 @@ object MirrordExecManager {
                 MirrordNotifier.notify("mirrord loading canceled.", NotificationType.WARNING, project)
                 return null
             }
-            if (target == MirrordApi.targetlessTargetName) {
-                MirrordLogger.logger.warn("No target specified - running targetless")
+            if (target == MirrordExecDialog.targetlessTargetName) {
+                MirrordLogger.logger.info("No target specified - running targetless")
                 MirrordNotifier.notify("No target specified, mirrord running targetless.", NotificationType.INFORMATION, project)
                 target = null
             }
