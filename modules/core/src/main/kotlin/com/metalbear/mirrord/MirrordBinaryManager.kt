@@ -123,6 +123,10 @@ object MirrordBinaryManager {
 
                 environment.complete(response.body())
             }
+
+            override fun onThrowable(error: Throwable) {
+                MirrordLogger.logger.debug(error)
+            }
         }
 
         ProgressManager.getInstance().run(versionCheckTask)
@@ -174,6 +178,10 @@ object MirrordBinaryManager {
 
                 stream.close()
                 environment.complete(bytes)
+            }
+
+            override fun onThrowable(error: Throwable) {
+                MirrordLogger.logger.debug(error)
             }
         }
 
