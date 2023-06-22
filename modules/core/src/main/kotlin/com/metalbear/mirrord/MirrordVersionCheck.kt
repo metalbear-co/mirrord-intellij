@@ -19,7 +19,7 @@ import java.time.ZoneOffset
 object MirrordVersionCheck {
     private val pluginId = PluginId.getId("com.metalbear.mirrord")
     val version: String? = PluginManagerCore.getPlugin(pluginId)?.version
-    private val os: String = SystemInfo.OS_NAME
+    private val os: String = java.net.URLEncoder.encode(SystemInfo.OS_NAME, "utf-8")
     private val versionCheckEndpoint: String =
         "https://version.mirrord.dev/get-latest-version?source=3&version=$version&platform=$os"
     private const val LAST_CHECK_KEY = "lastCheck"
