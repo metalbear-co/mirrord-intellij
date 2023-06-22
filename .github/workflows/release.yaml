@@ -70,7 +70,7 @@ jobs:
           files: /tmp/release/**
 
   update_latest:
-    needs: release_homebrew
+    needs: release_gh
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_dispatch'
     steps:
