@@ -1,0 +1,1 @@
+Binary version request now says `version=test` when sent from `:runIde` task.
