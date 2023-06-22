@@ -19,7 +19,7 @@ object MirrordExecManager {
     /** returns null if the user closed or cancelled target selection, otherwise the chosen target, which is either a
      * pod or the targetless target
      */
-    private fun chooseTarget(wslDistribution: WSLDistribution?, project: Project, product: String): String? {
+    private fun chooseTarget(cli: String, wslDistribution: WSLDistribution?, project: Project): String? {
         MirrordLogger.logger.debug("choose target called")
         val path = MirrordConfigAPI.getConfigPath(project)
         val configPath = when (path.exists()) {
@@ -29,13 +29,11 @@ object MirrordExecManager {
 
         // includes targetless target.
         val pods = MirrordApi.listPods(
+                cli,
                 configPath,
                 project,
                 wslDistribution,
-                product,
-        )
-
-        pods ?: return null
+        ) ?: return null
 
         val application = ApplicationManager.getApplication()
         // In some cases, we're executing from a `ReadAction` context, which means we
@@ -69,6 +67,18 @@ object MirrordExecManager {
         }
     }
 
+    private fun cliPath(wslDistribution: WSLDistribution?, project: Project, product: String): String? {
+        val path = try {
+            MirrordBinaryManager.getBinary(project, product, wslDistribution)
+        } catch (e: RuntimeException) {
+            MirrordNotifier.errorNotification("failed to fetch mirrord binary: ${e.message}", project)
+            return null
+        }
+        wslDistribution?.let {
+            return it.getWslPath(path)!!
+        }
+        return path
+    }
 
     fun start(wslDistribution: WSLDistribution?, project: Project, product: String): Map<String, String>? {
         return start(wslDistribution, project, null, product)?.first
@@ -88,11 +98,13 @@ object MirrordExecManager {
         MirrordLogger.logger.debug("version check trigger")
         MirrordVersionCheck.checkVersion(project)
 
+        val cli = this.cliPath(wslDistribution, project, product) ?: return null
+
         MirrordLogger.logger.debug("target selection")
         var target: String? = null
         if (!MirrordConfigAPI.isTargetSet(project)) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            target = chooseTarget(wslDistribution, project, product)
+            target = chooseTarget(cli, wslDistribution, project)
             if (target == null) {
                 MirrordLogger.logger.warn("mirrord loading canceled")
                 MirrordNotifier.notify("mirrord loading canceled.", NotificationType.WARNING, project)
@@ -105,7 +117,7 @@ object MirrordExecManager {
             }
         }
 
-        val executionInfo = MirrordApi.exec(target, getConfigPath(project), executable, project, wslDistribution, product)
+        val executionInfo = MirrordApi.exec(cli, target, getConfigPath(project), executable, project, wslDistribution)
 
         executionInfo?.let {
             executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "45000-65535"

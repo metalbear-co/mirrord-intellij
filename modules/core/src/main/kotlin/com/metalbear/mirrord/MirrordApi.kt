@@ -25,26 +25,26 @@ enum class MessageType {
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
 data class Message(
-    val type: MessageType,
-    val name: String,
-    val parent: String?,
-    val success: Boolean?,
-    val message: String?
+        val type: MessageType,
+        val name: String,
+        val parent: String?,
+        val success: Boolean?,
+        val message: String?
 )
 
 data class Error(
-    val message: String,
-    val severity: String,
-    val causes: List<String>,
-    val help: String,
-    val labels: List<String>,
-    val related: List<String>
+        val message: String,
+        val severity: String,
+        val causes: List<String>,
+        val help: String,
+        val labels: List<String>,
+        val related: List<String>
 )
 
 data class MirrordExecution(
-    val environment: MutableMap<String, String>,
-    @SerializedName("patched_path")
-    val patchedPath: String?
+        val environment: MutableMap<String, String>,
+        @SerializedName("patched_path")
+        val patchedPath: String?
 )
 
 /**
@@ -54,19 +54,16 @@ object MirrordApi {
     const val targetlessTargetName = "No Target (\"targetless\")"
     private val logger = MirrordLogger.logger
 
-    private fun cliPath(wslDistribution: WSLDistribution?, project: Project, product: String): String {
-        val path = MirrordBinaryManager.getBinary(project, product, wslDistribution)
-        wslDistribution?.let {
-            return it.getWslPath(path)!!
-        }
-        return path
-    }
-
     /** run mirrord ls, return list of pods + targetless target. */
-    fun listPods(configFile: String?, project: Project, wslDistribution: WSLDistribution?, product: String): List<String>? {
+    fun listPods(
+            cli: String,
+            configFile: String?,
+            project: Project,
+            wslDistribution: WSLDistribution?
+    ): List<String>? {
         logger.debug("listing pods")
 
-        val commandLine = GeneralCommandLine(cliPath(wslDistribution, project, product), "ls", "-o", "json")
+        val commandLine = GeneralCommandLine(cli, "ls", "-o", "json")
         configFile?.let {
             logger.debug("adding configFile to command line")
             commandLine.addParameter("-f")
@@ -84,9 +81,9 @@ object MirrordApi {
         logger.debug("creating command line and executing $commandLine")
 
         val process = commandLine.toProcessBuilder()
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .start()
 
         logger.debug("waiting for process to finish")
         process.waitFor(60, TimeUnit.SECONDS)
@@ -114,10 +111,10 @@ object MirrordApi {
 
         if (pods.isEmpty()) {
             MirrordNotifier.notify(
-                "No mirrord target available in the configured namespace. " +
-                        "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                NotificationType.INFORMATION,
-                project,
+                    "No mirrord target available in the configured namespace. " +
+                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                    NotificationType.INFORMATION,
+                    project,
             )
         }
 
@@ -126,14 +123,14 @@ object MirrordApi {
     }
 
     fun exec(
-        target: String?,
-        configFile: String?,
-        executable: String?,
-        project: Project,
-        wslDistribution: WSLDistribution?,
-        product: String,
+            cli: String,
+            target: String?,
+            configFile: String?,
+            executable: String?,
+            project: Project,
+            wslDistribution: WSLDistribution?,
     ): MirrordExecution? {
-        val commandLine = GeneralCommandLine(cliPath(wslDistribution, project, product), "ext").apply {
+        val commandLine = GeneralCommandLine(cli, "ext").apply {
             target?.let {
                 addParameter("-t")
                 addParameter(it)
@@ -161,9 +158,9 @@ object MirrordApi {
         logger.info("running mirrord with following command line: ${commandLine.commandLineString}")
 
         val process = commandLine.toProcessBuilder()
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .start()
 
         val gson = Gson()
         val bufferedReader = process.inputStream.reader().buffered()
