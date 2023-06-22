@@ -1,0 +1,1 @@
+Add property to fix new issue with new Kotlin + IntelliJ
