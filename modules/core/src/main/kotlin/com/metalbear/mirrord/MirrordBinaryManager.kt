@@ -96,7 +96,9 @@ object MirrordBinaryManager {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is checking the latest supported version..."
 
-                val version = if (System.getenv("CI_BUILD_PLUGIN") == "true") {
+                val testing = System.getenv("CI_BUILD_PLUGIN") == "true"
+                        || System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
+                val version = if (testing) {
                     "test"
                 } else {
                     MirrordVersionCheck.version ?: "unknown"
