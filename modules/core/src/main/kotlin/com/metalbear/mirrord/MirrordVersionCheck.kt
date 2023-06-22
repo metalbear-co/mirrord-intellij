@@ -11,6 +11,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.SystemInfo
 import java.net.URL
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -18,7 +19,7 @@ import java.time.ZoneOffset
 object MirrordVersionCheck {
     private val pluginId = PluginId.getId("com.metalbear.mirrord")
     val version: String? = PluginManagerCore.getPlugin(pluginId)?.version
-    private val os: String = System.getProperty("os.name").replace(" ", "%20")
+    private val os: String = SystemInfo.OS_NAME
     private val versionCheckEndpoint: String =
         "https://version.mirrord.dev/get-latest-version?source=3&version=$version&platform=$os"
     private const val LAST_CHECK_KEY = "lastCheck"

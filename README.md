@@ -51,7 +51,8 @@ or on [Discord](https://discord.gg/metalbear).
 
 ## Contributing
 
-Contributions are very welcome. Start by checking out our [open issues](https://github.com/metalbear-co/mirrord-intellij/issues), and by going through our [contributing guide](CONTRIBUTING.md).
+Contributions are very welcome. Start by checking out our [open issues](https://github.com/metalbear-co/mirrord-intellij/issues),
+and by going through our [contributing guide](CONTRIBUTING.md).
 We're available on [Discord](https://discord.gg/metalbear) for any questions.
 
 ## Help and Community
@@ -67,5 +68,6 @@ Please take a few minutes to review our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 [MIT](./LICENSE)
 
---
+---
+
 Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
