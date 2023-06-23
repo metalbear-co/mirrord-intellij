@@ -51,10 +51,13 @@ data class MirrordExecution(
  * Interact with mirrord CLI using this API.
  */
 object MirrordApi {
-    const val targetlessTargetName = "No Target (\"targetless\")"
     private val logger = MirrordLogger.logger
 
-    /** run mirrord ls, return list of pods + targetless target. */
+    /**
+     * Runs `mirrord ls` to get the list of available targets.
+     *
+     * @return list of pods
+     */
     fun listPods(
             cli: String,
             configFile: String?,
@@ -118,7 +121,6 @@ object MirrordApi {
             )
         }
 
-        pods.add(targetlessTargetName)
         return pods
     }
 
