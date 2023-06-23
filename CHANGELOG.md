@@ -11,11 +11,6 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 ## [3.48.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.48.0) - 2023-06-23
 
 
-### Changed
-
-- Changed back required IntelliJ version to 222+ from 223+
-
-
 ### Fixed
 
 - Target selection dialog is now responsive.
