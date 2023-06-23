@@ -8,6 +8,30 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.48.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.48.0) - 2023-06-23
+
+
+### Changed
+
+- Changed back required IntelliJ version to 222+ from 223+
+
+
+### Fixed
+
+- Target selection dialog is now responsive.
+  [#19](https://github.com/metalbear-co/mirrord-intellij/issues/19)
+- Errors during binary fetching are now properly handled.
+
+
+### Internal
+
+- Fixed url encoding on macOS for version check
+  [#16](https://github.com/metalbear-co/mirrord-intellij/issues/16)
+- Add property to fix new issue with new Kotlin + IntelliJ
+- Binary version request now says `version=test` when sent from `:runIde` task.
+- Fix release action
+
+
 ## [3.47.0](https://github.com/metalbear-co/mirrord/tree/3.47.0) - 2023-06-20
 
 
