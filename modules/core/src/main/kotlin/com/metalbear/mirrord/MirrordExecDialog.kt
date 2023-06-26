@@ -6,16 +6,11 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBBox
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBList
-import com.intellij.ui.components.JBOptionButton
-import com.intellij.ui.components.JBRadioButton
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
-import java.awt.Button
 import java.awt.Dimension
 import java.awt.event.*
 import javax.swing.*
-import javax.swing.event.ChangeEvent
-import javax.swing.event.ChangeListener
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
