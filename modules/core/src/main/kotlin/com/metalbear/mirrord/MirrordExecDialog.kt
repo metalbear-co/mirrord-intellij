@@ -21,77 +21,52 @@ object MirrordExecDialog {
     private const val searchPlaceHolder = "Filter targets..."
 
     /**
+     * Label that's used to select targetless mode
+     */
+    const val targetlessTargetName = "No Target (\"targetless\")"
+
+    /**
      * Manages the state of targets list in the dialog. Keeps all the filters in one place.
      */
-    private class TargetsState(private val availableTargets: List<String>) {
-        /**
-         * Filtered and sorted targets.
-         */
-        private var _targets = this.availableTargets
-                .sorted()
-                .toMutableList()
-                .apply {
-                    // Initially, the last used target is at the top
-                    MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
-                        val idx = this.indexOf(it)
-                        if (idx != -1) {
-                            this.removeAt(idx)
-                            this.add(0, it)
-                        }
-                    }
-                }
-                .toList()
-
-        /**
-         * Filtered and sorted targets, targetless option at the end.
-         */
-        val targets: List<String>
-            get() {
-                return this._targets + targetlessTargetName
-            }
-
+    private class TargetsState(private var availableTargets: List<String>) {
         /**
          * Whether to show pods.
          */
-        var pods = true
-            set(value) {
-                field = value
-                this.update()
-            }
+        var pods = MirrordSettingsState.instance.mirrordState.showPodsInSelection ?: true
 
         /**
          * Whether to show deployments.
          */
-        var deployments = true
-            set(value) {
-                field = value
-                this.update()
-            }
+        var deployments = MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true
 
         /**
          * Show only targets containing this phrase.
          */
         var searchPhrase = ""
-            set(value) {
-                field = value
-                this.update()
-            }
 
         /**
-         * Update the list based on filters.
+         * Filtered and sorted targets, targetless option at the bottom, last chosen target at the top.
          */
-        private fun update() {
-            this._targets = this.availableTargets
-                    .filter { this.pods && (it.startsWith("pod/")) || (this.deployments && it.startsWith("deployment/")) }
-                    .filter { it.contains(this.searchPhrase) }
-                    .sorted()
-        }
+        val targets: List<String>
+            get() {
+                return this.availableTargets
+                        .filter { this.pods && (it.startsWith("pod/")) || (this.deployments && it.startsWith("deployment/")) }
+                        .filter { it.contains(this.searchPhrase) }
+                        .toMutableList()
+                        .apply {
+                            sort()
+                            MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
+                                val idx = this.indexOf(it)
+                                if (idx != -1) {
+                                    this.removeAt(idx)
+                                    this.add(0, it)
+                                }
+                            }
+                            add(targetlessTargetName)
+                        }
+                        .toList()
+            }
     }
-
-    /**
-     * Label that's used to select targetless mode
-     */
-    const val targetlessTargetName = "No Target (\"targetless\")"
 
     /**
      * Shows a target selection dialog.
@@ -162,13 +137,13 @@ object MirrordExecDialog {
             })
         }
         val filterHelpers = listOf(
-                JBCheckBox("Pods", true).apply {
+                JBCheckBox("Pods", targetsState.pods).apply {
                     this.addActionListener {
                         targetsState.pods = this.isSelected
                         jbTargets.setListData(targetsState.targets.toTypedArray())
                     }
                 },
-                JBCheckBox("Deployments", true).apply {
+                JBCheckBox("Deployments", targetsState.deployments).apply {
                     this.addActionListener {
                         targetsState.deployments = this.isSelected
                         jbTargets.setListData(targetsState.targets.toTypedArray())
@@ -182,10 +157,14 @@ object MirrordExecDialog {
         }.show()
 
         if (result == DialogWrapper.OK_EXIT_CODE) {
+            MirrordSettingsState.instance.mirrordState.showPodsInSelection = targetsState.pods
+            MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection = targetsState.deployments
+
             if (jbTargets.isSelectionEmpty) {
                 // The user did not select any target, and clicked ok.
                 return targetlessTargetName
             }
+
             val selectedValue = jbTargets.selectedValue
             MirrordSettingsState.instance.mirrordState.lastChosenTarget = selectedValue
             return selectedValue
