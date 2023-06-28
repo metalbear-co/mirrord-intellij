@@ -1,31 +1,33 @@
 package com.metalbear.mirrord
 
-import com.intellij.ide.highlighter.XmlFileType
-import com.intellij.psi.xml.XmlFile
-import com.intellij.testFramework.TestDataPath
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import com.intellij.util.PsiErrorElementUtil
+import com.intellij.remoterobot.RemoteRobot
+import com.intellij.remoterobot.utils.waitForIgnoringError
+import com.metalbear.mirrord.utils.RemoteRobotExtension
+import com.metalbear.mirrord.utils.dialog
+import com.metalbear.mirrord.utils.welcomeFrame
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import java.awt.event.KeyEvent.*
+import java.time.Duration.ofMinutes
 
-@TestDataPath("\$CONTENT_ROOT/src/test/testData")
-class MyPluginTest : BasePlatformTestCase() {
 
-    fun testXMLFile() {
-        val psiFile = myFixture.configureByText(XmlFileType.INSTANCE, "<foo>bar</foo>")
-        val xmlFile = assertInstanceOf(psiFile, XmlFile::class.java)
+@ExtendWith(RemoteRobotExtension::class)
+class MirrordPluginTest
 
-        assertFalse(PsiErrorElementUtil.hasErrors(project, xmlFile.virtualFile))
+    @BeforeEach
+    fun waitForIde(remoteRobot: RemoteRobot) {
+        waitForIgnoringError(ofMinutes(3)) { remoteRobot.callJs("true") }
+    }
 
-        assertNotNull(xmlFile.rootTag)
-
-        xmlFile.rootTag?.let {
-            assertEquals("foo", it.name)
-            assertEquals("bar", it.value.text)
+    @Test
+    fun createCommandLineApp(remoteRobot: RemoteRobot) = with(remoteRobot) {
+        welcomeFrame {
+            createNewProjectLink.click()
+            dialog("New Project") {
+                findText("Java").click()
+                checkBox("Add sample code").select()
+                button("Create").click()
+            }
         }
     }
-
-    override fun getTestDataPath() = "src/test/testData/rename"
-
-    fun testRename() {
-        myFixture.testRename("foo.xml", "foo_after.xml", "a2")
-    }
-}

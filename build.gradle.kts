@@ -1,3 +1,5 @@
+import org.gradle.api.internal.tasks.testing.junit.JUnitTestFramework
+import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
@@ -23,7 +25,13 @@ version = properties("pluginVersion")
 // Configure project's dependencies
 repositories {
     mavenCentral()
+    maven {
+        url =  uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+    }
 }
+
+val remoteRobotVersion = "0.11.18"
+
 dependencies {
     implementation(project(":mirrord-products-idea"))
     implementation(project(":mirrord-products-pycharm"))
@@ -31,10 +39,17 @@ dependencies {
     implementation(project(":mirrord-products-goland"))
     implementation(project(":mirrord-products-nodejs"))
     implementation(project(":mirrord-products-rider"))
+    testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
+    testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
+    testImplementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.3")
 }
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
+    plugins.set(listOf("com.intellij.java"))
     pluginName.set(properties("pluginName"))
     version.set(properties("platformVersion"))
     // So we can have run configurations with different IDEs to test (GO/PC) etc
@@ -77,6 +92,7 @@ allprojects {
     }
 
 }
+
 
 gradle.taskGraph.whenReady(closureOf<TaskExecutionGraph> {
     val ignoreSubprojectTasks = listOf(
@@ -138,9 +154,9 @@ tasks {
         )
         if (!System.getenv("CI_BUILD_PLUGIN").toBoolean()) {
             changeNotes.set(provider {
-            changelog.run {
-                getOrNull(properties("pluginVersion")) ?: getLatest()
-            }.toHTML()
+                changelog.renderItem(changelog.run {
+                    getOrNull(properties("pluginVersion")) ?: getLatest()
+                }, Changelog.OutputType.HTML)
         })
         }
     }
@@ -166,9 +182,15 @@ tasks {
     // Read more: https://github.com/JetBrains/intellij-ui-test-robot
     runIdeForUiTests {
         systemProperty("robot-server.port", "8082")
+        systemProperty("robot-server.host.public", "true")
         systemProperty("ide.mac.message.dialogs.as.sheets", "false")
         systemProperty("jb.privacy.policy.text", "<!--999.999-->")
         systemProperty("jb.consents.confirmation.enabled", "false")
+        systemProperty("idea.trust.all.projects", "true")
+    }
+
+    downloadRobotServerPlugin {
+        version.set(remoteRobotVersion)
     }
 
     signPlugin {
@@ -189,5 +211,12 @@ tasks {
     runPluginVerifier {
         ideVersions.set(listOf("IU-232.5150.116", "IU-222.4554.10"))
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
+    }
+
+    test {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+        }
     }
 }
