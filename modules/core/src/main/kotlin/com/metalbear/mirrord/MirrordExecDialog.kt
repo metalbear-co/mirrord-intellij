@@ -21,6 +21,74 @@ object MirrordExecDialog {
     private const val searchPlaceHolder = "Filter targets..."
 
     /**
+     * Manages the state of targets list in the dialog. Keeps all the filters in one place.
+     */
+    private class TargetsState(private val availableTargets: List<String>) {
+        /**
+         * Filtered and sorted targets.
+         */
+        private var _targets = this.availableTargets
+                .sorted()
+                .toMutableList()
+                .apply {
+                    // Initially, the last used target is at the top
+                    MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
+                        val idx = this.indexOf(it)
+                        if (idx != -1) {
+                            this.removeAt(idx)
+                            this.add(0, it)
+                        }
+                    }
+                }
+                .toList()
+
+        /**
+         * Filtered and sorted targets, targetless option at the end.
+         */
+        val targets: List<String>
+            get() {
+                return this._targets + targetlessTargetName
+            }
+
+        /**
+         * Whether to show pods.
+         */
+        var pods = true
+            set(value) {
+                field = value
+                this.update()
+            }
+
+        /**
+         * Whether to show deployments.
+         */
+        var deployments = true
+            set(value) {
+                field = value
+                this.update()
+            }
+
+        /**
+         * Show only targets containing this phrase.
+         */
+        var searchPhrase = ""
+            set(value) {
+                field = value
+                this.update()
+            }
+
+        /**
+         * Update the list based on filters.
+         */
+        private fun update() {
+            this._targets = this.availableTargets
+                    .filter { this.pods && (it.startsWith("pod/")) || (this.deployments && it.startsWith("deployment/")) }
+                    .filter { it.contains(this.searchPhrase) }
+                    .sorted()
+        }
+    }
+
+    /**
      * Label that's used to select targetless mode
      */
     const val targetlessTargetName = "No Target (\"targetless\")"
@@ -31,48 +99,7 @@ object MirrordExecDialog {
      * @return a target selected from the given list, targetlessTargetName constant if user selected targetless, null if the user cancelled
      */
     fun selectTargetDialog(availableTargets: List<String>): String? {
-        val targetsState = object {
-            private var _targets = availableTargets
-                    .sorted()
-                    .toMutableList()
-                    .apply {
-                        // Initially, the last used target is at the top
-                        MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
-                            val idx = this.indexOf(it)
-                            if (idx != -1) {
-                                this.removeAt(idx)
-                                this.add(0, it)
-                            }
-                        }
-                    }
-                    .toList()
-            val targets: List<String>
-                get() {
-                    return this._targets + targetlessTargetName
-                }
-            var pods = true
-                set(value) {
-                    field = value
-                    this.update()
-                }
-            var deployments = true
-                set(value) {
-                    field = value
-                    this.update()
-                }
-            var searchPhrase = ""
-                set(value) {
-                    field = value
-                    this.update()
-                }
-
-            private fun update() {
-                this._targets = availableTargets
-                        .filter { (it.startsWith("pod/") && this.pods) || (it.startsWith("deployment/") && this.deployments) }
-                        .filter { it.contains(this.searchPhrase) }
-                        .sorted()
-            }
-        }
+        val targetsState = TargetsState(availableTargets)
 
         val jbTargets = (targetsState.targets).asJBList()
         val searchField = JTextField().apply {
