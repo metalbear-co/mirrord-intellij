@@ -15,6 +15,6 @@ fun RemoteRobot.welcomeFrame(function: WelcomeFrame.()-> Unit) {
 @FixtureName("Welcome Frame")
 @DefaultXpath("type", "//div[@class='FlatWelcomeFrame']")
 class WelcomeFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : CommonContainerFixture(remoteRobot, remoteComponent) {
-    val createNewProjectLink
-        get() = actionLink(byXpath("New Project","//div[(@class='MainButton' and @text='New Project') or (@accessiblename='New Project' and @class='JButton')]"))
+    val createNewProjectFromVCS
+        get() = actionLink(byXpath("Get from VCS","//div[@accessiblename.key='action.Vcs.VcsClone.text']"))
 }

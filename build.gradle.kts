@@ -49,7 +49,6 @@ dependencies {
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
-    plugins.set(listOf("com.intellij.java"))
     pluginName.set(properties("pluginName"))
     version.set(properties("platformVersion"))
     // So we can have run configurations with different IDEs to test (GO/PC) etc
