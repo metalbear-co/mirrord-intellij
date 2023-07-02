@@ -19,6 +19,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : Co
     val projectViewTree
         get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"))
 
+
+
     val projectName
         get() = step("Get project name") { return@step callJs<String>("component.getProject().getName()") }
 

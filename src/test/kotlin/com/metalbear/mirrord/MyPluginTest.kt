@@ -20,14 +20,18 @@ internal class MirrordPluginTest {
 
     @Test
     fun testMirrordFlow(remoteRobot: RemoteRobot) = with(remoteRobot) {
-        createTestWorkspace(remoteRobot)
+//        createTestWorkspace(remoteRobot)
         idea {
-            closeTipOfTheDay()
-            dialog("Setting Up Poetry Environment") {
-                button("OK").click()
-            }
-            with(projectViewTree) {
-                findText("app.py").doubleClick()
+//            closeTipOfTheDay()
+//            dialog("Setting Up Poetry Environment") {
+//                button("OK").click()
+//            }
+//            with(projectViewTree) {
+//                findText("app.py").doubleClick()
+//            }
+
+            with (textEditor()) {
+                gutter.findText("8").click()
             }
         }
     }
