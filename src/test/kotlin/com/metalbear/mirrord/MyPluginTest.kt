@@ -1,23 +1,20 @@
 package com.metalbear.mirrord
 
 import com.intellij.remoterobot.RemoteRobot
-import com.intellij.remoterobot.utils.Keyboard
 import com.intellij.remoterobot.utils.waitForIgnoringError
-import com.metalbear.mirrord.utils.RemoteRobotExtension
-import com.metalbear.mirrord.utils.dialog
-import com.metalbear.mirrord.utils.idea
-import com.metalbear.mirrord.utils.welcomeFrame
+import java.net.URL
+import com.intellij.remoterobot.stepsProcessing.step
+import com.metalbear.mirrord.utils.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Point
-import java.awt.event.KeyEvent
 import java.time.Duration.ofMinutes
 
 @ExtendWith(RemoteRobotExtension::class)
 internal class MirrordPluginTest {
 
-    private lateinit var keyboard: Keyboard
+    private val defaultConfigFilePath = ".mirrord/mirrrord.json"
 
     @BeforeEach
     fun waitForIde(remoteRobot: RemoteRobot) {
@@ -26,20 +23,59 @@ internal class MirrordPluginTest {
 
     @Test
     fun testMirrordFlow(remoteRobot: RemoteRobot) = with(remoteRobot) {
-        createTestWorkspace(remoteRobot)
+        step("Welcome Frame") {
+            createTestWorkspace(remoteRobot)
+        }
         idea {
             closeTipOfTheDay()
-            dialog("Setting Up Poetry Environment") {
-                button("OK").click()
+            step("Setup Poetry Environment") {
+                dialog("Setting Up Poetry Environment") {
+                    button("OK").click()
+                }
             }
-            with(projectViewTree) {
-                findText("app.py").doubleClick()
+
+            step("Enable mirrord and create config file") {
+                enableMirrord.click()
+                createMirrordConfig.click()
+                editorTab {
+                    checkFileOpened(defaultConfigFilePath)
+                    checkFileExists(defaultConfigFilePath)
+                }
             }
-            goToLineAndColumn(8, 0, remoteRobot)
-            setBreakPoint(remoteRobot)
-            with(textEditor().gutter) {
-                val lineNumberPoint = findText("8").point
-                click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+
+            step("Set breakpoint") {
+                with(projectViewTree) {
+                    findText("app.py").doubleClick()
+                    editorTab {
+                        checkFileOpened("app.py")
+                    }
+                }
+                with(textEditor().gutter) {
+                    val lineNumberPoint = findText("8").point
+                    click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                }
+            }
+
+            step("Start Debugging") {
+                startDebugging.click()
+                step("Select pod to mirror traffic from") {
+                    dialog("mirrord") {
+                        val podToSelect = System.getenv("POD_TO_SELECT")
+                        findText(podToSelect).click()
+                        button("OK").click()
+                    }
+                }
+                runnerTabDebugger.click()
+                debuggerConnected
+            }
+
+            step("Send traffic to pod") {
+                val kubeService = System.getenv("KUBE_SERVICE")
+                URL(kubeService).readText()
+            }
+
+            step("Assert breakpoint is hit") {
+                xDebuggerFramesList
             }
         }
     }
@@ -55,21 +91,5 @@ internal class MirrordPluginTest {
                 button("Clone").click()
             }
         }
-    }
-
-    private fun goToLineAndColumn(row: Int, column: Int, remoteRobot: RemoteRobot) = with(remoteRobot) {
-        if (isMac()) keyboard.hotKey(
-            KeyEvent.VK_META,
-            KeyEvent.VK_L
-        ) else keyboard.hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_G)
-        keyboard.enterText("$row:$column")
-        keyboard.enter()
-    }
-
-    private fun setBreakPoint(remoteRobot: RemoteRobot) = with(remoteRobot) {
-        if (isMac()) keyboard.hotKey(
-            KeyEvent.VK_META,
-            KeyEvent.VK_F8
-        ) else keyboard.hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_F8)
     }
 }

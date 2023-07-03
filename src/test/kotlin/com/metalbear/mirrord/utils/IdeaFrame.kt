@@ -6,6 +6,8 @@ import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
+import org.junit.Assert.assertTrue
+import java.io.File
 import java.time.Duration
 
 
@@ -15,20 +17,36 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 
 @FixtureName("Idea frame")
 @DefaultXpath("IdeFrameImpl type", "//div[@class='IdeFrameImpl']")
-class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : CommonContainerFixture(remoteRobot, remoteComponent) {
+class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent) {
 
     val projectViewTree
         get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"))
 
+    val enableMirrord
+        get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"))
+    val createMirrordConfig
+        get() = find<ContainerFixture>(
+            byXpath(
+                "//div[@accessiblename='Open mirrord configuration file' " +
+                        "and @class='ActionButton' " +
+                        "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
+            )
+        )
 
+    val startDebugging
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']")
+        )
 
-    val projectName
-        get() = step("Get project name") { return@step callJs<String>("component.getProject().getName()") }
+    val runnerTabDebugger
+        get() = find<ContainerFixture>(byXpath("//div[@accessiblename='Debugger' and @accessiblename.key='xdebugger.attach.popup.selectDebugger.title xdebugger.debugger.tab.title' and @class='SingleHeightLabel']"), Duration.ofSeconds(30))
 
-    val menuBar: JMenuBarFixture
-        get() = step("Menu...") {
-            return@step remoteRobot.find(JMenuBarFixture::class.java, JMenuBarFixture.byType())
-        }
+    val debuggerConnected
+        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerTree']"))
+
+    val xDebuggerFramesList
+        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
 
     @JvmOverloads
     fun dumbAware(timeout: Duration = Duration.ofMinutes(5), function: () -> Unit) {
@@ -46,7 +64,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : Co
     }
 
     private fun isDumbMode(): Boolean {
-        return callJs("""
+        return callJs(
+            """
             const frameHelper = com.intellij.openapi.wm.impl.ProjectFrameHelper.getFrameHelper(component)
             if (frameHelper) {
                 const project = frameHelper.getProject()
@@ -54,7 +73,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : Co
             } else { 
                 true 
             }
-        """, true)
+        """, true
+        )
     }
 
     fun closeTipOfTheDay() {
@@ -75,5 +95,24 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : Co
                 }
             }
         }
+    }
+}
+
+
+fun RemoteRobot.editorTab(function: EditorTab.() -> Unit) {
+    find<EditorTab>(timeout = Duration.ofSeconds(10)).apply(function)
+}
+
+@DefaultXpath("EditorTabs type", "//div[@class='EditorTabs']")
+class EditorTab(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent) {
+
+    fun checkFileOpened(fileName: String) {
+        find<ContainerFixture>(byXpath("//div[@accessiblename=$fileName and @class='SimpleColoredComponent']"), Duration.ofSeconds(10))
+    }
+
+    fun checkFileExists(fileName: String) {
+        val file = File(System.getProperty("user.dir"), fileName)
+        assertTrue(file.exists())
     }
 }
