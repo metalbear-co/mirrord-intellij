@@ -99,20 +99,15 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 }
 
 
-fun RemoteRobot.editorTab(function: EditorTab.() -> Unit) {
-    find<EditorTab>(timeout = Duration.ofSeconds(10)).apply(function)
+fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
+    find<EditorTabs>(timeout = Duration.ofSeconds(10)).apply(function)
 }
 
 @DefaultXpath("EditorTabs type", "//div[@class='EditorTabs']")
-class EditorTab(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
     fun checkFileOpened(fileName: String) {
-        find<ContainerFixture>(byXpath("//div[@accessiblename=$fileName and @class='SimpleColoredComponent']"), Duration.ofSeconds(10))
-    }
-
-    fun checkFileExists(fileName: String) {
-        val file = File(System.getProperty("user.dir"), fileName)
-        assertTrue(file.exists())
+        find<ContainerFixture>(byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"), Duration.ofSeconds(10))
     }
 }
