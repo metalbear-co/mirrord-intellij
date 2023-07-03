@@ -8,6 +8,7 @@ import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
+
 fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
     find<IdeaFrame>(timeout = Duration.ofSeconds(10)).apply(function)
 }
