@@ -88,18 +88,14 @@ jobs:
       # we can't run chrome like apps in the CI, we use a virtual frame buffer:
       # refer: http://elementalselenium.com/tips/38-headless
       - name: Run intellij e2e in headless state
-        uses: coactions/setup-xvfb@v1
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
-        with:
-          run: |
-            ./gradlew runIdeForUiTests > build/reports/idea.log &
+        run: |
+           Xvfb -ac :99 -screen 0 1920x1080x24 &
+          ./gradlew runIdeForUiTests &
       - run: ./gradlew test &
-   
-  # We need some "accummulation" job here because bors fails (timeouts) to
-  # listen on matrix builds.
-  # Hence, we have some kind of dummy here that bors can listen on
+
   ci-success:
     name: ci
     # We want this to run even if some of the required jobs got skipped
