@@ -92,10 +92,9 @@ jobs:
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
-        with:
-          run: |
-            ./gradlew runIdeForUiTests &
-            ./gradlew test
+        run: |
+          /usr/bin/xvfb-run --auto-servernum ./gradlew runIdeForUiTests &
+          ./gradlew test
    
   # We need some "accummulation" job here because bors fails (timeouts) to
   # listen on matrix builds.
