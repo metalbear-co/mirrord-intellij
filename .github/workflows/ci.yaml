@@ -87,7 +87,7 @@ jobs:
           echo "KUBE_SERVICE=$KUBE_SERVICE" >> "$GITHUB_ENV"
       # we can't run chrome like apps in the CI, we use a virtual frame buffer:
       # refer: http://elementalselenium.com/tips/38-headless
-      - run: ./gradlew test
+      - run: ./gradlew test &
       - name: Run intellij e2e in headless state
         uses: coactions/setup-xvfb@v1
         env:
