@@ -68,6 +68,7 @@ jobs:
       - uses: abatilo/actions-poetry@v2
       - name: Install dependencies
         run: |
+          cd test-workspace
           poetry install
       - name: get mirrord latest
         run: |
