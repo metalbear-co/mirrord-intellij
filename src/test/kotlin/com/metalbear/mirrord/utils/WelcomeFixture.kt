@@ -17,4 +17,30 @@ fun RemoteRobot.welcomeFrame(function: WelcomeFrame.()-> Unit) {
 class WelcomeFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) : CommonContainerFixture(remoteRobot, remoteComponent) {
     val createNewProjectFromVCS
         get() = actionLink(byXpath("Get from VCS","//div[@accessiblename.key='action.Vcs.VcsClone.text']"))
+
+    fun openProject(absolutePath: String) {
+        remoteRobot.runJs(
+            """
+            importClass(com.intellij.openapi.application.ApplicationManager)
+            importClass(com.intellij.ide.impl.OpenProjectTask)
+           
+            const projectManager = com.intellij.openapi.project.ex.ProjectManagerEx.getInstanceEx()
+            let task 
+            try { 
+                task = OpenProjectTask.build()
+            } catch(e) {
+                task = OpenProjectTask.newProject()
+            }
+            const path = new java.io.File("$absolutePath").toPath()
+           
+            const openProjectFunction = new Runnable({
+                run: function() {
+                    projectManager.openProject(path, task)
+                }
+            })
+           
+            ApplicationManager.getApplication().invokeLater(openProjectFunction)
+        """
+        )
+    }
 }
