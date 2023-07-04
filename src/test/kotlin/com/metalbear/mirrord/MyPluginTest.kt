@@ -4,6 +4,7 @@ import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.utils.waitForIgnoringError
 import com.intellij.remoterobot.stepsProcessing.step
 import com.metalbear.mirrord.utils.*
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -11,6 +12,8 @@ import java.awt.Point
 import java.time.Duration
 import java.net.URL
 import java.time.Duration.ofMinutes
+import com.intellij.remoterobot.utils.keyboard
+import java.awt.event.KeyEvent.*
 
 @ExtendWith(RemoteRobotExtension::class)
 internal class MirrordPluginTest {
@@ -20,75 +23,95 @@ internal class MirrordPluginTest {
         waitForIgnoringError(ofMinutes(3)) { remoteRobot.callJs("true") }
     }
 
+    @AfterEach
+    fun closeProject(remoteRobot: RemoteRobot) = with(remoteRobot) {
+        idea {
+            if (remoteRobot.isMac()) {
+                keyboard {
+                    hotKey(VK_SHIFT, VK_META, VK_A)
+                    enterText("Close Project")
+                    enter()
+                }
+            } else {
+                menuBar.select("File", "Close Project")
+            }
+        }
+    }
+
     @Test
     fun testMirrordFlow(remoteRobot: RemoteRobot) = with(remoteRobot) {
         step("Welcome Frame") {
-            createTestWorkspace(remoteRobot)
+            welcomeFrame {
+                openProject(System.getProperty("test.workspace"))
+            }
         }
-//        idea {
-//            closeTipOfTheDay()
-//
-//            step("Setup Poetry Environment") {
-//                try {
-//                    dialog("Setting Up Poetry Environment") {
-//                        button("OK").click()
-//                    }
-//                } catch (e: Exception) {
-//                    // in case of a re-run, the environment is already setup
-//                    println("Poetry Environment already setup")
-//                }
-//            }
-//
-//            step("Enable mirrord and create config file") {
-//                enableMirrord.click()
-//                createMirrordConfig.click()
-//                editorTabs {
-//                    checkFileOpened("mirrord.json")
-//                }
-//            }
-//
-//            dumbAware {
-//                step("Set breakpoint") {
-//                    with(projectViewTree) {
-//                        findText("app.py").doubleClick()
-//                        editorTabs {
-//                            checkFileOpened("app.py")
-//                        }
-//                    }
-//                }
-//                with(textEditor().gutter) {
-//                    val lineNumberPoint = findText("8").point
-//                    click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
-//                }
-//            }
-//
-//            step("Start Debugging") {
-//                startDebugging.click()
-//                step("Select pod to mirror traffic from") {
-//                    dialog("mirrord", Duration.ofSeconds(120)) {
-//                        val podToSelect = System.getenv("POD_TO_SELECT")
-//                        findText(podToSelect).click()
-//                        button("OK").click()
-//                    }
-//                }
-//                runnerTabDebugger.click()
-//                debuggerConnected
-//            }
-//
-//            step("Send traffic to pod") {
-//                val kubeService = System.getenv("KUBE_SERVICE")
-//                URL(kubeService).readText()
-//            }
-//
-//            step("Assert breakpoint is hit") {
-//                xDebuggerFramesList
-//            }
-//        }
-    }
+        idea {
+            // intellij shows tip of the day randomly
+            closeTipOfTheDay()
 
-    private fun createTestWorkspace(remoteRobot: RemoteRobot) = with(remoteRobot) {
-        welcomeFrame {
-            openProject(System.getProperty("test.workspace"))
+            step("Setup Poetry Environment") {
+                try {
+                    dialog("Setting Up Poetry Environment") {
+                        button("OK").click()
+                    }
+                } catch (e: Exception) {
+                    // in case of a re-run, the environment is already setup
+                    println("Poetry Environment already setup")
+                }
+            }
+
+            step("Enable mirrord and create config file") {
+                enableMirrord.click()
+                createMirrordConfig.click()
+                editorTabs {
+                    checkFileOpened("mirrord.json")
+                }
+            }
+
+            dumbAware {
+                // sometimes there can be a state where we try to click
+                // on a file in the projectViewTree, but it clicks on a different one
+                // waiting for indexing to finish fixes this
+                step("Set breakpoint") {
+                    with(projectViewTree) {
+                        findText("app.py").doubleClick()
+                        editorTabs {
+                            checkFileOpened("app.py")
+                        }
+                    }
+                }
+                with(textEditor().gutter) {
+                    val lineNumberPoint = findText("8").point
+                    click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                }
+            }
+
+            step("Start Debugging") {
+                startDebugging.click()
+                step("Select pod to mirror traffic from") {
+                    dialog("mirrord", Duration.ofSeconds(120)) {
+                        val podToSelect = System.getenv("POD_TO_SELECT")
+                        findText(podToSelect).click()
+                        button("OK").click()
+                    }
+                }
+                runnerTabDebugger.click()
+                // in the debugger tab of the xdebugger window, if the session has started
+                // it displays "Connected"
+                // following just checks if "Connected" is displayed
+                debuggerConnected
+            }
+
+            step("Send traffic to pod") {
+                val kubeService = System.getenv("KUBE_SERVICE")
+                URL(kubeService).readText()
+            }
+
+            step("Assert breakpoint is hit") {
+                // there is no simple way to find the blue hover of the breakpoint line
+                // but if the breakpoint is hit, the debugger frames list is populated
+                xDebuggerFramesList
+            }
         }
     }
 }

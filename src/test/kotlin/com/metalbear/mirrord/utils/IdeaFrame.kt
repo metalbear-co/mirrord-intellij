@@ -6,8 +6,6 @@ import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
-import org.junit.Assert.assertTrue
-import java.io.File
 import java.time.Duration
 
 
@@ -19,6 +17,9 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 @DefaultXpath("IdeFrameImpl type", "//div[@class='IdeFrameImpl']")
 class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
+
+    val menuBar: JMenuBarFixture
+        get() = find(JMenuBarFixture::class.java, JMenuBarFixture.byType())
 
     val projectViewTree
         get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"))
@@ -40,7 +41,10 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         )
 
     val runnerTabDebugger
-        get() = find<ContainerFixture>(byXpath("//div[@accessiblename='Debugger' and @accessiblename.key='xdebugger.attach.popup.selectDebugger.title xdebugger.debugger.tab.title' and @class='SingleHeightLabel']"), Duration.ofSeconds(30))
+        get() = find<ContainerFixture>(
+            byXpath("//div[@accessiblename='Debugger' and @accessiblename.key='xdebugger.attach.popup.selectDebugger.title xdebugger.debugger.tab.title' and @class='SingleHeightLabel']"),
+            Duration.ofSeconds(30)
+        )
 
     val debuggerConnected
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerTree']"))
@@ -108,6 +112,9 @@ class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
     fun checkFileOpened(fileName: String) {
-        find<ContainerFixture>(byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"), Duration.ofSeconds(10))
+        find<ContainerFixture>(
+            byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"),
+            Duration.ofSeconds(10)
+        )
     }
 }
