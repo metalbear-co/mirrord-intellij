@@ -8,6 +8,7 @@ import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
+// Note: some implementation is taken from the example provided at https://github.com/JetBrains/intellij-ui-test-robot
 
 fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
     find<IdeaFrame>(timeout = Duration.ofSeconds(10)).apply(function)
@@ -38,6 +39,11 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val startDebugging
         get() = find<ContainerFixture>(
             byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']")
+        )
+
+    val stopDebugging
+        get() = find<ContainerFixture>(
+            byXpath("//div[contains(@myvisibleactions, 'Me')]//div[@myaction.key='action.Stop.text']")
         )
 
     val runnerTabDebugger

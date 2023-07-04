@@ -11,6 +11,8 @@ import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
 import java.time.Duration
 
+// Note: some implementation is taken from the example provided at https://github.com/JetBrains/intellij-ui-test-robot
+
 fun ContainerFixture.dialog(
     title: String,
     timeout: Duration = Duration.ofSeconds(20),

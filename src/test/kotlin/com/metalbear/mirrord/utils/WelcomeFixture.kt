@@ -7,6 +7,8 @@ import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.*
 import java.time.Duration
 
+// Note: some implementation is taken from the example provided at https://github.com/JetBrains/intellij-ui-test-robot
+
 fun RemoteRobot.welcomeFrame(function: WelcomeFrame.() -> Unit) {
     find(WelcomeFrame::class.java, Duration.ofSeconds(10)).apply(function)
 }

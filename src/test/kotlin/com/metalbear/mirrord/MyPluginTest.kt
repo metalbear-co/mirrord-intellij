@@ -61,8 +61,10 @@ internal class MirrordPluginTest {
             }
 
             step("Enable mirrord and create config file") {
-                enableMirrord.click()
-                createMirrordConfig.click()
+                dumbAware {
+                    enableMirrord.click()
+                    createMirrordConfig.click()
+                }
                 editorTabs {
                     checkFileOpened("mirrord.json")
                 }
@@ -112,6 +114,7 @@ internal class MirrordPluginTest {
                 // but if the breakpoint is hit, the debugger frames list is populated
                 xDebuggerFramesList
             }
+            stopDebugging.click()
         }
     }
 }
