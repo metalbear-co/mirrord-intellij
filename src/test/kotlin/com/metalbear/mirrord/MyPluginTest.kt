@@ -45,7 +45,7 @@ internal class MirrordPluginTest {
             val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
             println("downloading IDE...")
             ideaProcess = IdeLauncher.launchIde(
-                ideDownloader.downloadAndExtractLatestEap(Ide.PYCHARM, tmpDir),
+                ideDownloader.downloadAndExtract(Ide.PYCHARM, tmpDir, Ide.BuildType.RELEASE),
                 mapOf(
                     "robot-server.port" to 8082,
                     "idea.trust.all.projects" to true,
