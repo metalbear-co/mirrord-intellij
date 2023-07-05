@@ -1,1 +1,0 @@
-The plugin now fetches mirrord binaries at runtime.

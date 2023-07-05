@@ -8,6 +8,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.49.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.49.0) - 2023-07-05
+
+
+### Added
+
+- Target selection dialog now allows filtering for pods and deployments.
+  [#25](https://github.com/metalbear-co/mirrord-intellij/issues/25)
+
+
+### Internal
+
+- Add CONTRIBUTING.md
+
+
 ## [3.48.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.48.0) - 2023-06-23
 
 
