@@ -21,7 +21,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+import org.junit.jupiter.api.extension.TestWatcher
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.extension.ExtensionContext
+import java.io.File
+import javax.imageio.ImageIO
 
+@ExtendWith(MirrordPluginTest.IdeTestWatcher::class)
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
 internal class MirrordPluginTest {
     companion object {
@@ -173,4 +179,11 @@ internal class MirrordPluginTest {
             stopDebugging.click()
         }
     }
+
+    class IdeTestWatcher : TestWatcher {
+        override fun testFailed(context: ExtensionContext, cause: Throwable?) {
+            ImageIO.write(remoteRobot.getScreenshot(), "png", File("build/reports", "${context.displayName}.png"))
+        }
+    }
+
 }
