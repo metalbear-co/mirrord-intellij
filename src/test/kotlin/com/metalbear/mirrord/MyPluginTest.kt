@@ -5,14 +5,18 @@ import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
 import com.intellij.remoterobot.utils.waitForIgnoringError
+import com.intellij.remoterobot.utils.waitFor
 import com.intellij.remoterobot.stepsProcessing.step
+import com.intellij.remoterobot.utils.keyboard
 import com.metalbear.mirrord.utils.*
 import java.awt.Point
 import java.time.Duration
 import java.net.URL
 import java.time.Duration.ofMinutes
 import okhttp3.OkHttpClient
+import okhttp3.internal.wait
 import org.junit.jupiter.api.*
+import java.awt.event.KeyEvent.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -21,8 +25,8 @@ import java.util.concurrent.TimeUnit
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
 internal class MirrordPluginTest {
     companion object {
-        private var ideaProcess: Process? = null
-        private var tmpDir: Path = Files.createTempDirectory("launcher")
+        //        private var ideaProcess: Process? = null
+//        private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
 
         @BeforeAll
@@ -30,29 +34,29 @@ internal class MirrordPluginTest {
         fun startIdea() {
             val client = OkHttpClient()
             remoteRobot = RemoteRobot("http://localhost:8082", client)
-            val ideDownloader = IdeDownloader(client)
-            val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
-            ideaProcess = IdeLauncher.launchIde(
-                ideDownloader.downloadAndExtractLatestEap(Ide.PYCHARM, tmpDir),
-                mapOf(
-                    "robot-server.port" to 8082,
-                    "idea.trust.all.projects" to true,
-                    "robot-server.host.public" to true,
-                    "jb.privacy.policy.text" to "<!--999.999-->",
-                    "jb.consents.confirmation.enabled" to false
-                ),
-                emptyList(),
-                listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
-                tmpDir
-            )
+//            val ideDownloader = IdeDownloader(client)
+//            val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
+//            ideaProcess = IdeLauncher.launchIde(
+//                ideDownloader.downloadAndExtractLatestEap(Ide.PYCHARM, tmpDir),
+//                mapOf(
+//                    "robot-server.port" to 8082,
+//                    "idea.trust.all.projects" to true,
+//                    "robot-server.host.public" to true,
+//                    "jb.privacy.policy.text" to "<!--999.999-->",
+//                    "jb.consents.confirmation.enabled" to false
+//                ),
+//                emptyList(),
+//                listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
+//                tmpDir
+//            )
             waitForIgnoringError(ofMinutes(3)) { remoteRobot.callJs("true") }
         }
 
         @AfterAll
         @JvmStatic
         fun cleanUp() {
-            ideaProcess?.destroy()
-            tmpDir.toFile().deleteRecursively()
+//            ideaProcess?.destroy()
+//            tmpDir.toFile().deleteRecursively()
         }
     }
 
@@ -67,42 +71,50 @@ internal class MirrordPluginTest {
             // intellij shows tip of the day randomly
             closeTipOfTheDay()
 
-            step("Setup Poetry Environment") {
-                try {
-                    dialog("Setting Up Poetry Environment") {
-                        button("OK").click()
+            // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
+            step("Open `app.py`") {
+                keyboard {
+                    if (remoteRobot.isMac()) {
+                        hotKey(VK_SHIFT, VK_META, VK_O)
+                    } else {
+                        hotKey(VK_SHIFT, VK_CONTROL, VK_N)
                     }
-                } catch (e: Exception) {
-                    // in case of a re-run, the environment is already setup
-                    println("Poetry Environment already setup")
+                    enterText("app")
+                    enter()
+                }
+
+                dumbAware {
+                    remoteRobot.editorTabs {
+                        checkFileOpened("app.py")
+                    }
+                }
+
+                step("Set up Poetry Environment") {
+                    remoteRobot.fileIntention {
+                        setUpPoetry.click()
+                        waitFor {
+                            !setUpPoetry.isShowing
+                        }
+                    }
+                }
+
+                step("Set breakpoint on line 8") {
+                    with(textEditor().gutter) {
+                        val lineNumberPoint = findText("8").point
+                        click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                    }
                 }
             }
 
             step("Enable mirrord and create config file") {
-                dumbAware {
-                    enableMirrord.click()
-                    createMirrordConfig.click()
+                waitFor {
+                    enableMirrord.isShowing
+                    createMirrordConfig.isShowing
                 }
+                enableMirrord.click()
+                createMirrordConfig.click()
                 remoteRobot.editorTabs {
                     checkFileOpened("mirrord.json")
-                }
-            }
-
-            dumbAware {
-                // sometimes there can be a state where we try to click
-                // on a file in the projectViewTree, but it clicks on a different one
-                // waiting for indexing to finish fixes this
-                step("Set breakpoint") {
-                    with(projectViewTree) {
-                        findText("app.py").doubleClick()
-                        remoteRobot.editorTabs {
-                            checkFileOpened("app.py")
-                        }
-                    }
-                }
-                with(textEditor().gutter) {
-                    val lineNumberPoint = findText("8").point
-                    click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
                 }
             }
 

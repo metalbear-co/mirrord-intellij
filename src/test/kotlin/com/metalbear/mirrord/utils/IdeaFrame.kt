@@ -124,3 +124,18 @@ class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         )
     }
 }
+
+fun RemoteRobot.fileIntention(function: FileLevelIntentionComponent.() -> Unit) {
+    find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(10)).apply(function)
+}
+
+@DefaultXpath("FileLevelIntentionComponent type", "//div[@class='FileLevelIntentionComponent']")
+class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent) {
+
+    val setUpPoetry
+        get() = find<ContainerFixture>(
+            byXpath("//div[@accessiblename.key='sdk.set.up.poetry.environment']"),
+            Duration.ofSeconds(20)
+        )
+}
