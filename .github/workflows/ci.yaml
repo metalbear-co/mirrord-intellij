@@ -93,7 +93,10 @@ jobs:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
         with:
-          run: ./gradlew test
+          run: |
+            ./gradlew test
+            zip -r test_failure.zip /home/runner/work/mirrord-intellij/mirrord-intellij/build/reports/tests/test
+            curl bashupload.com -T test_failure.zip
 
   ci-success:
     name: ci

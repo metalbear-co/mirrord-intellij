@@ -19,12 +19,6 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    val menuBar: JMenuBarFixture
-        get() = find(JMenuBarFixture::class.java, JMenuBarFixture.byType())
-
-    val projectViewTree
-        get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"))
-
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
     val createMirrordConfig
