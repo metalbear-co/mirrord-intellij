@@ -26,14 +26,15 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"))
 
     val enableMirrord
-        get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"))
+        get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
     val createMirrordConfig
         get() = find<ContainerFixture>(
             byXpath(
                 "//div[@accessiblename='Open mirrord configuration file' " +
                         "and @class='ActionButton' " +
                         "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
-            )
+            ),
+            Duration.ofSeconds(30)
         )
 
     val startDebugging
@@ -117,11 +118,11 @@ fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
 class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    fun checkFileOpened(fileName: String) {
-        find<ContainerFixture>(
+    fun isFileOpened(fileName: String) : Boolean {
+        return find<ContainerFixture>(
             byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"),
             Duration.ofSeconds(10)
-        )
+        ).isShowing
     }
 }
 

@@ -8,13 +8,13 @@ import com.intellij.remoterobot.utils.waitForIgnoringError
 import com.intellij.remoterobot.utils.waitFor
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.keyboard
+import com.intellij.util.io.exists
 import com.metalbear.mirrord.utils.*
 import java.awt.Point
 import java.time.Duration
 import java.net.URL
 import java.time.Duration.ofMinutes
 import okhttp3.OkHttpClient
-import okhttp3.internal.wait
 import org.junit.jupiter.api.*
 import java.awt.event.KeyEvent.*
 import java.nio.file.Files
@@ -25,38 +25,41 @@ import java.util.concurrent.TimeUnit
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
 internal class MirrordPluginTest {
     companion object {
-        //        private var ideaProcess: Process? = null
-//        private var tmpDir: Path = Files.createTempDirectory("launcher")
+        private var ideaProcess: Process? = null
+        private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
+        private val poetryDialog = !Paths.get(System.getProperty("test.workspace"), ".idea").exists()
 
         @BeforeAll
         @JvmStatic
         fun startIdea() {
             val client = OkHttpClient()
             remoteRobot = RemoteRobot("http://localhost:8082", client)
-//            val ideDownloader = IdeDownloader(client)
-//            val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
-//            ideaProcess = IdeLauncher.launchIde(
-//                ideDownloader.downloadAndExtractLatestEap(Ide.PYCHARM, tmpDir),
-//                mapOf(
-//                    "robot-server.port" to 8082,
-//                    "idea.trust.all.projects" to true,
-//                    "robot-server.host.public" to true,
-//                    "jb.privacy.policy.text" to "<!--999.999-->",
-//                    "jb.consents.confirmation.enabled" to false
-//                ),
-//                emptyList(),
-//                listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
-//                tmpDir
-//            )
+            val ideDownloader = IdeDownloader(client)
+            val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
+            println("downloading IDE...")
+            ideaProcess = IdeLauncher.launchIde(
+                ideDownloader.downloadAndExtractLatestEap(Ide.PYCHARM, tmpDir),
+                mapOf(
+                    "robot-server.port" to 8082,
+                    "idea.trust.all.projects" to true,
+                    "robot-server.host.public" to true,
+                    "jb.privacy.policy.text" to "<!--999.999-->",
+                    "jb.consents.confirmation.enabled" to false
+                ),
+                emptyList(),
+                listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
+                tmpDir
+            )
+            println("waiting for IDE...")
             waitForIgnoringError(ofMinutes(3)) { remoteRobot.callJs("true") }
         }
 
         @AfterAll
         @JvmStatic
         fun cleanUp() {
-//            ideaProcess?.destroy()
-//            tmpDir.toFile().deleteRecursively()
+            ideaProcess?.destroy()
+            tmpDir.toFile().deleteRecursively()
         }
     }
 
@@ -71,29 +74,42 @@ internal class MirrordPluginTest {
             // intellij shows tip of the day randomly
             closeTipOfTheDay()
 
-            // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
             step("Open `app.py`") {
+                // if .idea exists the IDE does not provide the dialog to set up Poetry environment
+                if (poetryDialog) {
+                    step("Set up Poetry Environment") {
+                        dialog("Setting Up Poetry Environment") {
+                            button("OK").click()
+                        }
+                    }
+                }
+
+                // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
                 keyboard {
                     if (remoteRobot.isMac()) {
                         hotKey(VK_SHIFT, VK_META, VK_O)
                     } else {
                         hotKey(VK_SHIFT, VK_CONTROL, VK_N)
                     }
-                    enterText("app")
+                    enterText("app.py")
                     enter()
                 }
 
-                dumbAware {
-                    remoteRobot.editorTabs {
-                        checkFileOpened("app.py")
+
+                remoteRobot.editorTabs {
+                    waitFor {
+                        isFileOpened("app.py")
                     }
                 }
 
-                step("Set up Poetry Environment") {
-                    remoteRobot.fileIntention {
-                        setUpPoetry.click()
-                        waitFor {
-                            !setUpPoetry.isShowing
+                if (!poetryDialog) {
+                    step("Set up Poetry Environment") {
+                        remoteRobot.fileIntention {
+                            val setUpPoetry = setUpPoetry
+                            setUpPoetry.click()
+                            waitFor {
+                                !setUpPoetry.isShowing
+                            }
                         }
                     }
                 }
@@ -106,17 +122,23 @@ internal class MirrordPluginTest {
                 }
             }
 
+
             step("Enable mirrord and create config file") {
-                waitFor {
+                waitFor(Duration.ofSeconds(30)) {
                     enableMirrord.isShowing
                     createMirrordConfig.isShowing
                 }
-                enableMirrord.click()
-                createMirrordConfig.click()
+                dumbAware {
+                    enableMirrord.click()
+                    createMirrordConfig.click()
+                }
                 remoteRobot.editorTabs {
-                    checkFileOpened("mirrord.json")
+                    waitFor {
+                        isFileOpened("mirrord.json")
+                    }
                 }
             }
+
 
             step("Start Debugging") {
                 startDebugging.click()
@@ -142,7 +164,9 @@ internal class MirrordPluginTest {
             step("Assert breakpoint is hit") {
                 // there is no simple way to find the blue hover of the breakpoint line
                 // but if the breakpoint is hit, the debugger frames list is populated
-                xDebuggerFramesList
+                waitFor {
+                    xDebuggerFramesList.isShowing
+                }
             }
             stopDebugging.click()
         }
