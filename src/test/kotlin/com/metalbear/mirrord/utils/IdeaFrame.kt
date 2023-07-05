@@ -11,7 +11,7 @@ import java.time.Duration
 // Note: some implementation is taken from the example provided at https://github.com/JetBrains/intellij-ui-test-robot
 
 fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
-    find<IdeaFrame>(timeout = Duration.ofSeconds(10)).apply(function)
+    find<IdeaFrame>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
 @FixtureName("Idea frame")
