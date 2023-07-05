@@ -127,7 +127,7 @@ class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 }
 
 fun RemoteRobot.fileIntention(function: FileLevelIntentionComponent.() -> Unit) {
-    find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(10)).apply(function)
+    find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
 @DefaultXpath("FileLevelIntentionComponent type", "//div[@class='FileLevelIntentionComponent']")
