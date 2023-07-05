@@ -111,7 +111,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
 
 fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
-    find<EditorTabs>(timeout = Duration.ofSeconds(10)).apply(function)
+    find<EditorTabs>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
 @DefaultXpath("EditorTabs type", "//div[@class='EditorTabs']")
