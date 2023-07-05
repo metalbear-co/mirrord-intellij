@@ -95,8 +95,14 @@ jobs:
         with:
           run: |
             ./gradlew test
-            zip -r test_failure.zip /home/runner/work/mirrord-intellij/mirrord-intellij/build/reports/tests/test
-            curl bashupload.com -T test_failure.zip
+
+      - name: Save fails report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: mirrord-plugin-fail-report
+          path: |
+            mirrord-intellij/build/reports            
 
   ci-success:
     name: ci
