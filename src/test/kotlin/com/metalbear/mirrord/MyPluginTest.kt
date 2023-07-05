@@ -64,13 +64,13 @@ internal class MirrordPluginTest {
     }
 
     @Test
-    fun testMirrordFlow() {
+    fun testMirrordFlow() = with(remoteRobot) {
         step("Welcome Frame") {
-            remoteRobot.welcomeFrame {
+            welcomeFrame {
                 openProject(System.getProperty("test.workspace"))
             }
         }
-        remoteRobot.idea {
+        idea {
             // intellij shows tip of the day randomly
             closeTipOfTheDay()
 
@@ -97,7 +97,7 @@ internal class MirrordPluginTest {
                     }
 
 
-                    remoteRobot.editorTabs {
+                    editorTabs {
                         waitFor {
                             isFileOpened("app.py")
                         }
@@ -106,7 +106,7 @@ internal class MirrordPluginTest {
 
                 if (!poetryDialog) {
                     step("Set up Poetry Environment") {
-                        remoteRobot.fileIntention {
+                        fileIntention {
                             val setUpPoetry = setUpPoetry
                             setUpPoetry.click()
                             waitFor {
@@ -134,7 +134,7 @@ internal class MirrordPluginTest {
                     enableMirrord.click()
                     createMirrordConfig.click()
                 }
-                remoteRobot.editorTabs {
+                editorTabs {
                     waitFor {
                         isFileOpened("mirrord.json")
                     }
