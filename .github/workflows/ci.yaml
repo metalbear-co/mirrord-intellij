@@ -102,7 +102,7 @@ jobs:
         with:
           name: mirrord-plugin-fail-report
           path: |
-            mirrord-intellij/build/reports            
+            /home/runner/work/mirrord-intellij/mirrord-intellij/build/reports            
 
   ci-success:
     name: ci
