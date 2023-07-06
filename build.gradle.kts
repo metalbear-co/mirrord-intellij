@@ -28,9 +28,13 @@ repositories {
     maven {
         url =  uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
     }
+
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+    }
 }
 
-val remoteRobotVersion = "0.11.18"
+val remoteRobotVersion = "0.11.19"
 
 dependencies {
     implementation(project(":mirrord-products-idea"))
@@ -41,7 +45,7 @@ dependencies {
     implementation(project(":mirrord-products-rider"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
-    testImplementation("com.intellij.remoterobot:ide-launcher:$remoteRobotVersion")
+    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
@@ -98,7 +102,7 @@ allprojects {
 gradle.taskGraph.whenReady(closureOf<TaskExecutionGraph> {
     val ignoreSubprojectTasks = listOf(
         "buildSearchableOptions", "listProductsReleases", "patchPluginXml", "publishPlugin", "runIde", "runPluginVerifier",
-        "verifyPlugin"
+        "verifyPlugin", "runIdeForUiTests"
     )
 
     // Don't run some tasks for subprojects

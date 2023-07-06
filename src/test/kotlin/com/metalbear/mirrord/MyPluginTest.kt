@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.io.File
 import javax.imageio.ImageIO
+import com.intellij.remoterobot.steps.CommonSteps
 
 @ExtendWith(MirrordPluginTest.IdeTestWatcher::class)
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
@@ -35,6 +36,7 @@ internal class MirrordPluginTest {
         private var ideaProcess: Process? = null
         private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
+        private val steps = CommonSteps(remoteRobot)
         private val poetryDialog = !Paths.get(System.getProperty("test.workspace"), ".idea").exists()
 
         @BeforeAll
@@ -46,13 +48,11 @@ internal class MirrordPluginTest {
             val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
             println("downloading IDE...")
             ideaProcess = IdeLauncher.launchIde(
-                ideDownloader.downloadAndExtract(Ide.PYCHARM, tmpDir, Ide.BuildType.RELEASE),
+                ideDownloader.downloadAndExtract(Ide.PYCHARM_COMMUNITY, tmpDir, Ide.BuildType.RELEASE),
                 mapOf(
                     "robot-server.port" to 8082,
                     "idea.trust.all.projects" to true,
                     "robot-server.host.public" to true,
-                    "jb.privacy.policy.text" to "<!--999.999-->",
-                    "jb.consents.confirmation.enabled" to false,
                     "ide.show.tips.on.startup.default.value" to false,
                 ),
                 emptyList(),
@@ -80,7 +80,7 @@ internal class MirrordPluginTest {
     fun testMirrordFlow() = with(remoteRobot) {
         step("Welcome Frame") {
             welcomeFrame {
-                openProject(System.getProperty("test.workspace"))
+                steps.openProject(System.getProperty("test.workspace"))
             }
         }
         idea {

@@ -17,29 +17,4 @@ fun RemoteRobot.welcomeFrame(function: WelcomeFrame.() -> Unit) {
 @DefaultXpath("type", "//div[@class='FlatWelcomeFrame']")
 class WelcomeFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
-    fun openProject(absolutePath: String) {
-        remoteRobot.runJs(
-            """
-            importClass(com.intellij.openapi.application.ApplicationManager)
-            importClass(com.intellij.ide.impl.OpenProjectTask)
-           
-            const projectManager = com.intellij.openapi.project.ex.ProjectManagerEx.getInstanceEx()
-            let task 
-            try { 
-                task = OpenProjectTask.build()
-            } catch(e) {
-                task = OpenProjectTask.newProject()
-            }
-            const path = new java.io.File("$absolutePath").toPath()
-           
-            const openProjectFunction = new Runnable({
-                run: function() {
-                    projectManager.openProject(path, task)
-                }
-            })
-           
-            ApplicationManager.getApplication().invokeLater(openProjectFunction)
-        """
-        )
-    }
 }
