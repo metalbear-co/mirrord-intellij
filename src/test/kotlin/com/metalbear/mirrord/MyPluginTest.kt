@@ -87,13 +87,13 @@ internal class MirrordPluginTest {
         idea {
             step("Open `app.py`") {
                 // if .idea exists the IDE does not provide the dialog to set up Poetry environment
-                if (poetryDialog) {
-                    step("Set up Poetry Environment") {
-                        dialog("Setting Up Poetry Environment") {
-                            button("OK").click()
-                        }
-                    }
-                }
+//                if (poetryDialog) {
+//                    step("Set up Poetry Environment") {
+//                        dialog("Setting Up Poetry Environment") {
+//                            button("OK").click()
+//                        }
+//                    }
+//                }
 
                 // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
                 dumbAware {
@@ -115,7 +115,7 @@ internal class MirrordPluginTest {
                     }
                 }
 
-                if (!poetryDialog) {
+//                if (!poetryDialog) {
                     step("Set up Poetry Environment") {
                         fileIntention {
                             val setUpPoetry = setUpPoetry
@@ -125,7 +125,7 @@ internal class MirrordPluginTest {
                             }
                         }
                     }
-                }
+//                }
 
                 step("Set breakpoint on line 8") {
                     with(textEditor().gutter) {
