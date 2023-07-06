@@ -163,6 +163,10 @@ internal class MirrordPluginTest {
                 }
             }
 
+            editorTabs {
+                findText("app.py").click()
+            }
+
 
             step("Start Debugging") {
                 startDebugging.click()
