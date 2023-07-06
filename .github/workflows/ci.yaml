@@ -71,6 +71,7 @@ jobs:
         with:
           python-version: 3.11
       - uses: abatilo/actions-poetry@v2
+      - run: poetry --version
       - name: get mirrord latest
         run: |
           curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash

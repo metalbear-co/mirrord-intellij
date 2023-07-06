@@ -15,7 +15,7 @@ import java.time.Duration
 
 fun ContainerFixture.dialog(
     title: String,
-    timeout: Duration = Duration.ofSeconds(20),
+    timeout: Duration = Duration.ofSeconds(30),
     function: DialogFixture.() -> Unit = {}): DialogFixture = step("Search for dialog with title $title") {
     find<DialogFixture>(DialogFixture.byTitle(title), timeout).apply(function)
 }
