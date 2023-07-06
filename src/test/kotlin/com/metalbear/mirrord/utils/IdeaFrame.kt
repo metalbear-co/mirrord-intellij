@@ -81,26 +81,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         """, true
         )
     }
-
-    fun closeTipOfTheDay() {
-        step("Close Tip of the Day if it appears") {
-            waitFor(Duration.ofSeconds(20)) {
-                remoteRobot.findAll(
-                    DialogFixture::class.java,
-                    byXpath("//div[@class='MyDialog'][.//div[@text='Running startup activities...']]")
-                ).isEmpty()
-            }
-            val idea: IdeaFrame = remoteRobot.find(IdeaFrame::class.java, Duration.ofSeconds(10))
-            idea.dumbAware {
-                try {
-                    idea.find(DialogFixture::class.java, DialogFixture.byTitle("Tip of the Day"))
-                        .button("Close")
-                        .click()
-                } catch (ignore: Throwable) {
-                }
-            }
-        }
-    }
 }
 
 
@@ -112,7 +92,7 @@ fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
 class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    fun isFileOpened(fileName: String) : Boolean {
+    fun isFileOpened(fileName: String): Boolean {
         return find<ContainerFixture>(
             byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"),
             Duration.ofSeconds(10)

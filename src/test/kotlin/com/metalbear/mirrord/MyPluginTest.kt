@@ -66,6 +66,10 @@ internal class MirrordPluginTest {
         @AfterAll
         @JvmStatic
         fun cleanUp() {
+            val xpathPage = URL("http://localhost:8082/").readText()
+            // create a file in build/reports
+            val file = File("build/reports/robot-page.html")
+            file.writeText(xpathPage)
             ideaProcess?.destroy()
             tmpDir.toFile().deleteRecursively()
         }
@@ -80,9 +84,6 @@ internal class MirrordPluginTest {
             }
         }
         idea {
-            // intellij shows tip of the day randomly
-            closeTipOfTheDay()
-
             step("Open `app.py`") {
                 // if .idea exists the IDE does not provide the dialog to set up Poetry environment
                 if (poetryDialog) {
