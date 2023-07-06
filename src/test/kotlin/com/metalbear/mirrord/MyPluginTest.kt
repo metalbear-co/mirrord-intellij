@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.automation.remarks.junit5.Video
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
@@ -51,7 +52,8 @@ internal class MirrordPluginTest {
                     "idea.trust.all.projects" to true,
                     "robot-server.host.public" to true,
                     "jb.privacy.policy.text" to "<!--999.999-->",
-                    "jb.consents.confirmation.enabled" to false
+                    "jb.consents.confirmation.enabled" to false,
+                    "ide.show.tips.on.startup.default.value" to false,
                 ),
                 emptyList(),
                 listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
@@ -70,6 +72,7 @@ internal class MirrordPluginTest {
     }
 
     @Test
+    @Video
     fun testMirrordFlow() = with(remoteRobot) {
         step("Welcome Frame") {
             welcomeFrame {
