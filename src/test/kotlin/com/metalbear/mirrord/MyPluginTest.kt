@@ -36,7 +36,7 @@ internal class MirrordPluginTest {
         private var ideaProcess: Process? = null
         private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
-        private val steps = CommonSteps(remoteRobot)
+        private var steps: CommonSteps? = null
         private val poetryDialog = !Paths.get(System.getProperty("test.workspace"), ".idea").exists()
 
         @BeforeAll
@@ -44,6 +44,7 @@ internal class MirrordPluginTest {
         fun startIdea() {
             val client = OkHttpClient()
             remoteRobot = RemoteRobot("http://localhost:8082", client)
+            steps = CommonSteps(remoteRobot)
             val ideDownloader = IdeDownloader(client)
             val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
             println("downloading IDE...")
@@ -80,7 +81,7 @@ internal class MirrordPluginTest {
     fun testMirrordFlow() = with(remoteRobot) {
         step("Welcome Frame") {
             welcomeFrame {
-                steps.openProject(System.getProperty("test.workspace"))
+                steps?.openProject(System.getProperty("test.workspace"))
             }
         }
         idea {
