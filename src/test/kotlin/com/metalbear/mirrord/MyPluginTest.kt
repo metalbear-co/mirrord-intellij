@@ -117,6 +117,9 @@ internal class MirrordPluginTest {
 
 
                 with(projectViewTree) {
+                    waitFor(Duration.ofSeconds(30)) {
+                        hasText("app.py")
+                    }
                     findText("app.py").doubleClick()
                 }
 //                if (!poetryDialog) {
