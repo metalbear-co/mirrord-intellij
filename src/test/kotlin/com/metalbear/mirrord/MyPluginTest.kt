@@ -2,6 +2,8 @@ package com.metalbear.mirrord
 
 import com.automation.remarks.junit5.Video
 import com.intellij.remoterobot.RemoteRobot
+import com.intellij.remoterobot.fixtures.ContainerFixture
+import com.intellij.remoterobot.fixtures.GutterFixture
 import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import java.io.File
 import javax.imageio.ImageIO
 import com.intellij.remoterobot.steps.CommonSteps
+import java.time.Duration.ofSeconds
 
 @ExtendWith(MirrordPluginTest.IdeTestWatcher::class)
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
@@ -117,7 +120,7 @@ internal class MirrordPluginTest {
 
 
                 with(projectViewTree) {
-                    waitFor(Duration.ofSeconds(30)) {
+                    waitFor(ofSeconds(30)) {
                         hasText("app.py")
                     }
                     findText("app.py").doubleClick()
@@ -135,16 +138,17 @@ internal class MirrordPluginTest {
 //                }
 
                 step("Set breakpoint on line 8") {
-                    with(textEditor().gutter) {
-                        val lineNumberPoint = findText("8").point
-                        click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                    with(textEditor()) {
+                        val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
+                        val lineNumberPoint = gutter.findText("8").point
+                        gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
                     }
                 }
             }
 
 
             step("Enable mirrord and create config file") {
-                waitFor(Duration.ofSeconds(30)) {
+                waitFor(ofSeconds(30)) {
                     enableMirrord.isShowing
                     createMirrordConfig.isShowing
                 }
@@ -163,7 +167,7 @@ internal class MirrordPluginTest {
             step("Start Debugging") {
                 startDebugging.click()
                 step("Select pod to mirror traffic from") {
-                    dialog("mirrord", Duration.ofSeconds(120)) {
+                    dialog("mirrord", ofSeconds(120)) {
                         val podToSelect = System.getenv("POD_TO_SELECT")
                         findText(podToSelect).click()
                         button("OK").click()
