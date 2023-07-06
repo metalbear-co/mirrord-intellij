@@ -123,15 +123,15 @@ internal class MirrordPluginTest {
                     findText("app.py").doubleClick()
                 }
 //                if (!poetryDialog) {
-                    step("Set up Poetry Environment") {
-                        fileIntention {
-                            val setUpPoetry = setUpPoetry
-                            setUpPoetry.click()
-                            waitFor {
-                                !setUpPoetry.isShowing
-                            }
-                        }
-                    }
+//                    step("Set up Poetry Environment") {
+//                        fileIntention {
+//                            val setUpPoetry = setUpPoetry
+//                            setUpPoetry.click()
+//                            waitFor {
+//                                !setUpPoetry.isShowing
+//                            }
+//                        }
+//                    }
 //                }
 
                 step("Set breakpoint on line 8") {
