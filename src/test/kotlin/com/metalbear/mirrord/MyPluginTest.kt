@@ -106,11 +106,15 @@ internal class MirrordPluginTest {
                         } else {
                             hotKey(VK_SHIFT, VK_CONTROL, VK_N)
                         }
-                        enterText("app.py")
-                        enter()
+                        enterText("app")
+//                        searchUI {
+//                            waitFor {
+//                                hasText("app.py")
+//                            }
+//                        }
+                        findText("app.py").click()
                     }
-//
-//
+
                     editorTabs {
                         waitFor {
                             isFileOpened("app.py")

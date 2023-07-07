@@ -117,3 +117,13 @@ class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: Rem
             Duration.ofSeconds(20)
         )
 }
+
+
+fun RemoteRobot.searchUI(function: SearchEverywhereUI.() -> Unit) {
+    find<SearchEverywhereUI>(timeout = Duration.ofSeconds(60)).apply(function)
+}
+
+@DefaultXpath("SearchEverywhereUI type", "//div[@class='SearchEverywhereUI']")
+class SearchEverywhereUI(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent) {
+}
