@@ -99,32 +99,32 @@ internal class MirrordPluginTest {
 //                }
 
                 // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
-//                dumbAware {
-//                    keyboard {
-//                        if (remoteRobot.isMac()) {
-//                            hotKey(VK_SHIFT, VK_META, VK_O)
-//                        } else {
-//                            hotKey(VK_SHIFT, VK_CONTROL, VK_N)
-//                        }
-//                        enterText("app.py")
-//                        enter()
-//                    }
-//
-//
-//                    editorTabs {
-//                        waitFor {
-//                            isFileOpened("app.py")
-//                        }
-//                    }
-//                }
-
-
-                with(projectViewTree) {
-                    waitFor(ofSeconds(30)) {
-                        hasText("app.py")
+                dumbAware {
+                    keyboard {
+                        if (remoteRobot.isMac()) {
+                            hotKey(VK_SHIFT, VK_META, VK_O)
+                        } else {
+                            hotKey(VK_SHIFT, VK_CONTROL, VK_N)
+                        }
+                        enterText("app.py")
+                        enter()
                     }
-                    findText("app.py").doubleClick()
+//
+//
+                    editorTabs {
+                        waitFor {
+                            isFileOpened("app.py")
+                        }
+                    }
                 }
+
+
+//                with(projectViewTree) {
+//                    waitFor(ofSeconds(30)) {
+//                        hasText("app.py")
+//                    }
+//                    findText("app.py").doubleClick()
+//                }
 //                if (!poetryDialog) {
 //                    step("Set up Poetry Environment") {
 //                        fileIntention {
