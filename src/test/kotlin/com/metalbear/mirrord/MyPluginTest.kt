@@ -122,12 +122,12 @@ internal class MirrordPluginTest {
                         }
                     }
                     statusBar {
-                        waitFor {
-                            try {
+                        try {
+                            waitFor {
                                 !poetryProgress.isShowing
-                            } catch (e: Exception) {
-                                false
                             }
+                        } catch (e: Exception) {
+                            // ignore
                         }
                     }
                 }
