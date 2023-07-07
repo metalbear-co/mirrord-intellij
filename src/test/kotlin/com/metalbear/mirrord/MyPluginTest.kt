@@ -10,11 +10,8 @@ import com.intellij.remoterobot.launcher.IdeLauncher
 import com.intellij.remoterobot.utils.waitForIgnoringError
 import com.intellij.remoterobot.utils.waitFor
 import com.intellij.remoterobot.stepsProcessing.step
-import com.intellij.remoterobot.utils.keyboard
-import com.intellij.util.io.exists
 import com.metalbear.mirrord.utils.*
 import java.awt.Point
-import java.time.Duration
 import java.net.URL
 import java.time.Duration.ofMinutes
 import okhttp3.OkHttpClient
@@ -40,7 +37,6 @@ internal class MirrordPluginTest {
         private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
         private var steps: CommonSteps? = null
-        private val poetryDialog = !Paths.get(System.getProperty("test.workspace"), ".idea").exists()
 
         @BeforeAll
         @JvmStatic
@@ -89,58 +85,21 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Open `app.py`") {
-                // if .idea exists the IDE does not provide the dialog to set up Poetry environment
-//                if (poetryDialog) {
-//                    step("Set up Poetry Environment") {
-//                        dialog("Setting Up Poetry Environment") {
-//                            button("OK").click()
-//                        }
-//                    }
-//                }
-
-                // Note: Press Ctrl + Shift + N on Windows/Linux, ⌘ + ⇧ + O on macOS to invoke the Navigate to file pop-up.
-//                dumbAware {
-//                    keyboard {
-//                        if (remoteRobot.isMac()) {
-//                            hotKey(VK_SHIFT, VK_META, VK_O)
-//                        } else {
-//                            hotKey(VK_SHIFT, VK_CONTROL, VK_N)
-//                        }
-//                        enterText("app")
-////                        searchUI {
-////                            waitFor {
-////                                hasText("app.py")
-////                            }
-////                        }
-//                        findText("app.py").click()
-//                    }
-//
-//                    editorTabs {
-//                        waitFor {
-//                            isFileOpened("app.py")
-//                        }
-//                    }
-//                }
-
-
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")
                     }
                     findText("app.py").doubleClick()
                 }
-//                if (!poetryDialog) {
-//                    step("Set up Poetry Environment") {
-//                        fileIntention {
-//                            val setUpPoetry = setUpPoetry
-//                            setUpPoetry.click()
-//                            waitFor {
-//                                !setUpPoetry.isShowing
-//                            }
-//                        }
-//                    }
-//                }
-
+                step("Set up Poetry Environment") {
+                    fileIntention {
+                        val setUpPoetry = setUpPoetry
+                        setUpPoetry.click()
+                        waitFor {
+                            !setUpPoetry.isShowing
+                        }
+                    }
+                }
                 step("Set breakpoint on line 8") {
                     with(textEditor()) {
                         val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
@@ -149,7 +108,6 @@ internal class MirrordPluginTest {
                     }
                 }
             }
-
 
             step("Enable mirrord and create config file") {
                 waitFor(ofSeconds(30)) {
@@ -170,7 +128,6 @@ internal class MirrordPluginTest {
             editorTabs {
                 findText("app.py").click()
             }
-
 
             step("Start Debugging") {
                 startDebugging.click()
