@@ -131,7 +131,9 @@ internal class MirrordPluginTest {
             }
 
             step("Start Debugging") {
-                startDebugging.click()
+                dumbAware {
+                    startDebugging.click()
+                }
                 step("Select pod to mirror traffic from") {
                     dialog("mirrord", ofSeconds(120)) {
                         val podToSelect = System.getenv("POD_TO_SELECT")
