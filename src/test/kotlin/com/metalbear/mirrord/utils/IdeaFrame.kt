@@ -118,12 +118,17 @@ class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: Rem
         )
 }
 
-
-fun RemoteRobot.searchUI(function: SearchEverywhereUI.() -> Unit) {
-    find<SearchEverywhereUI>(timeout = Duration.ofSeconds(60)).apply(function)
+fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
+    find<StatusBar>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
-@DefaultXpath("SearchEverywhereUI type", "//div[@class='SearchEverywhereUI']")
-class SearchEverywhereUI(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+@DefaultXpath("IdeStatusBarImpl type", "//div[@class='IdeStatusBarImpl']")
+class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
+
+    val poetryProgress
+        get() = find<ContainerFixture>(
+            byXpath("//div[@mytext.key='sdk.progress.text.setting.up.poetry.environment']"),
+            Duration.ofSeconds(20)
+        )
 }

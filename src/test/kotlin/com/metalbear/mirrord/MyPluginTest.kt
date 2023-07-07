@@ -1,6 +1,7 @@
 package com.metalbear.mirrord
 
 import com.automation.remarks.junit5.Video
+import com.intellij.openapi.roots.ui.configuration.setupNewModuleJdk
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.ContainerFixture
 import com.intellij.remoterobot.fixtures.GutterFixture
@@ -118,6 +119,15 @@ internal class MirrordPluginTest {
                         setUpPoetry.click()
                         waitFor {
                             !setUpPoetry.isShowing
+                        }
+                    }
+                    statusBar {
+                        waitFor {
+                            try {
+                                !poetryProgress.isShowing
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
                     }
                 }
