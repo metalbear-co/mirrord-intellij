@@ -84,12 +84,33 @@ internal class MirrordPluginTest {
             }
         }
         idea {
+            step("Enable mirrord and create config file") {
+                waitFor(ofSeconds(30)) {
+                    enableMirrord.isShowing
+                    createMirrordConfig.isShowing
+                }
+                dumbAware {
+                    enableMirrord.click()
+                    createMirrordConfig.click()
+                }
+                editorTabs {
+                    waitFor {
+                        isFileOpened("mirrord.json")
+                    }
+                }
+            }
+
             step("Open `app.py`") {
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")
                     }
                     findText("app.py").doubleClick()
+                    editorTabs {
+                        waitFor     {
+                            isFileOpened("app.py")
+                        }
+                    }
                 }
                 step("Set up Poetry Environment") {
                     fileIntention {
@@ -107,26 +128,6 @@ internal class MirrordPluginTest {
                         gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
                     }
                 }
-            }
-
-            step("Enable mirrord and create config file") {
-                waitFor(ofSeconds(30)) {
-                    enableMirrord.isShowing
-                    createMirrordConfig.isShowing
-                }
-                dumbAware {
-                    enableMirrord.click()
-                    createMirrordConfig.click()
-                }
-                editorTabs {
-                    waitFor {
-                        isFileOpened("mirrord.json")
-                    }
-                }
-            }
-
-            editorTabs {
-                findText("app.py").click()
             }
 
             step("Start Debugging") {
