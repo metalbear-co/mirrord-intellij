@@ -32,6 +32,9 @@ import javax.imageio.ImageIO
 @ExtendWith(MirrordPluginTest.IdeTestWatcher::class)
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
 internal class MirrordPluginTest {
+    init {
+        StepsLogger.init()
+    }
     companion object {
         private var ideaProcess: Process? = null
         private var tmpDir: Path = Files.createTempDirectory("launcher")
