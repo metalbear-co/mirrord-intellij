@@ -118,6 +118,8 @@ internal class MirrordPluginTest {
                     }
                 }
                 step("Set up Poetry Environment") {
+                    // blue hover appears on top of the text window asking
+                    // to set up poetry environment
                     fileIntention {
                         val setUpPoetry = setUpPoetry
                         setUpPoetry.click()
@@ -126,6 +128,7 @@ internal class MirrordPluginTest {
                         }
                     }
                     statusBar {
+                        // need to make sure poetry is not doing anything
                         try {
                             waitFor {
                                 !poetryProgress.isShowing
@@ -158,6 +161,9 @@ internal class MirrordPluginTest {
 
                 step("Set breakpoint on line 8") {
                     with(textEditor()) {
+                        // there is space on the right side of the line numbers
+                        // where we can click to set a breakpoint
+                        // thanks to Eugene Nizienko on intellij slack for this tip
                         val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
                         val lineNumberPoint = gutter.findText("8").point
                         gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))

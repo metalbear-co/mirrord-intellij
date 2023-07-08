@@ -91,6 +91,7 @@ fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
     find<EditorTabs>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
+// represents the open tabs in the editor
 @DefaultXpath("EditorTabs type", "//div[@class='EditorTabs']")
 class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
@@ -107,6 +108,7 @@ fun RemoteRobot.fileIntention(function: FileLevelIntentionComponent.() -> Unit) 
     find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
+// blue hover box that appears when in the text editor asking for poetry setup
 @DefaultXpath("FileLevelIntentionComponent type", "//div[@class='FileLevelIntentionComponent']")
 class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
@@ -122,6 +124,7 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
     find<StatusBar>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
+// represents the status bar at the bottom of the IDE, showing tasks like indexing
 @DefaultXpath("IdeStatusBarImpl type", "//div[@class='IdeStatusBarImpl']")
 class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
@@ -137,6 +140,7 @@ fun RemoteRobot.leftStripe(function: LeftStripe.() -> Unit) {
     find<LeftStripe>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
+// reprsents the slim bar on the left showing bookmarks, project, etc.
 @DefaultXpath("Stripe type", "//div[@class='Stripe'][.//div[contains(@text.key, 'project.scheme')]]")
 class LeftStripe(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent)
