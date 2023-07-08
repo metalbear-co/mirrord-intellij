@@ -128,6 +128,10 @@ internal class MirrordPluginTest {
                         waitFor {
                             isFileOpened("mirrord.json")
                         }
+                        findText("app.py").click()
+                        waitFor {
+                            isFileOpened("app.py")
+                        }
                     }
                 }
 
