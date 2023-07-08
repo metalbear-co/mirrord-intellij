@@ -24,7 +24,7 @@ class MirrordSettingsComponent {
             versionCheckEnabled.isEnabled = telemetryEnabled.isSelected
             if (!telemetryEnabled.isSelected) {
                 versionCheckEnabled.isSelected = false
-            } 
+            }
         }
     }
 

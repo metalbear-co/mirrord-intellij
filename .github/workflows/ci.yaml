@@ -63,8 +63,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: mirrord-build
-          path: |
-            build/  
+          path: build/
 
 
   e2e:
