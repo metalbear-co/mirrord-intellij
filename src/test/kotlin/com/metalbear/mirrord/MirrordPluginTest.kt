@@ -88,6 +88,16 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Open `app.py`") {
+                // sometimes the projectViewTree does not open, this is quite random
+                // as a workaround we try to open it again
+                val projectViewTree = try {
+                    projectViewTree
+                } catch (e: Exception) {
+                    leftStripe {
+                        findText("Project").click()
+                    }
+                    projectViewTree
+                }
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")

@@ -132,3 +132,11 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(20)
         )
 }
+
+fun RemoteRobot.leftStripe(function: LeftStripe.() -> Unit) {
+    find<LeftStripe>(timeout = Duration.ofSeconds(60)).apply(function)
+}
+
+@DefaultXpath("Stripe type", "//div[@class='Stripe'][.//div[contains(@text.key, 'project.scheme')]]")
+class LeftStripe(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent)
