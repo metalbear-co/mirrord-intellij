@@ -131,6 +131,7 @@ jobs:
       [
         towncrier_check,
         build,
+        e2e,
         lint_markdown,
       ]
     runs-on: ubuntu-latest
@@ -141,5 +142,6 @@ jobs:
         env:
           CI_SUCCESS: ${{ (needs.towncrier_check.result == 'success') &&
             (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+            (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') &&
             (needs.lint_markdown.result == 'success' || needs.lint_markdown.result == 'skipped') }}
         run: echo $CI_SUCCESS && if [ "$CI_SUCCESS" == "true" ]; then echo "SUCCESS" && exit 0; else echo "Failure" && exit 1; fi
