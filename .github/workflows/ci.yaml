@@ -65,6 +65,7 @@ jobs:
 
 
   e2e:
+    needs: [build]
     runs-on: ubuntu-latest
     env:
       CI_BUILD_PLUGIN: "true"
