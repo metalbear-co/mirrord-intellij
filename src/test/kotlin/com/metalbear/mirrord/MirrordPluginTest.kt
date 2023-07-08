@@ -84,22 +84,6 @@ internal class MirrordPluginTest {
             }
         }
         idea {
-            step("Enable mirrord and create config file") {
-                waitFor(ofSeconds(30)) {
-                    enableMirrord.isShowing
-                    createMirrordConfig.isShowing
-                }
-                dumbAware {
-                    enableMirrord.click()
-                    createMirrordConfig.click()
-                }
-                editorTabs {
-                    waitFor {
-                        isFileOpened("mirrord.json")
-                    }
-                }
-            }
-
             step("Open `app.py`") {
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
@@ -130,6 +114,23 @@ internal class MirrordPluginTest {
                         }
                     }
                 }
+
+                step("Enable mirrord and create config file") {
+                    waitFor(ofSeconds(30)) {
+                        enableMirrord.isShowing
+                        createMirrordConfig.isShowing
+                    }
+                    dumbAware {
+                        enableMirrord.click()
+                        createMirrordConfig.click()
+                    }
+                    editorTabs {
+                        waitFor {
+                            isFileOpened("mirrord.json")
+                        }
+                    }
+                }
+
                 step("Set breakpoint on line 8") {
                     with(textEditor()) {
                         val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
