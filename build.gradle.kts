@@ -1,8 +1,7 @@
-import org.gradle.api.internal.tasks.testing.junit.JUnitTestFramework
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
 import java.util.EnumSet
 
@@ -17,6 +16,8 @@ plugins {
     id("org.jetbrains.intellij") version "1.+"
     // Gradle Changelog Plugin
     id("org.jetbrains.changelog") version "2.+"
+
+    id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
 }
 
 group = properties("pluginGroup")
@@ -26,7 +27,7 @@ version = properties("pluginVersion")
 repositories {
     mavenCentral()
     maven {
-        url =  uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
     }
 
     maven {
@@ -53,6 +54,10 @@ dependencies {
     testImplementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 }
 
+subprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+}
+
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
     pluginName.set(properties("pluginName"))
@@ -66,10 +71,10 @@ intellij {
     // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
     if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
         plugins.set(
-                properties("platformPlugins")
-                        .split(',')
-                        .map(String::trim)
-                        .filter(String::isNotEmpty)
+            properties("platformPlugins")
+                .split(',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
         )
     }
 
@@ -81,7 +86,6 @@ allprojects {
     repositories {
         mavenCentral()
     }
-
 
     properties("javaVersion").let {
         tasks.withType<JavaCompile> {
@@ -95,25 +99,31 @@ allprojects {
             }
         }
     }
-
 }
 
+gradle.taskGraph.whenReady(
+    closureOf<TaskExecutionGraph> {
+        val ignoreSubprojectTasks = listOf(
+            "buildSearchableOptions",
+            "listProductsReleases",
+            "patchPluginXml",
+            "publishPlugin",
+            "runIde",
+            "runPluginVerifier",
+            "verifyPlugin",
+            "runIdeForUiTests"
+        )
 
-gradle.taskGraph.whenReady(closureOf<TaskExecutionGraph> {
-    val ignoreSubprojectTasks = listOf(
-        "buildSearchableOptions", "listProductsReleases", "patchPluginXml", "publishPlugin", "runIde", "runPluginVerifier",
-        "verifyPlugin", "runIdeForUiTests"
-    )
-
-    // Don't run some tasks for subprojects
-    for (task in allTasks) {
-        if (task.project != task.project.rootProject) {
-            when (task.name) {
-                in ignoreSubprojectTasks -> task.enabled = false
+        // Don't run some tasks for subprojects
+        for (task in allTasks) {
+            if (task.project != task.project.rootProject) {
+                when (task.name) {
+                    in ignoreSubprojectTasks -> task.enabled = false
+                }
             }
         }
     }
-})
+)
 
 tasks {
     // Removing this makes build stop working, not sure why.
@@ -139,7 +149,6 @@ tasks {
     changelog {
         version.set(properties("pluginVersion"))
         groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", "Internal"))
-
     }
 
     patchPluginXml {
@@ -158,11 +167,16 @@ tasks {
             }.joinToString("\n").run { markdownToHTML(this) }
         )
         if (!System.getenv("CI_BUILD_PLUGIN").toBoolean()) {
-            changeNotes.set(provider {
-                changelog.renderItem(changelog.run {
-                    getOrNull(properties("pluginVersion")) ?: getLatest()
-                }, Changelog.OutputType.HTML)
-        })
+            changeNotes.set(
+                provider {
+                    changelog.renderItem(
+                        changelog.run {
+                            getOrNull(properties("pluginVersion")) ?: getLatest()
+                        },
+                        Changelog.OutputType.HTML
+                    )
+                }
+            )
         }
     }
 
@@ -171,12 +185,12 @@ tasks {
         // we have custom delve until delve 20 is widely used
         val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
         binaries.forEach {
-                binary -> from(file(project.projectDir.resolve("bin").resolve(binary))) {
-                    // into treats last part as directory, so need to drop it.
-                    into(Paths.get(pluginName.get(), "bin", binary).parent.toString())
+                binary ->
+            from(file(project.projectDir.resolve("bin").resolve(binary))) {
+                // into treats last part as directory, so need to drop it.
+                into(Paths.get(pluginName.get(), "bin", binary).parent.toString())
+            }
         }
-        }
-
     }
 
     runIde {

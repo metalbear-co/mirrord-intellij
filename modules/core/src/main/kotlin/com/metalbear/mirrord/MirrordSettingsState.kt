@@ -3,7 +3,6 @@ package com.metalbear.mirrord
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.*
 
-
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
     companion object {
@@ -21,7 +20,6 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
     override fun loadState(state: MirrordState) {
         mirrordState = state
     }
-
 
     class MirrordState {
         var telemetryEnabled: Boolean? = null

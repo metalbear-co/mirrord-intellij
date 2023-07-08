@@ -1,11 +1,11 @@
 package com.metalbear.mirrord
 
 import com.intellij.openapi.application.PathManager
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.Files
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * For accessing to binaries stored in the plugin directory.

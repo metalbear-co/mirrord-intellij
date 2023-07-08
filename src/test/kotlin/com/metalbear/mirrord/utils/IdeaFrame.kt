@@ -28,8 +28,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         get() = find<ContainerFixture>(
             byXpath(
                 "//div[@accessiblename='Open mirrord configuration file' " +
-                        "and @class='ActionButton' " +
-                        "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
+                    "and @class='ActionButton' " +
+                    "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
             ),
             Duration.ofSeconds(30)
         )
@@ -81,11 +81,11 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             } else { 
                 true 
             }
-        """, true
+        """,
+            true
         )
     }
 }
-
 
 fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
     find<EditorTabs>(timeout = Duration.ofSeconds(60)).apply(function)

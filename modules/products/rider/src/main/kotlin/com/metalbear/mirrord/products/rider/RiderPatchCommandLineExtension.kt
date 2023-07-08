@@ -23,9 +23,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         }
 
-
         MirrordExecManager.start(wsl, project, "rider")?.let {
-            env ->
+                env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)
             }
@@ -33,9 +32,9 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     }
 
     override fun patchDebugCommandLine(
-            lifetime: Lifetime,
-            workerRunInfo: WorkerRunInfo,
-            project: Project
+        lifetime: Lifetime,
+        workerRunInfo: WorkerRunInfo,
+        project: Project
     ): Promise<WorkerRunInfo> {
         patchCommandLine(workerRunInfo.commandLine, project)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
@@ -43,9 +42,9 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     }
 
     override fun patchRunCommandLine(
-            commandLine: GeneralCommandLine,
-            dotNetRuntime: DotNetRuntime,
-            project: Project
+        commandLine: GeneralCommandLine,
+        dotNetRuntime: DotNetRuntime,
+        project: Project
     ): ProcessListener? {
         patchCommandLine(commandLine, project)
         return null

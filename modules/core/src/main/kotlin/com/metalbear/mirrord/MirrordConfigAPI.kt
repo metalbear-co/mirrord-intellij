@@ -1,21 +1,20 @@
 package com.metalbear.mirrord
 
-
+import com.google.gson.Gson
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.io.exists
-import com.intellij.util.io.write
-import com.google.gson.Gson
 import com.intellij.util.io.readText
+import com.intellij.util.io.write
 import java.nio.file.Path
 
-data class Target (
+data class Target(
     val namespace: String?,
     val path: Any?
 )
 
-data class ConfigData (
+data class ConfigData(
     val target: Target?
 )
 
@@ -79,7 +78,6 @@ object MirrordConfigAPI {
         val configData = getConfigData(project)
         return configData?.target?.path
     }
-
 
     /**
      * Returns whether target is set in config.

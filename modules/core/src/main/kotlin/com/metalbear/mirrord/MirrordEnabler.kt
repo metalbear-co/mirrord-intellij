@@ -7,7 +7,6 @@ import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 
-
 @Suppress("DialogTitleCapitalization")
 class MirrordEnabler : ToggleAction() {
 
@@ -16,14 +15,13 @@ class MirrordEnabler : ToggleAction() {
     }
 
     override fun setSelected(e: AnActionEvent, state: Boolean) {
-
         if (state) {
             MirrordNotifier.notify("mirrord enabled", NotificationType.INFORMATION, e.project)
         } else {
             MirrordNotifier.notify("mirrord disabled", NotificationType.INFORMATION, e.project)
         }
         MirrordExecManager.enabled = state
-        if (MirrordSettingsState.instance.mirrordState.telemetryEnabled == null ) {
+        if (MirrordSettingsState.instance.mirrordState.telemetryEnabled == null) {
             telemetryConsent(e.project)
         }
     }
@@ -33,7 +31,6 @@ class MirrordEnabler : ToggleAction() {
      */
     private fun telemetryConsent(project: Project?) {
         ApplicationManager.getApplication().invokeLater {
-
             MirrordNotifier.notifier(
                 "Allow mirrord to send telemetries",
                 NotificationType.INFORMATION

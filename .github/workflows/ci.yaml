@@ -25,6 +25,15 @@ jobs:
       - name: verify newsfragment exist
         run: towncrier check
 
+  lint_markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: avto-dev/markdown-lint@v1
+        with:
+          config: "markdownlint-config.json"
+          args: "README.md"
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -45,15 +54,14 @@ jobs:
           CI_BUILD_PLUGIN: true
         run: |
           ./gradlew runPluginVerifier
-
-  lint_markdown:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: avto-dev/markdown-lint@v1
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+      - name: Upload build folder
+        uses: actions/upload-artifact@v3
         with:
-          config: "markdownlint-config.json"
-          args: "README.md"
+          name: mirrord-build
+          path: |
+            build/  
 
 
   e2e:
@@ -90,10 +98,12 @@ jobs:
       - name: Setup FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v2
         with:
-          # Not strictly necessary, but it may prevent rate limit
-          # errors especially on GitHub-hosted macos machines.
           token: ${{ secrets.GITHUB_TOKEN }}
-      - run: ./gradlew build -x test
+      - name: Download build folder
+        uses: actions/download-artifact@v3
+        with:
+          name: mirrord-build
+          path: build/
       - name: Run intellij e2e in headless state
         uses: coactions/setup-xvfb@v1
         env:
@@ -101,20 +111,17 @@ jobs:
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
         with:
           run: ./gradlew test
-
       - name: Move video
         if: ${{ failure() }}
-        run: |
-          pwd
-          mv /home/runner/work/mirrord-intellij/mirrord-intellij/video /home/runner/work/mirrord-intellij/mirrord-intellij/build/reports
-
+        run: |          
+          mv video build/reports
       - name: Save fails report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
           name: mirrord-plugin-fail-report
           path: |
-            /home/runner/work/mirrord-intellij/mirrord-intellij/build/reports                  
+            build/reports                  
 
   ci-success:
     name: ci

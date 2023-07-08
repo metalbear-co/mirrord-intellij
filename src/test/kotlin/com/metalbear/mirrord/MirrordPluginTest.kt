@@ -1,34 +1,33 @@
 package com.metalbear.mirrord
 
 import com.automation.remarks.junit5.Video
-import com.intellij.openapi.roots.ui.configuration.setupNewModuleJdk
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.ContainerFixture
 import com.intellij.remoterobot.fixtures.GutterFixture
 import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
-import com.intellij.remoterobot.utils.waitForIgnoringError
-import com.intellij.remoterobot.utils.waitFor
+import com.intellij.remoterobot.steps.CommonSteps
 import com.intellij.remoterobot.stepsProcessing.step
+import com.intellij.remoterobot.utils.waitFor
+import com.intellij.remoterobot.utils.waitForIgnoringError
 import com.metalbear.mirrord.utils.*
-import java.awt.Point
-import java.net.URL
-import java.time.Duration.ofMinutes
 import okhttp3.OkHttpClient
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.api.extension.TestWatcher
+import java.awt.Point
 import java.awt.event.KeyEvent.*
+import java.io.File
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.concurrent.TimeUnit
-import org.junit.jupiter.api.extension.TestWatcher
-import org.junit.jupiter.api.extension.ExtendWith
-import org.junit.jupiter.api.extension.ExtensionContext
-import java.io.File
-import javax.imageio.ImageIO
-import com.intellij.remoterobot.steps.CommonSteps
+import java.time.Duration.ofMinutes
 import java.time.Duration.ofSeconds
+import java.util.concurrent.TimeUnit
+import javax.imageio.ImageIO
 
 @ExtendWith(MirrordPluginTest.IdeTestWatcher::class)
 @Timeout(value = 15, unit = TimeUnit.MINUTES)
@@ -54,7 +53,7 @@ internal class MirrordPluginTest {
                     "robot-server.port" to 8082,
                     "idea.trust.all.projects" to true,
                     "robot-server.host.public" to true,
-                    "ide.show.tips.on.startup.default.value" to false,
+                    "ide.show.tips.on.startup.default.value" to false
                 ),
                 emptyList(),
                 listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
@@ -108,7 +107,7 @@ internal class MirrordPluginTest {
                     }
                     findText("app.py").doubleClick()
                     editorTabs {
-                        waitFor     {
+                        waitFor {
                             isFileOpened("app.py")
                         }
                     }
@@ -179,5 +178,4 @@ internal class MirrordPluginTest {
             ImageIO.write(remoteRobot.getScreenshot(), "png", File("build/reports", "${context.displayName}.png"))
         }
     }
-
 }

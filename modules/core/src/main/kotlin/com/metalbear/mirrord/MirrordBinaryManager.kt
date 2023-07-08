@@ -7,17 +7,17 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
-import java.nio.charset.Charset
-import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import java.net.URI
+import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.net.URLEncoder
+import java.nio.charset.Charset
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * For dynamically fetching and storing mirrord binary.
@@ -96,8 +96,8 @@ object MirrordBinaryManager {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is checking the latest supported version..."
 
-                val testing = System.getenv("CI_BUILD_PLUGIN") == "true"
-                        || System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
+                val testing = System.getenv("CI_BUILD_PLUGIN") == "true" ||
+                    System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
                 val version = if (testing) {
                     "test"
                 } else {
@@ -105,20 +105,20 @@ object MirrordBinaryManager {
                 }
 
                 val url = StringBuilder(versionEndpoint)
-                        .append("?source=3")
-                        .append("&version=")
-                        .append(URLEncoder.encode(version, Charset.defaultCharset()))
-                        .append("&platform=")
-                        .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
-                        .toString()
+                    .append("?source=3")
+                    .append("&version=")
+                    .append(URLEncoder.encode(version, Charset.defaultCharset()))
+                    .append("&platform=")
+                    .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
+                    .toString()
 
                 val client = HttpClient.newHttpClient()
                 val request = HttpRequest
-                        .newBuilder(URI(url))
-                        .header("user-agent", product)
-                        .timeout(timeout)
-                        .GET()
-                        .build()
+                    .newBuilder(URI(url))
+                    .header("user-agent", product)
+                    .timeout(timeout)
+                    .GET()
+                    .build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
 
                 environment.complete(response.body())
@@ -202,9 +202,9 @@ object MirrordBinaryManager {
      * Fetches mirrord binary.
      * Downloads and stores it in the plugin directory if necessary (local version is missing or outdated).
      *
-     * @return  the path to the binary
+     * @return the path to the binary
      *
-     * @throws  RuntimeException
+     * @throws RuntimeException
      */
     fun getBinary(project: Project, product: String, wslDistribution: WSLDistribution?): String {
         val timeout = if (this.getLocalBinary(null, wslDistribution) == null) 10L else 1L
