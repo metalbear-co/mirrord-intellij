@@ -39,6 +39,11 @@ object MirrordExecDialog {
         var deployments = MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true
 
         /**
+         * Whether to show rollouts.
+         */
+        var rollouts = MirrordSettingsState.instance.mirrordState.showRolloutsInSelection ?: false
+
+        /**
          * Show only targets containing this phrase.
          */
         var searchPhrase = ""
@@ -49,16 +54,21 @@ object MirrordExecDialog {
         val targets: List<String>
             get() {
                 return this.availableTargets
-                    .filter { this.pods && (it.startsWith("pod/")) || (this.deployments && it.startsWith("deployment/")) }
-                    .filter { it.contains(this.searchPhrase) }
-                    .toMutableList()
-                    .apply {
-                        sort()
-                        MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
-                            val idx = this.indexOf(it)
-                            if (idx != -1) {
-                                this.removeAt(idx)
-                                this.add(0, it)
+                        .filter { 
+                            (this.pods && it.startsWith("pod/")) 
+                            || (this.deployments && it.startsWith("deployment/")) 
+                            || (this.rollouts && it.startsWith("rollout/")) 
+                        }
+                        .filter { it.contains(this.searchPhrase) }
+                        .toMutableList()
+                        .apply {
+                            sort()
+                            MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
+                                val idx = this.indexOf(it)
+                                if (idx != -1) {
+                                    this.removeAt(idx)
+                                    this.add(0, it)
+                                }
                             }
                         }
                         add(targetlessTargetName)
@@ -136,10 +146,23 @@ object MirrordExecDialog {
             })
         }
         val filterHelpers = listOf(
-            JBCheckBox("Pods", targetsState.pods).apply {
-                this.addActionListener {
-                    targetsState.pods = this.isSelected
-                    jbTargets.setListData(targetsState.targets.toTypedArray())
+                JBCheckBox("Pods", targetsState.pods).apply {
+                    this.addActionListener {
+                        targetsState.pods = this.isSelected
+                        jbTargets.setListData(targetsState.targets.toTypedArray())
+                    }
+                },
+                JBCheckBox("Deployments", targetsState.deployments).apply {
+                    this.addActionListener {
+                        targetsState.deployments = this.isSelected
+                        jbTargets.setListData(targetsState.targets.toTypedArray())
+                    }
+                },
+                JBCheckBox("Rollouts", targetsState.rollouts).apply {
+                    this.addActionListener {
+                        targetsState.rollouts = this.isSelected
+                        jbTargets.setListData(targetsState.targets.toTypedArray())
+                    }
                 }
             },
             JBCheckBox("Deployments", targetsState.deployments).apply {
@@ -158,6 +181,7 @@ object MirrordExecDialog {
         if (result == DialogWrapper.OK_EXIT_CODE) {
             MirrordSettingsState.instance.mirrordState.showPodsInSelection = targetsState.pods
             MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection = targetsState.deployments
+            MirrordSettingsState.instance.mirrordState.showRolloutsInSelection = targetsState.rollouts
 
             if (jbTargets.isSelectionEmpty) {
                 // The user did not select any target, and clicked ok.
