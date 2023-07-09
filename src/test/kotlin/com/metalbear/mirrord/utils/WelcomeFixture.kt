@@ -1,5 +1,3 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-
 package com.metalbear.mirrord.utils
 
 import com.intellij.remoterobot.RemoteRobot
@@ -13,6 +11,7 @@ fun RemoteRobot.welcomeFrame(function: WelcomeFrame.() -> Unit) {
     find(WelcomeFrame::class.java, Duration.ofSeconds(10)).apply(function)
 }
 
+// represents the first "welcome" window asking to create a new project or open an existing one
 @FixtureName("Welcome Frame")
 @DefaultXpath("type", "//div[@class='FlatWelcomeFrame']")
 class WelcomeFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :

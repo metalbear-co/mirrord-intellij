@@ -56,6 +56,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
 
+    // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
     fun dumbAware(timeout: Duration = Duration.ofMinutes(5), function: () -> Unit) {
         step("Wait for smart mode") {

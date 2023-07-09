@@ -118,8 +118,9 @@ internal class MirrordPluginTest {
                     }
                 }
                 step("Set up Poetry Environment") {
-                    // blue hover appears on top of the text window asking
-                    // to set up poetry environment
+                    // blue stripe appears on top of the text window asking
+                    // to set up poetry environment, we click on setup poetry
+                    // option to quickly set up the environment
                     fileIntention {
                         val setUpPoetry = setUpPoetry
                         setUpPoetry.click()
@@ -134,7 +135,8 @@ internal class MirrordPluginTest {
                                 !poetryProgress.isShowing
                             }
                         } catch (e: Exception) {
-                            // ignore
+                            // ignore because probably the progress bar is not showing
+                            // and all poetry setup is done
                         }
                     }
                 }
