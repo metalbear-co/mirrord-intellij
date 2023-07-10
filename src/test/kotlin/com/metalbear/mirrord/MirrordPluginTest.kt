@@ -130,13 +130,8 @@ internal class MirrordPluginTest {
                     }
                     statusBar {
                         // need to make sure poetry is not doing anything
-                        try {
-                            waitFor {
-                                !poetryProgress.isShowing
-                            }
-                        } catch (e: Exception) {
-                            // ignore because probably the progress bar is not showing
-                            // and all poetry setup is done
+                        waitFor (ofSeconds(30)) {
+                            !poetryProgress.isShowing
                         }
                     }
                 }
