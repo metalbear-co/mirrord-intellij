@@ -106,8 +106,6 @@ internal class MirrordPluginTest {
             }
 
             step("Open `app.py`") {
-                // sometimes the projectViewTree does not open, this is quite random
-                // as a workaround we try to open it again
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")
