@@ -118,7 +118,7 @@ internal class MirrordPluginTest {
                     }
                     statusBar {
                         // need to make sure poetry is not doing anything
-                        waitFor(ofSeconds(30)) {
+                        waitFor(ofSeconds(120)) {
                             isProgressBarEmpty()
                         }
                     }
