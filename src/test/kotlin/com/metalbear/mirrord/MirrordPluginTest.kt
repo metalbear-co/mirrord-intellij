@@ -90,23 +90,7 @@ internal class MirrordPluginTest {
             step("Open `app.py`") {
                 // sometimes the projectViewTree does not open, this is quite random
                 // as a workaround we try to open it again
-                var clickToOpenProject = false
-                val projectViewTree = try {
-                    projectViewTree
-                } catch (e: Exception) {
-                    leftStripe {
-                        findText("Project").click()
-                    }
-                    clickToOpenProject = true
-                    projectViewTree
-                }
                 with(projectViewTree) {
-                    if (clickToOpenProject) {
-                        waitFor(ofSeconds(30)) {
-                            hasText("test-workspace")
-                        }
-                        findText("test-workspace").doubleClick()
-                    }
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")
                     }
@@ -130,28 +114,8 @@ internal class MirrordPluginTest {
                     }
                     statusBar {
                         // need to make sure poetry is not doing anything
-                        waitFor (ofSeconds(30)) {
+                        waitFor(ofSeconds(30)) {
                             !poetryProgress.isShowing
-                        }
-                    }
-                }
-
-                step("Enable mirrord and create config file") {
-                    waitFor(ofSeconds(30)) {
-                        enableMirrord.isShowing
-                        createMirrordConfig.isShowing
-                    }
-                    dumbAware {
-                        enableMirrord.click()
-                        createMirrordConfig.click()
-                    }
-                    editorTabs {
-                        waitFor {
-                            isFileOpened("mirrord.json")
-                        }
-                        findText("app.py").click()
-                        waitFor {
-                            isFileOpened("app.py")
                         }
                     }
                 }
@@ -168,8 +132,32 @@ internal class MirrordPluginTest {
                 }
             }
 
-            step("Start Debugging") {
+            step("Create config file") {
+                waitFor(ofSeconds(30)) {
+                    createMirrordConfig.isShowing
+                }
                 dumbAware {
+                    createMirrordConfig.click()
+                }
+                editorTabs {
+                    waitFor {
+                        isFileOpened("mirrord.json")
+                    }
+                    // switch back to app.py
+                    findText("app.py").click()
+                    waitFor {
+                        isFileOpened("app.py")
+                    }
+                }
+            }
+
+            step("Enable mirrord and start debugging") {
+                waitFor(ofSeconds(30)) {
+                    enableMirrord.isShowing
+                    startDebugging.isShowing
+                }
+                dumbAware {
+                    enableMirrord.click()
                     startDebugging.click()
                 }
                 step("Select pod to mirror traffic from") {
