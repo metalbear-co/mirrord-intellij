@@ -130,11 +130,11 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
 class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    val poetryProgress
-        get() = find<ContainerFixture>(
-            byXpath("//div[@mytext.key='sdk.progress.text.setting.up.poetry.environment']"),
-            Duration.ofSeconds(20)
-        )
+    fun isProgressBarEmpty(): Boolean = step("Is progress bar showing") {
+        return@step remoteRobot.findAll<ComponentFixture>(
+            byXpath("//div[@class='JProgressBar']")
+        ).isEmpty()
+    }
 }
 
 fun RemoteRobot.leftStripe(function: LeftStripe.() -> Unit) {

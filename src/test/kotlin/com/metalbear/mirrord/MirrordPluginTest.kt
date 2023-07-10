@@ -70,9 +70,13 @@ internal class MirrordPluginTest {
         @JvmStatic
         fun cleanUp() {
             val xpathPage = URL("http://localhost:8082/").readText()
+            val xpathPageJs = URL("http://localhost:8082/xpathEditor.js").readText()
+            val xpathPageCss = URL("http://localhost:8082/styles.css").readText()
             // create a file in build/reports
-            val file = File("build/reports/robot-page.html")
-            file.writeText(xpathPage)
+            File("build/reports/robot-page.html").writeText(xpathPage)
+            File("build/reports/xpathEditor.js").writeText(xpathPageJs)
+            File("build/reports/styles.css").writeText(xpathPageCss)
+
             ideaProcess?.destroy()
             tmpDir.toFile().deleteRecursively()
         }
@@ -115,7 +119,7 @@ internal class MirrordPluginTest {
                     statusBar {
                         // need to make sure poetry is not doing anything
                         waitFor(ofSeconds(30)) {
-                            !poetryProgress.isShowing
+                            isProgressBarEmpty()
                         }
                     }
                 }
