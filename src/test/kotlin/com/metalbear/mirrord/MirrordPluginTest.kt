@@ -91,6 +91,20 @@ internal class MirrordPluginTest {
             }
         }
         idea {
+            step("Create config file") {
+                waitFor(ofSeconds(30)) {
+                    createMirrordConfig.isShowing
+                }
+                dumbAware {
+                    createMirrordConfig.click()
+                }
+                editorTabs {
+                    waitFor {
+                        isFileOpened("mirrord.json")
+                    }
+                }
+            }
+
             step("Open `app.py`") {
                 // sometimes the projectViewTree does not open, this is quite random
                 // as a workaround we try to open it again
@@ -132,25 +146,6 @@ internal class MirrordPluginTest {
                         val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
                         val lineNumberPoint = gutter.findText("8").point
                         gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
-                    }
-                }
-            }
-
-            step("Create config file") {
-                waitFor(ofSeconds(30)) {
-                    createMirrordConfig.isShowing
-                }
-                dumbAware {
-                    createMirrordConfig.click()
-                }
-                editorTabs {
-                    waitFor {
-                        isFileOpened("mirrord.json")
-                    }
-                    // switch back to app.py
-                    findText("app.py").click()
-                    waitFor {
-                        isFileOpened("app.py")
                     }
                 }
             }
