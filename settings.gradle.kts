@@ -1,14 +1,13 @@
 rootProject.name = "mirrord"
 
-
-include (
+include(
     "modules/core",
     "modules/products/idea",
     "modules/products/goland",
     "modules/products/pycharm",
     "modules/products/rubymine",
     "modules/products/nodejs",
-    "modules/products/rider",
+    "modules/products/rider"
 )
 
 // Rename modules to mirrord-<module>, I think this is required IntelliJ wise.

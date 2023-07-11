@@ -35,7 +35,6 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         commandLineType: GoRunningState.CommandLineType
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
-
             val wsl = state.targetEnvironmentRequest?.let {
                 if (it is WslTargetEnvironmentRequest) {
                     it.configuration.distribution
@@ -46,13 +45,12 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             val project = configuration.getProject()
 
             MirrordExecManager.start(wsl, project, "goland")?.let {
-                env ->
+                    env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
                 cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
             }
-
         }
         super.patchCommandLine(configuration, runnerSettings, cmdLine, runnerId, state, commandLineType)
     }
@@ -89,7 +87,6 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 }
                 executor.withParameters(*patchedParameters.toTypedArray())
             }
-
         }
         super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
     }

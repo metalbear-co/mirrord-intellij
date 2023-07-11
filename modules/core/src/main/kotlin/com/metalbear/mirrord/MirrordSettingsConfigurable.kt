@@ -3,7 +3,6 @@ package com.metalbear.mirrord
 import com.intellij.openapi.options.Configurable
 import javax.swing.JComponent
 
-
 class MirrordSettingsConfigurable : Configurable {
     private var mySettingsComponent: MirrordSettingsComponent? = null
 
@@ -19,13 +18,12 @@ class MirrordSettingsConfigurable : Configurable {
         return mySettingsComponent!!.panel
     }
 
-    override fun isModified(): Boolean
-        {
-            val settings = MirrordSettingsState.instance.mirrordState
-            var modified = (mySettingsComponent!!.telemetryEnabledStatus != settings.telemetryEnabled)
-            modified = modified || (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled)
-            return modified
-        }
+    override fun isModified(): Boolean {
+        val settings = MirrordSettingsState.instance.mirrordState
+        var modified = (mySettingsComponent!!.telemetryEnabledStatus != settings.telemetryEnabled)
+        modified = modified || (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled)
+        return modified
+    }
 
     override fun apply() {
         val settings = MirrordSettingsState.instance.mirrordState

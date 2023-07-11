@@ -8,8 +8,7 @@ import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
 import com.metalbear.mirrord.MirrordExecManager
 
-
-class PythonRunConfigurationExtension: PythonRunConfigurationExtension() {
+class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
     override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean {
         return true
     }
@@ -20,7 +19,6 @@ class PythonRunConfigurationExtension: PythonRunConfigurationExtension() {
     ): Boolean {
         return true
     }
-
 
     override fun patchCommandLine(
         configuration: AbstractPythonRunConfiguration<*>,
@@ -39,11 +37,10 @@ class PythonRunConfigurationExtension: PythonRunConfigurationExtension() {
         MirrordExecManager.start(wsl, project, "pycharm")?.let {
                 env ->
             for (entry in env.entries.iterator()) {
-                currentEnv[entry.key] =  entry.value
+                currentEnv[entry.key] = entry.value
             }
         }
 
         currentEnv["MIRRORD_DETECT_DEBUGGER_PORT"] = "pydevd"
     }
-
 }

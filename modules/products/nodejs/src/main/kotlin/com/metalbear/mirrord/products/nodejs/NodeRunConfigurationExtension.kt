@@ -10,7 +10,7 @@ import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
 import com.metalbear.mirrord.MirrordExecManager
 
-class NodeRunConfigurationExtension: AbstractNodeRunConfigurationExtension() {
+class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
     override fun <P : AbstractNodeTargetRunProfile> createEditor(configuration: P): SettingsEditor<P> {
         return RunConfigurationSettingsEditor(configuration)
@@ -31,7 +31,7 @@ class NodeRunConfigurationExtension: AbstractNodeRunConfigurationExtension() {
         MirrordExecManager.start(wsl, project, "npm")?.let {
                 env ->
             val config = configuration as NodeJsRunConfiguration
-            config.envs = config.envs + env;
+            config.envs = config.envs + env
         }
 
         return null

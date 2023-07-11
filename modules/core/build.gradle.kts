@@ -6,13 +6,11 @@ plugins {
     // Kotlin support
     id("org.jetbrains.kotlin.jvm") version "1.8.22"
     id("org.jetbrains.intellij") version "1.+"
-
 }
 
 intellij {
     version.set(properties("platformVersion"))
 }
-
 
 dependencies {
     implementation("com.google.code.gson:gson:2.10.1")

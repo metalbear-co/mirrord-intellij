@@ -1,6 +1,7 @@
+import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
 import java.util.EnumSet
 
@@ -15,6 +16,8 @@ plugins {
     id("org.jetbrains.intellij") version "1.+"
     // Gradle Changelog Plugin
     id("org.jetbrains.changelog") version "2.+"
+
+    id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
 }
 
 group = properties("pluginGroup")
@@ -23,7 +26,17 @@ version = properties("pluginVersion")
 // Configure project's dependencies
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+    }
+
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+    }
 }
+
+val remoteRobotVersion = "0.11.19"
+
 dependencies {
     implementation(project(":mirrord-products-idea"))
     implementation(project(":mirrord-products-pycharm"))
@@ -31,6 +44,18 @@ dependencies {
     implementation(project(":mirrord-products-goland"))
     implementation(project(":mirrord-products-nodejs"))
     implementation(project(":mirrord-products-rider"))
+    testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
+    testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
+    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
+    testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.3")
+    testImplementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+}
+
+subprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
 }
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
@@ -46,10 +71,10 @@ intellij {
     // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
     if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
         plugins.set(
-                properties("platformPlugins")
-                        .split(',')
-                        .map(String::trim)
-                        .filter(String::isNotEmpty)
+            properties("platformPlugins")
+                .split(',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
         )
     }
 
@@ -61,7 +86,6 @@ allprojects {
     repositories {
         mavenCentral()
     }
-
 
     properties("javaVersion").let {
         tasks.withType<JavaCompile> {
@@ -75,24 +99,31 @@ allprojects {
             }
         }
     }
-
 }
 
-gradle.taskGraph.whenReady(closureOf<TaskExecutionGraph> {
-    val ignoreSubprojectTasks = listOf(
-        "buildSearchableOptions", "listProductsReleases", "patchPluginXml", "publishPlugin", "runIde", "runPluginVerifier",
-        "verifyPlugin"
-    )
+gradle.taskGraph.whenReady(
+    closureOf<TaskExecutionGraph> {
+        val ignoreSubprojectTasks = listOf(
+            "buildSearchableOptions",
+            "listProductsReleases",
+            "patchPluginXml",
+            "publishPlugin",
+            "runIde",
+            "runPluginVerifier",
+            "verifyPlugin",
+            "runIdeForUiTests"
+        )
 
-    // Don't run some tasks for subprojects
-    for (task in allTasks) {
-        if (task.project != task.project.rootProject) {
-            when (task.name) {
-                in ignoreSubprojectTasks -> task.enabled = false
+        // Don't run some tasks for subprojects
+        for (task in allTasks) {
+            if (task.project != task.project.rootProject) {
+                when (task.name) {
+                    in ignoreSubprojectTasks -> task.enabled = false
+                }
             }
         }
     }
-})
+)
 
 tasks {
     // Removing this makes build stop working, not sure why.
@@ -118,7 +149,6 @@ tasks {
     changelog {
         version.set(properties("pluginVersion"))
         groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", "Internal"))
-
     }
 
     patchPluginXml {
@@ -137,11 +167,16 @@ tasks {
             }.joinToString("\n").run { markdownToHTML(this) }
         )
         if (!System.getenv("CI_BUILD_PLUGIN").toBoolean()) {
-            changeNotes.set(provider {
-            changelog.run {
-                getOrNull(properties("pluginVersion")) ?: getLatest()
-            }.toHTML()
-        })
+            changeNotes.set(
+                provider {
+                    changelog.renderItem(
+                        changelog.run {
+                            getOrNull(properties("pluginVersion")) ?: getLatest()
+                        },
+                        Changelog.OutputType.HTML
+                    )
+                }
+            )
         }
     }
 
@@ -150,12 +185,12 @@ tasks {
         // we have custom delve until delve 20 is widely used
         val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
         binaries.forEach {
-                binary -> from(file(project.projectDir.resolve("bin").resolve(binary))) {
-                    // into treats last part as directory, so need to drop it.
-                    into(Paths.get(pluginName.get(), "bin", binary).parent.toString())
+                binary ->
+            from(file(project.projectDir.resolve("bin").resolve(binary))) {
+                // into treats last part as directory, so need to drop it.
+                into(Paths.get(pluginName.get(), "bin", binary).parent.toString())
+            }
         }
-        }
-
     }
 
     runIde {
@@ -166,9 +201,16 @@ tasks {
     // Read more: https://github.com/JetBrains/intellij-ui-test-robot
     runIdeForUiTests {
         systemProperty("robot-server.port", "8082")
+        systemProperty("robot-server.host.public", "true")
         systemProperty("ide.mac.message.dialogs.as.sheets", "false")
         systemProperty("jb.privacy.policy.text", "<!--999.999-->")
         systemProperty("jb.consents.confirmation.enabled", "false")
+        systemProperty("idea.trust.all.projects", "true")
+        systemProperty("ide.show.tips.on.startup.default.value", "false")
+    }
+
+    downloadRobotServerPlugin {
+        version.set(remoteRobotVersion)
     }
 
     signPlugin {
@@ -189,5 +231,16 @@ tasks {
     runPluginVerifier {
         ideVersions.set(listOf("IU-232.5150.116", "IU-222.4554.10"))
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
+    }
+
+    test {
+        useJUnitPlatform()
+        systemProperty("test.workspace", projectDir.resolve("test-workspace").absolutePath)
+        val pluginFileName = properties("pluginName") + "-" + properties("pluginVersion") + ".zip"
+        systemProperty("test.plugin.path", projectDir.resolve("build/distributions/$pluginFileName").absolutePath)
+        testLogging {
+            showStandardStreams = true
+            events("passed", "skipped", "failed")
+        }
     }
 }

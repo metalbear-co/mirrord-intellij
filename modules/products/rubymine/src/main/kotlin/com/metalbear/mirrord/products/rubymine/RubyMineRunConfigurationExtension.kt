@@ -8,8 +8,7 @@ import com.metalbear.mirrord.MirrordExecManager
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
 
-
-class RubyMineRunConfigurationExtension: RubyRunConfigurationExtension() {
+class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
         return true
     }
@@ -38,11 +37,8 @@ class RubyMineRunConfigurationExtension: RubyRunConfigurationExtension() {
         MirrordExecManager.start(wsl, project, "rubymine")?.let {
                 env ->
             for (entry in env.entries.iterator()) {
-                currentEnv[entry.key] =  entry.value
+                currentEnv[entry.key] = entry.value
             }
         }
-
-
     }
-
 }

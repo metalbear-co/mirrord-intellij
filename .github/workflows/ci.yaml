@@ -25,6 +25,15 @@ jobs:
       - name: verify newsfragment exist
         run: towncrier check
 
+  lint_markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: avto-dev/markdown-lint@v1
+        with:
+          config: "markdownlint-config.json"
+          args: "README.md"
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -49,19 +58,75 @@ jobs:
           CI_BUILD_PLUGIN: true
         run: |
           ./gradlew runPluginVerifier
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+      - name: Upload build folder
+        uses: actions/upload-artifact@v3
+        with:
+          name: mirrord-build
+          path: build/
 
-  lint_markdown:
+
+  e2e:
+    needs: [build]
     runs-on: ubuntu-latest
+    env:
+      CI_BUILD_PLUGIN: "true"
     steps:
       - uses: actions/checkout@v3
-      - uses: avto-dev/markdown-lint@v1
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
-          config: "markdownlint-config.json"
-          args: "README.md"
-   
-  # We need some "accummulation" job here because bors fails (timeouts) to
-  # listen on matrix builds.
-  # Hence, we have some kind of dummy here that bors can listen on
+          distribution: zulu
+          java-version: 17
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - uses: abatilo/actions-poetry@v2
+      - run: poetry --version
+      - name: get mirrord latest
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          container-runtime: docker
+      - run: |
+          minikube image load /tmp/test.tar
+          kubectl apply -f sample/kubernetes/app.yaml
+          echo "POD_TO_SELECT=$(kubectl get pods -o=name | head -n 1)" >> "$GITHUB_ENV"
+          kubectl wait --for=condition=ready --timeout=30s $(kubectl get pods -o=name | head -n 1)
+          KUBE_SERVICE=$(minikube service list --output=json | jq -r '.[] | select(.Name == "py-serv") | .URLs[0]')
+          echo "$KUBE_SERVICE"
+          echo "KUBE_SERVICE=$KUBE_SERVICE" >> "$GITHUB_ENV"
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download build folder
+        uses: actions/download-artifact@v3
+        with:
+          name: mirrord-build
+          path: build/
+      - name: Run intellij e2e in headless state
+        uses: coactions/setup-xvfb@v1
+        env:
+          POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
+          KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
+        with:
+          run: ./gradlew test
+      - name: Move video
+        if: ${{ failure() }}
+        run: |          
+          mv video build/reports
+      - name: Save fails report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: mirrord-plugin-fail-report
+          path: |
+            build/reports                  
+
   ci-success:
     name: ci
     # We want this to run even if some of the required jobs got skipped
@@ -70,6 +135,7 @@ jobs:
       [
         towncrier_check,
         build,
+        e2e,
         lint_markdown,
       ]
     runs-on: ubuntu-latest
@@ -80,5 +146,6 @@ jobs:
         env:
           CI_SUCCESS: ${{ (needs.towncrier_check.result == 'success') &&
             (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+            (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') &&
             (needs.lint_markdown.result == 'success' || needs.lint_markdown.result == 'skipped') }}
         run: echo $CI_SUCCESS && if [ "$CI_SUCCESS" == "true" ]; then echo "SUCCESS" && exit 0; else echo "Failure" && exit 1; fi

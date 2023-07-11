@@ -14,7 +14,6 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-
 object MirrordExecDialog {
     private const val dialogHeading: String = "mirrord"
     private const val targetLabel = "Select Target"
@@ -55,25 +54,25 @@ object MirrordExecDialog {
         val targets: List<String>
             get() {
                 return this.availableTargets
-                        .filter { 
-                            (this.pods && it.startsWith("pod/")) 
-                            || (this.deployments && it.startsWith("deployment/")) 
-                            || (this.rollouts && it.startsWith("rollout/")) 
-                        }
-                        .filter { it.contains(this.searchPhrase) }
-                        .toMutableList()
-                        .apply {
-                            sort()
-                            MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
-                                val idx = this.indexOf(it)
-                                if (idx != -1) {
-                                    this.removeAt(idx)
-                                    this.add(0, it)
-                                }
+                    .filter {
+                        (this.pods && it.startsWith("pod/")) ||
+                            (this.deployments && it.startsWith("deployment/")) ||
+                            (this.rollouts && it.startsWith("rollout/"))
+                    }
+                    .filter { it.contains(this.searchPhrase) }
+                    .toMutableList()
+                    .apply {
+                        sort()
+                        MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
+                            val idx = this.indexOf(it)
+                            if (idx != -1) {
+                                this.removeAt(idx)
+                                this.add(0, it)
                             }
-                            add(targetlessTargetName)
                         }
-                        .toList()
+                        add(targetlessTargetName)
+                    }
+                    .toList()
             }
     }
 
@@ -146,24 +145,24 @@ object MirrordExecDialog {
             })
         }
         val filterHelpers = listOf(
-                JBCheckBox("Pods", targetsState.pods).apply {
-                    this.addActionListener {
-                        targetsState.pods = this.isSelected
-                        jbTargets.setListData(targetsState.targets.toTypedArray())
-                    }
-                },
-                JBCheckBox("Deployments", targetsState.deployments).apply {
-                    this.addActionListener {
-                        targetsState.deployments = this.isSelected
-                        jbTargets.setListData(targetsState.targets.toTypedArray())
-                    }
-                },
-                JBCheckBox("Rollouts", targetsState.rollouts).apply {
-                    this.addActionListener {
-                        targetsState.rollouts = this.isSelected
-                        jbTargets.setListData(targetsState.targets.toTypedArray())
-                    }
+            JBCheckBox("Pods", targetsState.pods).apply {
+                this.addActionListener {
+                    targetsState.pods = this.isSelected
+                    jbTargets.setListData(targetsState.targets.toTypedArray())
                 }
+            },
+            JBCheckBox("Deployments", targetsState.deployments).apply {
+                this.addActionListener {
+                    targetsState.deployments = this.isSelected
+                    jbTargets.setListData(targetsState.targets.toTypedArray())
+                }
+            },
+            JBCheckBox("Rollouts", targetsState.rollouts).apply {
+                this.addActionListener {
+                    targetsState.rollouts = this.isSelected
+                    jbTargets.setListData(targetsState.targets.toTypedArray())
+                }
+            }
         )
         val result = DialogBuilder().apply {
             setCenterPanel(createSelectionDialog(jbTargets, searchField, filterHelpers))
@@ -195,31 +194,41 @@ object MirrordExecDialog {
     }
 
     private fun createSelectionDialog(items: JBList<String>, searchField: JTextField, filterHelpers: List<JComponent>): JPanel =
-            JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                border = JBUI.Borders.empty(10, 5)
-                add(JLabel(targetLabel).apply {
+        JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            border = JBUI.Borders.empty(10, 5)
+            add(
+                JLabel(targetLabel).apply {
                     alignmentX = JLabel.LEFT_ALIGNMENT
-                })
-                add(Box.createRigidArea(Dimension(0, 10)))
-                add(JBBox.createHorizontalBox().apply {
+                }
+            )
+            add(Box.createRigidArea(Dimension(0, 10)))
+            add(
+                JBBox.createHorizontalBox().apply {
                     filterHelpers.forEach {
                         this.add(it)
                         this.add(Box.createRigidArea(Dimension(10, 0)))
                     }
                     alignmentX = JBBox.LEFT_ALIGNMENT
-                })
-                add(Box.createRigidArea(Dimension(0, 10)))
-                add(searchField.apply {
+                }
+            )
+            add(Box.createRigidArea(Dimension(0, 10)))
+            add(
+                searchField.apply {
                     alignmentX = JBScrollPane.LEFT_ALIGNMENT
                     preferredSize = Dimension(250, 30)
                     size = Dimension(250, 30)
-                })
-                add(Box.createRigidArea(Dimension(0, 10)))
-                add(JBScrollPane(items.apply {
-                    minimumSize = Dimension(250, 350)
-                }).apply {
+                }
+            )
+            add(Box.createRigidArea(Dimension(0, 10)))
+            add(
+                JBScrollPane(
+                    items.apply {
+                        minimumSize = Dimension(250, 350)
+                    }
+                ).apply {
                     alignmentX = JBScrollPane.LEFT_ALIGNMENT
-                })
-            }
+                }
+            )
+        }
 }

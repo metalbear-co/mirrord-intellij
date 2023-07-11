@@ -28,10 +28,10 @@ object MirrordExecManager {
         }
 
         val pods = MirrordApi.listPods(
-                cli,
-                configPath,
-                project,
-                wslDistribution,
+            cli,
+            configPath,
+            project,
+            wslDistribution
         ) ?: return null
 
         val application = ApplicationManager.getApplication()

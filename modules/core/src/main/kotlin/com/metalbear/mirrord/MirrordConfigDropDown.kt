@@ -22,7 +22,6 @@ import java.nio.file.Path
 import java.util.*
 import javax.swing.JComponent
 
-
 // [`MirrordConfigIndex`] index is queried once in the update function to initialize the configFiles
 // Once initialized, we listen on file events to update the configFiles by querying the index again
 // If no config files are present, the chosenFile is set to null, the action is hidden,
@@ -56,7 +55,8 @@ class MirrordConfigDropDown : ComboBoxAction() {
     }
 
     @Deprecated(
-        "Deprecated in Java", ReplaceWith(
+        "Deprecated in Java",
+        ReplaceWith(
             "createPopupActionGroup(button, DataManager.getInstance().getDataContext(button))",
             "com.intellij.ide.DataManager"
         )
@@ -165,7 +165,6 @@ class MirrordConfigDropDown : ComboBoxAction() {
         }
     }
 
-
     companion object {
         var chosenFile: String? = null
 
@@ -227,5 +226,4 @@ class MirrordConfigIndex : ScalarIndexExtension<String>() {
     override fun dependsOnFileContent(): Boolean {
         return false
     }
-
 }

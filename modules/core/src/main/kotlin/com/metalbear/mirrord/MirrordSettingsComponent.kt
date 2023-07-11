@@ -3,11 +3,9 @@ package com.metalbear.mirrord
 import com.intellij.ide.BrowserUtil
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.FormBuilder
 import javax.swing.JComponent
 import javax.swing.JPanel
-
 
 class MirrordSettingsComponent {
 
@@ -22,12 +20,13 @@ class MirrordSettingsComponent {
             .addComponentFillVertically(JPanel(), 0)
             .panel
         // Check version can only be enabled if telemetry is enabled.
-        telemetryEnabled.addActionListener {versionCheckEnabled.isEnabled = telemetryEnabled.isSelected
-        if (!telemetryEnabled.isSelected) {
-            versionCheckEnabled.isSelected = false
-        }}
+        telemetryEnabled.addActionListener {
+            versionCheckEnabled.isEnabled = telemetryEnabled.isSelected
+            if (!telemetryEnabled.isSelected) {
+                versionCheckEnabled.isSelected = false
+            }
+        }
     }
-
 
     val preferredFocusedComponent: JComponent
         get() = telemetryEnabled

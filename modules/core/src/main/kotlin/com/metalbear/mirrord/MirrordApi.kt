@@ -15,36 +15,34 @@ import com.intellij.openapi.project.Project
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
-
 enum class MessageType {
     NewTask,
     FinishedTask,
     Warning
 }
 
-
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
 data class Message(
-        val type: MessageType,
-        val name: String,
-        val parent: String?,
-        val success: Boolean?,
-        val message: String?
+    val type: MessageType,
+    val name: String,
+    val parent: String?,
+    val success: Boolean?,
+    val message: String?
 )
 
 data class Error(
-        val message: String,
-        val severity: String,
-        val causes: List<String>,
-        val help: String,
-        val labels: List<String>,
-        val related: List<String>
+    val message: String,
+    val severity: String,
+    val causes: List<String>,
+    val help: String,
+    val labels: List<String>,
+    val related: List<String>
 )
 
 data class MirrordExecution(
-        val environment: MutableMap<String, String>,
-        @SerializedName("patched_path")
-        val patchedPath: String?
+    val environment: MutableMap<String, String>,
+    @SerializedName("patched_path")
+    val patchedPath: String?
 )
 
 /**
@@ -59,10 +57,10 @@ object MirrordApi {
      * @return list of pods
      */
     fun listPods(
-            cli: String,
-            configFile: String?,
-            project: Project,
-            wslDistribution: WSLDistribution?
+        cli: String,
+        configFile: String?,
+        project: Project,
+        wslDistribution: WSLDistribution?
     ): List<String>? {
         logger.debug("listing pods")
 
@@ -84,9 +82,9 @@ object MirrordApi {
         logger.debug("creating command line and executing $commandLine")
 
         val process = commandLine.toProcessBuilder()
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start()
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
 
         logger.debug("waiting for process to finish")
         process.waitFor(60, TimeUnit.SECONDS)
@@ -114,10 +112,10 @@ object MirrordApi {
 
         if (pods.isEmpty()) {
             MirrordNotifier.notify(
-                    "No mirrord target available in the configured namespace. " +
-                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                    NotificationType.INFORMATION,
-                    project,
+                "No mirrord target available in the configured namespace. " +
+                    "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                NotificationType.INFORMATION,
+                project
             )
         }
 
@@ -125,12 +123,12 @@ object MirrordApi {
     }
 
     fun exec(
-            cli: String,
-            target: String?,
-            configFile: String?,
-            executable: String?,
-            project: Project,
-            wslDistribution: WSLDistribution?,
+        cli: String,
+        target: String?,
+        configFile: String?,
+        executable: String?,
+        project: Project,
+        wslDistribution: WSLDistribution?
     ): MirrordExecution? {
         val commandLine = GeneralCommandLine(cli, "ext").apply {
             target?.let {
@@ -154,15 +152,14 @@ object MirrordApi {
                 }
                 it.patchCommandLine(this, project, wslOptions)
             }
-
         }
 
         logger.info("running mirrord with following command line: ${commandLine.commandLineString}")
 
         val process = commandLine.toProcessBuilder()
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start()
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
 
         val gson = Gson()
         val bufferedReader = process.inputStream.reader().buffered()
