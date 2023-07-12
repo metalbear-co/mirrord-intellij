@@ -8,6 +8,7 @@ import com.intellij.javascript.nodejs.execution.runConfiguration.AbstractNodeRun
 import com.intellij.javascript.nodejs.execution.runConfiguration.NodeRunConfigurationLaunchSession
 import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
@@ -28,10 +29,10 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
             else -> null
         }
 
-        MirrordExecManager.start(wsl, project, "npm")?.let {
+        val config = configuration as NodeJsRunConfiguration
+        MirrordExecManager.start(wsl, project, "npm", config.envs[MirrordConfigAPI.CONFIG_ENV_NAME])?.let {
                 env ->
-            val config = configuration as NodeJsRunConfiguration
-            config.envs = config.envs + env
+            config.envs = config.envs + env;
         }
 
         return null

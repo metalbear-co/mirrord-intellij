@@ -9,8 +9,8 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.util.SystemInfo
 
 data class RunConfigGuard(val executionId: Long) {
-    var originEnv: Map<String, String> = LinkedHashMap()
-    var originPackageManagerPackageRef: Any? = null
+	var originEnv: Map<String, String> = LinkedHashMap()
+	var originPackageManagerPackageRef: Any? = null
 }
 
 class MirrordNpmExecutionListener : ExecutionListener {
@@ -33,8 +33,14 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-            MirrordExecManager.start(wslDistribution, env.project, executablePath, "JS")?.let {
-                    (newEnv, patchedPath) ->
+			MirrordExecManager.start(
+					wslDistribution,
+					env.project,
+					executablePath,
+					"JS",
+					runSettings.envs[MirrordConfigAPI.CONFIG_ENV_NAME]
+			)?.let {
+				(newEnv, patchedPath) ->
 
                 runSettings.envs = executionGuard.originEnv + newEnv
 
@@ -69,10 +75,10 @@ class MirrordNpmExecutionListener : ExecutionListener {
         }
     }
 
-    override fun processStarting(executorId: String, env: ExecutionEnvironment) {
-        if (!MirrordExecManager.enabled || !this.detectNpmRunConfiguration(env)) {
-            return super.processStarting(executorId, env)
-        }
+	override fun processStarting(executorId: String, env: ExecutionEnvironment) {
+		if (!MirrordEnabler.enabled || !this.detectNpmRunConfiguration(env)) {
+			return super.processStarting(executorId, env)
+		}
 
         executions[env.executionId] = RunConfigGuard(env.executionId)
 

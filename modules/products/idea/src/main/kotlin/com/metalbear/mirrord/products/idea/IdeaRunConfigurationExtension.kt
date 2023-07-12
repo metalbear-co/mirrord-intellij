@@ -8,6 +8,7 @@ import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
 import com.metalbear.mirrord.MirrordLogger
 
@@ -23,7 +24,17 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         return true
     }
 
-    private fun <T : RunConfigurationBase<*>> patchEnv(configuration: T, params: JavaParameters) {
+    private fun < T: RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
+        return params.env[MirrordConfigAPI.CONFIG_ENV_NAME]
+                ?: if (configuration is ExternalSystemRunConfiguration) {
+                    val ext = configuration as ExternalSystemRunConfiguration
+                    ext.settings.env[MirrordConfigAPI.CONFIG_ENV_NAME]
+                } else {
+                    null
+                }
+    }
+
+    private fun < T: RunConfigurationBase<*>> patchEnv (configuration: T, params: JavaParameters) {
         MirrordLogger.logger.debug("Check if relevant")
         if (configuration.name.startsWith("Build ")) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -42,7 +53,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
         val mirrordEnv = HashMap<String, String>()
         MirrordLogger.logger.debug("calling start")
-        MirrordExecManager.start(wsl, project, "idea")?.let {
+        MirrordExecManager.start(
+                wsl,
+                project,
+                "idea",
+                getMirrordConfigPath(configuration, params),
+        )?.let {
                 env ->
             for (entry in env.entries.iterator()) {
                 mirrordEnv[entry.key] = entry.value

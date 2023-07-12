@@ -6,6 +6,7 @@ import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
@@ -34,7 +35,7 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
         val project = configuration.project
         val currentEnv = cmdLine.environment
 
-        MirrordExecManager.start(wsl, project, "pycharm")?.let {
+        MirrordExecManager.start(wsl, project, "pycharm", currentEnv[MirrordConfigAPI.CONFIG_ENV_NAME])?.let {
                 env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value

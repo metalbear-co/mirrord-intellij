@@ -8,6 +8,7 @@ import com.jetbrains.python.run.PythonExecution
 import com.jetbrains.python.run.PythonRunParams
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
@@ -27,7 +28,12 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                     }
                 }
 
-                MirrordExecManager.start(wsl, project, "pycharm")?.let {
+                MirrordExecManager.start(
+                        wsl,
+                        project,
+                        "pycharm",
+                        runParams.getEnvs()[MirrordConfigAPI.CONFIG_ENV_NAME]
+                )?.let {
                         env ->
                     for (entry in env.entries.iterator()) {
                         pythonExecution.addEnvironmentVariable(entry.key, entry.value)

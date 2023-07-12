@@ -4,6 +4,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
@@ -34,7 +35,12 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         val project = configuration.project
         val currentEnv = configuration.envs
 
-        MirrordExecManager.start(wsl, project, "rubymine")?.let {
+        MirrordExecManager.start(
+                wsl,
+                project,
+                "rubymine",
+                currentEnv[MirrordConfigAPI.CONFIG_ENV_NAME]
+        )?.let {
                 env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value

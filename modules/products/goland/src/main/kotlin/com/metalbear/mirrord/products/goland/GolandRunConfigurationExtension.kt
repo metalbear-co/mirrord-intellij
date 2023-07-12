@@ -9,6 +9,7 @@ import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.MirrordEnabler
 import com.metalbear.mirrord.MirrordExecManager
 import com.metalbear.mirrord.MirrordPathManager
 import java.nio.file.Paths
@@ -44,8 +45,13 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             }
             val project = configuration.getProject()
 
-            MirrordExecManager.start(wsl, project, "goland")?.let {
-                    env ->
+            MirrordExecManager.start(
+                    wsl,
+                    project,
+                    "goland",
+                    null, // TODO get this somehow
+            )?.let {
+                env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
@@ -64,7 +70,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         commandLineType: GoRunningState.CommandLineType
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN &&
-            MirrordExecManager.enabled &&
+            MirrordEnabler.enabled &&
             SystemInfo.isMac &&
             state.isDebug
         ) {
