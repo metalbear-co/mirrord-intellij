@@ -10,6 +10,8 @@ import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
@@ -25,11 +27,6 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         runnerSettings: RunnerSettings?
     ): Boolean {
         return true
-    }
-
-    // TODO
-    fun findMirrordConfig(cmdLine: TargetedCommandLineBuilder): String? {
-        return null
     }
 
     override fun patchCommandLine(
@@ -54,7 +51,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             service.execManager.start(
                     wsl,
                     "goland",
-                    findMirrordConfig(cmdLine),
+                    configuration.getCustomEnvironment()[CONFIG_ENV_NAME],
             )?.let {
                 env ->
                 for (entry in env.entries.iterator()) {
