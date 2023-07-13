@@ -25,6 +25,22 @@ It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. Y
 - Choose a pod to impersonate or choose to run in the "targetless" mode
 - The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
 
+## Settings
+
+mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/overview/configuration/).
+This plugin supports configuration specified in `json` files.
+
+mirrord reads its configuration from the following locations:
+
+1. Active config can be set for the whole workspace using the `Select Active Config` button from the dropdown menu.
+   If active config is set, mirrord always uses it.
+2. If active config is not set, mirrord searches process environment (specified in run configuration) for `MIRRORD_CONFIG_FILE` variable.
+3. If no config is specified, mirrord looks for a default project config file in the `.mirrord` directory with a name ending with `mirrord.json`.
+   If there is no default config file, mirrord uses default configuration values for everything.
+4. If there are many candidates for the default config file, mirrord sorts them alphabetically and uses the first one.
+
+You can use the `Settings` button in the dropdown menu to quickly edit detected configs.
+
 <!-- Plugin description end -->
 
 ## Installation
