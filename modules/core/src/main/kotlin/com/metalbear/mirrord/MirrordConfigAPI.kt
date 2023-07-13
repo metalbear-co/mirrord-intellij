@@ -7,15 +7,9 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.vfs.AsyncFileListener
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
-import com.intellij.openapi.project.ProjectManagerListener
-import java.util.concurrent.ConcurrentHashMap
 
 data class Target(val namespace: String?, val path: Any?)
 
@@ -128,14 +122,14 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
 
     /**
      * Finds a parent directroy for the `.mirrord` directory. This is a parent directory of the `.idea` directory
-     * or the `*.ipr` file.
+     * or the `*.iws` file.
      * @throws InvalidProjectException if the directory could not be found.
      */
     private fun getMirrordDirParent(): VirtualFile {
-        val projectFile = service.project.projectFile
+        val projectFile = service.project.workspaceFile
                 ?: throw InvalidProjectException(service.project, "mirrord cannot be used with the default project")
 
-        val dir = if (projectFile.name == "misc.xml") {
+        val dir = if (projectFile.name == "workspace.xml") {
             projectFile.parent?.parent
         } else {
             projectFile.parent
