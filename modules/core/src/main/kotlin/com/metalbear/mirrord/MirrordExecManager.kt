@@ -3,8 +3,11 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.util.SystemInfo
 import kotlinx.collections.immutable.toImmutableMap
+import com.intellij.openapi.application.ModalityState
+
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -64,6 +67,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return path
     }
 
+    private fun getConfigPath(configFromEnv: String?): String {
+        return if (ApplicationManager.getApplication().isWriteAccessAllowed) {
+            service.configApi.getConfigPath(configFromEnv)
+        } else {
+            WriteAction.computeAndWait<String, Exception>(
+                    { service.configApi.getConfigPath(configFromEnv) },
+                    ModalityState.NON_MODAL,
+            )
+        }
+    }
+
     fun start(
             wslDistribution: WSLDistribution?,
             product: String,
@@ -93,7 +107,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val cli = this.cliPath(wslDistribution, product) ?: return null
         val config = try {
-            service.configApi.getConfigPath(mirrordConfigFromEnv)
+            getConfigPath(mirrordConfigFromEnv)
         } catch (e: InvalidProjectException) {
             service.notifier.notifyRichError(e.message)
             return null

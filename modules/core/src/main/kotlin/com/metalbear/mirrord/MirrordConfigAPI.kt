@@ -4,9 +4,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.google.gson.Gson
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.vfs.VirtualFile
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -172,25 +169,9 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
     fun createDefaultConfig(): VirtualFile {
-        val configFile = if (ApplicationManager.getApplication().isWriteAccessAllowed) {
-            val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
+        val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
 
-            mirrordDir.createChildData(this, "mirrord.json").apply {
-                setBinaryContent(DEFAULT_CONFIG.toByteArray())
-            }
-        } else {
-            WriteAction.computeAndWait<VirtualFile, Exception>(
-                    {
-                        val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
-
-                        mirrordDir.createChildData(this, "mirrord.json").apply {
-                            setBinaryContent(DEFAULT_CONFIG.toByteArray())
-                        }
-                    },
-                    ModalityState.NON_MODAL,
-            )
-        }
-
-        return configFile
+        return mirrordDir.createChildData(this, "mirrord.json")
+                .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
     }
 }
