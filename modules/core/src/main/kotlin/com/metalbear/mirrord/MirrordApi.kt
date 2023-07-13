@@ -11,7 +11,6 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.project.Project
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -48,7 +47,7 @@ data class MirrordExecution(
 /**
  * Interact with mirrord CLI using this API.
  */
-object MirrordApi {
+class MirrordApi(private val service: MirrordProjectService) {
     private val logger = MirrordLogger.logger
 
     /**
@@ -57,10 +56,9 @@ object MirrordApi {
      * @return list of pods
      */
     fun listPods(
-        cli: String,
-        configFile: String?,
-        project: Project,
-        wslDistribution: WSLDistribution?
+            cli: String,
+            configFile: String?,
+            wslDistribution: WSLDistribution?
     ): List<String>? {
         logger.debug("listing pods")
 
@@ -76,7 +74,7 @@ object MirrordApi {
             logger.debug("patching to use WSL")
             val wslOptions = WSLCommandLineOptions()
             wslOptions.isLaunchWithWslExe = true
-            it.patchCommandLine(commandLine, project, wslOptions)
+            it.patchCommandLine(commandLine, service.project, wslOptions)
         }
 
         logger.debug("creating command line and executing $commandLine")
@@ -99,8 +97,8 @@ object MirrordApi {
             if (processStdError.startsWith("Error: ")) {
                 val trimmedError = processStdError.removePrefix("Error: ")
                 val error = gson.fromJson(trimmedError, Error::class.java)
-                MirrordNotifier.errorNotification(error.message, project)
-                MirrordNotifier.notify(error.help, NotificationType.INFORMATION, project)
+                service.notifier.notifyRichError(error.message)
+                service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
             }
             logger.error("mirrord ls failed: $processStdError")
             return null
@@ -111,11 +109,10 @@ object MirrordApi {
         val pods = gson.fromJson(data, Array<String>::class.java).toMutableList()
 
         if (pods.isEmpty()) {
-            MirrordNotifier.notify(
-                "No mirrord target available in the configured namespace. " +
-                    "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                NotificationType.INFORMATION,
-                project
+            service.notifier.notifySimple(
+                    "No mirrord target available in the configured namespace. " +
+                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                    NotificationType.INFORMATION,
             )
         }
 
@@ -123,12 +120,11 @@ object MirrordApi {
     }
 
     fun exec(
-        cli: String,
-        target: String?,
-        configFile: String?,
-        executable: String?,
-        project: Project,
-        wslDistribution: WSLDistribution?
+            cli: String,
+            target: String?,
+            configFile: String?,
+            executable: String?,
+            wslDistribution: WSLDistribution?,
     ): MirrordExecution? {
         val commandLine = GeneralCommandLine(cli, "ext").apply {
             target?.let {
@@ -150,7 +146,7 @@ object MirrordApi {
                 val wslOptions = WSLCommandLineOptions().apply {
                     isLaunchWithWslExe = true
                 }
-                it.patchCommandLine(this, project, wslOptions)
+                it.patchCommandLine(this, service.project, wslOptions)
             }
         }
 
@@ -166,7 +162,7 @@ object MirrordApi {
 
         val environment = CompletableFuture<MirrordExecution?>()
 
-        val mirrordProgressTask = object : Task.Backgroundable(project, "mirrord", true) {
+        val mirrordProgressTask = object : Task.Backgroundable(service.project, "mirrord", true) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is starting..."
                 for (line in bufferedReader.lines()) {
@@ -184,7 +180,7 @@ object MirrordApi {
                         }
 
                         message.type == MessageType.Warning -> {
-                            message.message?.let { MirrordNotifier.notify(it, NotificationType.WARNING, project) }
+                            message.message?.let { service.notifier.notifySimple(it, NotificationType.WARNING) }
                         }
 
                         else -> {
@@ -201,13 +197,13 @@ object MirrordApi {
 
             override fun onSuccess() {
                 if (!environment.isCancelled) {
-                    MirrordNotifier.notify("mirrord starting...", NotificationType.INFORMATION, project)
+                    service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
                 }
             }
 
             override fun onCancel() {
                 process.destroy()
-                MirrordNotifier.notify("mirrord was cancelled", NotificationType.WARNING, project)
+                service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
             }
         }
 
@@ -216,15 +212,15 @@ object MirrordApi {
         try {
             return environment.get(30, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            MirrordNotifier.errorNotification("mirrord failed to fetch the env", project)
+            service.notifier.notifyRichError("mirrord failed to fetch the env")
         }
 
         val processStdError = process.errorStream.reader().readText()
         if (processStdError.startsWith("Error: ")) {
             val trimmedError = processStdError.removePrefix("Error: ")
             val error = gson.fromJson(trimmedError, Error::class.java)
-            MirrordNotifier.errorNotification(error.message, project)
-            MirrordNotifier.notify(error.help, NotificationType.INFORMATION, project)
+            service.notifier.notifyRichError(error.message)
+            service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
             return null
         }
         logger.error("mirrord stderr: $processStdError")

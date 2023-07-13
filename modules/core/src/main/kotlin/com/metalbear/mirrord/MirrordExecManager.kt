@@ -3,7 +3,7 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.util.SystemInfo
 import kotlinx.collections.immutable.toImmutableMap
 
@@ -12,22 +12,20 @@ import kotlinx.collections.immutable.toImmutableMap
  * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
  * if it did, it will do nothing
  */
-object MirrordExecManager {
+class MirrordExecManager(private val service: MirrordProjectService) {
     /** returns null if the user closed or cancelled target selection, otherwise the chosen target, which is either a
      * pod or the targetless target
      */
     private fun chooseTarget(
             cli: String,
             wslDistribution: WSLDistribution?,
-            project: Project,
             config: String,
     ): String? {
         MirrordLogger.logger.debug("choose target called")
 
-        val pods = MirrordApi.listPods(
+        val pods = service.mirrordApi.listPods(
                 cli,
                 config,
-                project,
                 wslDistribution,
         ) ?: return null
 
@@ -54,11 +52,11 @@ object MirrordExecManager {
         }
     }
 
-    private fun cliPath(wslDistribution: WSLDistribution?, project: Project, product: String): String? {
+    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String? {
         val path = try {
-            MirrordBinaryManager.getBinary(project, product, wslDistribution)
+            service.binaryManager.getBinary(product, wslDistribution)
         } catch (e: RuntimeException) {
-            MirrordNotifier.errorNotification("failed to fetch mirrord binary: ${e.message}", project)
+            service.notifier.notifyRichError("failed to fetch mirrord binary: ${e.message}")
             return null
         }
         wslDistribution?.let {
@@ -69,38 +67,36 @@ object MirrordExecManager {
 
     fun start(
             wslDistribution: WSLDistribution?,
-            project: Project,
             product: String,
             mirrordConfigFromEnv: String?
     ): Map<String, String>? {
-        return start(wslDistribution, project, null, product, mirrordConfigFromEnv)?.first
+        return start(wslDistribution, null, product, mirrordConfigFromEnv)?.first
     }
 
     /** Starts mirrord, shows dialog for selecting pod if target not set and returns env to set. */
     fun start(
             wslDistribution: WSLDistribution?,
-            project: Project,
             executable: String?,
             product: String,
             mirrordConfigFromEnv: String?,
     ): Pair<Map<String, String>, String?>? {
-        if (!MirrordEnabler.enabled) {
+        if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
         }
         if (SystemInfo.isWindows && wslDistribution == null) {
-            MirrordNotifier.errorNotification("Can't use mirrord on Windows without WSL", project)
+            service.notifier.notifyRichError("Can't use mirrord on Windows without WSL")
             return null
         }
 
         MirrordLogger.logger.debug("version check trigger")
-        MirrordVersionCheck.checkVersion(project)
+        service.versionCheck.checkVersion()
 
-        val cli = this.cliPath(wslDistribution, project, product) ?: return null
+        val cli = this.cliPath(wslDistribution, product) ?: return null
         val config = try {
-            MirrordConfigAPI.getConfigPath(project, mirrordConfigFromEnv)
-        } catch (e: MirrordConfigAPI.InvalidProjectException) {
-            MirrordNotifier.errorNotification(e.message!!, project)
+            service.configApi.getConfigPath(mirrordConfigFromEnv)
+        } catch (e: InvalidProjectException) {
+            service.notifier.notifyRichError(e.message)
             return null
         }
 
@@ -108,33 +104,37 @@ object MirrordExecManager {
         var target: String? = null
 
         val isTargetSet = try {
-            MirrordConfigAPI.isTargetSet(config)
-        } catch (e: MirrordConfigAPI.InvalidConfigException) {
-            MirrordNotifier.errorNotification(e.message!!, project)
+            isTargetSet(config)
+        } catch (e: InvalidConfigException) {
+            service.notifier.notifyRichError(e.message)
             return null
         }
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            target = chooseTarget(cli, wslDistribution, project, config)
+            target = chooseTarget(cli, wslDistribution, config)
             if (target == null) {
                 MirrordLogger.logger.warn("mirrord loading canceled")
-                MirrordNotifier.notify("mirrord loading canceled.", NotificationType.WARNING, project)
+                service.notifier.notifySimple("mirrord loading canceled.", NotificationType.WARNING)
                 return null
             }
             if (target == MirrordExecDialog.targetlessTargetName) {
                 MirrordLogger.logger.info("No target specified - running targetless")
-                MirrordNotifier.notify("No target specified, mirrord running targetless.", NotificationType.INFORMATION, project)
+                service.notifier.notification(
+                        "No target specified, mirrord running targetless.",
+                        NotificationType.INFORMATION
+                )
+                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                        .fire()
                 target = null
             }
         }
 
-        val executionInfo = MirrordApi.exec(
+        val executionInfo = service.mirrordApi.exec(
                 cli,
                 target,
                 config,
                 executable,
-                project,
                 wslDistribution
         )
 

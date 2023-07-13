@@ -2,14 +2,16 @@ package com.metalbear.mirrord.products.pycharm
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonExecution
 import com.jetbrains.python.run.PythonRunParams
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
-import com.metalbear.mirrord.MirrordConfigAPI
+import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordExecManager
+import com.metalbear.mirrord.MirrordProjectService
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     override fun extendTargetEnvironment(
@@ -18,6 +20,8 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
         pythonExecution: PythonExecution,
         runParams: PythonRunParams
     ) {
+        val service = project.service<MirrordProjectService>()
+
         if (runParams is AbstractPythonRunConfiguration<*>) {
             try {
                 val wsl = helpersAwareTargetRequest.targetEnvironmentRequest.let {
@@ -28,11 +32,10 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                     }
                 }
 
-                MirrordExecManager.start(
+                service.execManager.start(
                         wsl,
-                        project,
                         "pycharm",
-                        runParams.getEnvs()[MirrordConfigAPI.CONFIG_ENV_NAME]
+                        runParams.getEnvs()[CONFIG_ENV_NAME]
                 )?.let {
                         env ->
                     for (entry in env.entries.iterator()) {

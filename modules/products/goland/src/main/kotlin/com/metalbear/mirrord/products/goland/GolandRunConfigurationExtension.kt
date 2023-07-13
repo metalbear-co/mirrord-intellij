@@ -8,10 +8,10 @@ import com.goide.util.GoExecutor
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
-import com.metalbear.mirrord.MirrordEnabler
-import com.metalbear.mirrord.MirrordExecManager
 import com.metalbear.mirrord.MirrordPathManager
+import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
@@ -27,6 +27,11 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         return true
     }
 
+    // TODO
+    fun findMirrordConfig(cmdLine: TargetedCommandLineBuilder): String? {
+        return null
+    }
+
     override fun patchCommandLine(
         configuration: GoRunConfigurationBase<*>,
         runnerSettings: RunnerSettings?,
@@ -36,6 +41,8 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         commandLineType: GoRunningState.CommandLineType
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
+            val service = configuration.getProject().service<MirrordProjectService>()
+
             val wsl = state.targetEnvironmentRequest?.let {
                 if (it is WslTargetEnvironmentRequest) {
                     it.configuration.distribution
@@ -43,13 +50,11 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                     null
                 }
             }
-            val project = configuration.getProject()
 
-            MirrordExecManager.start(
+            service.execManager.start(
                     wsl,
-                    project,
                     "goland",
-                    null, // TODO get this somehow
+                    findMirrordConfig(cmdLine),
             )?.let {
                 env ->
                 for (entry in env.entries.iterator()) {
@@ -69,8 +74,10 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         state: GoRunningState<out GoRunConfigurationBase<*>>,
         commandLineType: GoRunningState.CommandLineType
     ) {
+        val service = configuration.getProject().service<MirrordProjectService>()
+
         if (commandLineType == GoRunningState.CommandLineType.RUN &&
-            MirrordEnabler.enabled &&
+            service.enabled &&
             SystemInfo.isMac &&
             state.isDebug
         ) {

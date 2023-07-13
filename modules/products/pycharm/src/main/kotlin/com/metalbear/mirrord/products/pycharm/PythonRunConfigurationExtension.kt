@@ -4,10 +4,13 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
+import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordConfigAPI
 import com.metalbear.mirrord.MirrordExecManager
+import com.metalbear.mirrord.MirrordProjectService
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
     override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean {
@@ -27,15 +30,16 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
         cmdLine: GeneralCommandLine,
         runnerId: String
     ) {
+        val service = configuration.project.service<MirrordProjectService>()
+
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
 
-        val project = configuration.project
         val currentEnv = cmdLine.environment
 
-        MirrordExecManager.start(wsl, project, "pycharm", currentEnv[MirrordConfigAPI.CONFIG_ENV_NAME])?.let {
+        service.execManager.start(wsl, "pycharm", currentEnv[CONFIG_ENV_NAME])?.let {
                 env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value

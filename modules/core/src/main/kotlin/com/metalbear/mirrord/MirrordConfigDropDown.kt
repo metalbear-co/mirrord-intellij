@@ -2,6 +2,7 @@ package com.metalbear.mirrord
 
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.ProjectLocator
 import com.intellij.openapi.vfs.VirtualFile
@@ -15,25 +16,29 @@ import javax.swing.JComponent
 class MirrordConfigDropDown : ComboBoxAction() {
     private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
         override fun actionPerformed(e: AnActionEvent) {
-            MirrordEnabler.setEnabled(!enabled, e.project)
+            val service = e.project?.service<MirrordProjectService>() ?: return
+            service.enabled = !enabled
         }
     }
 
     private class ShowActiveConfigAction(val config: VirtualFile) : AnAction("Active Config: ${config.presentableUrl}") {
         override fun actionPerformed(e: AnActionEvent) {
-            FileEditorManager.getInstance(e.project!!).openFile(config, true)
+            val service = e.project?.service<MirrordProjectService>() ?: return
+            FileEditorManager.getInstance(service.project).openFile(config, true)
         }
     }
 
     private class SelectActiveConfigAction : AnAction("Select Active Config") {
         override fun actionPerformed(e: AnActionEvent) {
+            val service = e.project?.service<MirrordProjectService>() ?: return
+
             val fileManager = VirtualFileManager.getInstance()
             val projectLocator = ProjectLocator.getInstance()
             val configs = FileBasedIndex
                     .getInstance()
-                    .getAllKeys(MirrordConfigIndex.key, e.project!!)
+                    .getAllKeys(MirrordConfigIndex.key, service.project)
                     .mapNotNull { fileManager.findFileByUrl(it) }
-                    .filter { projectLocator.getProjectsForFile(it).isNotEmpty() }
+                    .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
                     .associateBy { it.presentableUrl }
 
             val selection = MirrordConfigDialog(
@@ -41,33 +46,30 @@ class MirrordConfigDropDown : ComboBoxAction() {
                     configs.keys.toList().sorted()
             ).show() ?: return
 
-            selection.option.let {
-                if (it.option == null) {
-                    MirrordConfigAPI.activeConfigs.remove(e.project!!)
-                } else {
-                    MirrordConfigAPI.activeConfigs[e.project!!] = it.option
-                }
-            }
+            service.activeConfig = selection.option?.let { configs[it] }
+        }
     }
 
     private class SettingsAction : AnAction("Settings") {
         override fun actionPerformed(e: AnActionEvent) {
+            val service = e.project?.service<MirrordProjectService>() ?: return
+
             val configs: MutableMap<String, () -> Unit> = mutableMapOf()
-            MirrordConfigAPI.activeConfig?.let {
+            service.activeConfig?.let {
                 configs["(active) %s".format(it.presentableUrl)] = {
-                    FileEditorManager.getInstance(e.project!!).openFile(it, true)
+                    FileEditorManager.getInstance(service.project).openFile(it, true)
                 }
             }
 
-            val defaultConfig = MirrordConfigAPI.getDefaultConfig(e.project!!)
+            val defaultConfig = service.configApi.getDefaultConfig()
             if (defaultConfig == null) {
                 configs["(create default)"] = {
-                    val config = MirrordConfigAPI.createDefaultConfig(e.project!!)
-                    FileEditorManager.getInstance(e.project!!).openFile(config, true)
+                    val config = service.configApi.createDefaultConfig()
+                    FileEditorManager.getInstance(service.project).openFile(config, true)
                 }
             } else {
                 configs["(default) %s".format(defaultConfig.presentableUrl)] = {
-                    FileEditorManager.getInstance(e.project!!).openFile(defaultConfig, true)
+                    FileEditorManager.getInstance(service.project).openFile(defaultConfig, true)
                 }
             }
 
@@ -84,8 +86,8 @@ class MirrordConfigDropDown : ComboBoxAction() {
             selected?.let {
                 try {
                     configs[it]?.invoke()
-                } catch (ex: MirrordConfigAPI.InvalidProjectException) {
-                    MirrordNotifier.errorNotification(ex.message!!, e.project)
+                } catch (ex: InvalidProjectException) {
+                    service.notifier.notifyRichError(ex.message)
                 }
             }
         }
@@ -94,10 +96,13 @@ class MirrordConfigDropDown : ComboBoxAction() {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun createPopupActionGroup(button: JComponent, dataContext: DataContext): DefaultActionGroup {
+        val project = dataContext.getData(CommonDataKeys.PROJECT) ?: throw Error("mirrord requires an open project")
+        val service = project.service<MirrordProjectService>()
+
         return DefaultActionGroup().apply {
-            add(EnableMirrordAction(MirrordEnabler.enabled))
+            add(EnableMirrordAction(service.enabled))
             addSeparator("Configuration")
-            MirrordConfigAPI.activeConfig?.let { add(ShowActiveConfigAction(it)) }
+            service.activeConfig?.let { add(ShowActiveConfigAction(it)) }
             add(SelectActiveConfigAction())
             add(SettingsAction())
         }

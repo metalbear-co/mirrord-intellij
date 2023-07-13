@@ -5,18 +5,21 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.jetbrains.rd.util.lifetime.Lifetime
 import com.jetbrains.rider.run.PatchCommandLineExtension
 import com.jetbrains.rider.run.WorkerRunInfo
 import com.jetbrains.rider.runtime.DotNetRuntime
-import com.metalbear.mirrord.MirrordConfigAPI
-import com.metalbear.mirrord.MirrordExecManager
+import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
 
 class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     private fun patchCommandLine(commandLine: GeneralCommandLine, project: Project) {
+        val service = project.service<MirrordProjectService>()
+
         val wsl = RunManager.getInstance(project).selectedConfiguration?.configuration?.let {
             when (val request = createEnvironmentRequest(it, project)) {
                 is WslTargetEnvironmentRequest -> request.configuration.distribution!!
@@ -25,11 +28,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         }
 
 
-        MirrordExecManager.start(
+        service.execManager.start(
                 wsl,
-                project,
                 "rider",
-                commandLine.environment[MirrordConfigAPI.CONFIG_ENV_NAME]
+                commandLine.environment[CONFIG_ENV_NAME]
         )?.let {
             env ->
             for (entry in env.entries.iterator()) {

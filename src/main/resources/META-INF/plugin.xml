@@ -24,12 +24,12 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService
                 serviceImplementation="com.metalbear.mirrord.MirrordSettingsState"/>
+        <projectService serviceImplementation="com.metalbear.mirrord.MirrordProjectService"/>
     </extensions>
 
     <projectListeners>
         <listener class="com.metalbear.mirrord.MirrordNpmExecutionListener"
                   topic="com.intellij.execution.ExecutionListener"/>
-        <listener class="com.metalbear.mirrord.MirrordConfigWatcher" topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </projectListeners>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -39,7 +39,6 @@
                 id="com.metalbear.mirrord.MirrordSettingsConfigurable"
                 displayName="mirrord"/>
 
-        <vfs.asyncListener implementation="com.metalbear.mirrord.MirrordConfigWatcher"/>
         <fileBasedIndex implementation="com.metalbear.mirrord.MirrordConfigIndex"/>
     </extensions>
 

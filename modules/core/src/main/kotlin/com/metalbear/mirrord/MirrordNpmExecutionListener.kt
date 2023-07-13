@@ -6,6 +6,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 
 data class RunConfigGuard(val executionId: Long) {
@@ -23,8 +24,10 @@ class MirrordNpmExecutionListener : ExecutionListener {
         return env.runProfile::class.qualifiedName == "com.intellij.lang.javascript.buildTools.npm.rc.NpmRunConfiguration"
     }
 
-    private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
-        val executionGuard = executions[env.executionId]!!
+	private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
+		val service = env.project.service<MirrordProjectService>()
+
+		val executionGuard = executions[env.executionId]!!
 
         try {
             val runSettings = MirrordNpmMutableRunSettings.fromRunProfile(env.project, env.runProfile)
@@ -33,27 +36,26 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-			MirrordExecManager.start(
+			service.execManager.start(
 					wslDistribution,
-					env.project,
 					executablePath,
 					"JS",
-					runSettings.envs[MirrordConfigAPI.CONFIG_ENV_NAME]
+					runSettings.envs[CONFIG_ENV_NAME]
 			)?.let {
 				(newEnv, patchedPath) ->
 
                 runSettings.envs = executionGuard.originEnv + newEnv
 
-                patchedPath?.let {
-                    executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
-                    runSettings.packageManagerPackagePath = it
-                }
-            }
-        } catch (e: Exception) {
-            MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
-            MirrordNotifier.errorNotification("mirrord failed to patch npm run", env.project)
-        }
-    }
+				patchedPath?.let {
+					executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
+					runSettings.packageManagerPackagePath = it
+				}
+			}
+		} catch (e: Exception) {
+			MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
+			service.notifier.notifyRichError("mirrord failed to patch npm run")
+		}
+	}
 
     private fun clearNpmEnv(env: ExecutionEnvironment) {
         val executionGuard = executions[env.executionId]!!
@@ -62,21 +64,24 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             runSettings.envs = executionGuard.originEnv
 
-            if (SystemInfo.isMac) {
-                executionGuard.originPackageManagerPackageRef?.let {
-                    runSettings.packageManagerPackageRef = it
-                }
-            }
-        } catch (e: Exception) {
-            MirrordLogger.logger.error("mirrord failed to clear npm run patch: $e")
-            MirrordNotifier.errorNotification("mirrord failed to clear npm run patch", env.project)
-        } finally {
-            executions.remove(env.executionId)
-        }
-    }
+			if (SystemInfo.isMac) {
+				executionGuard.originPackageManagerPackageRef?.let {
+					runSettings.packageManagerPackageRef = it
+				}
+			}
+		} catch (e: Exception) {
+			MirrordLogger.logger.error("mirrord failed to clear npm run patch: $e")
+			val service = env.project.service<MirrordProjectService>()
+			service.notifier.notifyRichError("mirrord failed to clear npm run patch")
+		} finally {
+			executions.remove(env.executionId)
+		}
+	}
 
 	override fun processStarting(executorId: String, env: ExecutionEnvironment) {
-		if (!MirrordEnabler.enabled || !this.detectNpmRunConfiguration(env)) {
+		val service = env.project.service<MirrordProjectService>()
+
+		if (!service.enabled || !this.detectNpmRunConfiguration(env)) {
 			return super.processStarting(executorId, env)
 		}
 

@@ -7,10 +7,9 @@ import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
-import com.metalbear.mirrord.MirrordConfigAPI
-import com.metalbear.mirrord.MirrordExecManager
-import com.metalbear.mirrord.MirrordLogger
+import com.metalbear.mirrord.*
 
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
@@ -25,16 +24,18 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     }
 
     private fun < T: RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
-        return params.env[MirrordConfigAPI.CONFIG_ENV_NAME]
+        return params.env[CONFIG_ENV_NAME]
                 ?: if (configuration is ExternalSystemRunConfiguration) {
                     val ext = configuration as ExternalSystemRunConfiguration
-                    ext.settings.env[MirrordConfigAPI.CONFIG_ENV_NAME]
+                    ext.settings.env[CONFIG_ENV_NAME]
                 } else {
                     null
                 }
     }
 
     private fun < T: RunConfigurationBase<*>> patchEnv (configuration: T, params: JavaParameters) {
+        val service = configuration.project.service<MirrordProjectService>()
+
         MirrordLogger.logger.debug("Check if relevant")
         if (configuration.name.startsWith("Build ")) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -47,15 +48,13 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         }
 
         MirrordLogger.logger.debug("getting env")
-        val project = configuration.project
         val currentEnv = HashMap<String, String>()
         currentEnv.putAll(params.env)
 
         val mirrordEnv = HashMap<String, String>()
         MirrordLogger.logger.debug("calling start")
-        MirrordExecManager.start(
+        service.execManager.start(
                 wsl,
-                project,
                 "idea",
                 getMirrordConfigPath(configuration, params),
         )?.let {
