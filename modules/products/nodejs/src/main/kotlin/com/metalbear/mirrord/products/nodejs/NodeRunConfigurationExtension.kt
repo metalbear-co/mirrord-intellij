@@ -19,8 +19,8 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
     }
 
     override fun createLaunchSession(
-        configuration: AbstractNodeTargetRunProfile,
-        environment: ExecutionEnvironment
+            configuration: AbstractNodeTargetRunProfile,
+            environment: ExecutionEnvironment,
     ): NodeRunConfigurationLaunchSession? {
         val service = configuration.project.service<MirrordProjectService>()
 
@@ -31,8 +31,7 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
         }
 
         val config = configuration as NodeJsRunConfiguration
-        service.execManager.start(wsl, "npm", config.envs[CONFIG_ENV_NAME])?.let {
-                env ->
+        service.execManager.start(wsl, "npm", config.envs[CONFIG_ENV_NAME])?.let { env ->
             config.envs = config.envs + env;
         }
 

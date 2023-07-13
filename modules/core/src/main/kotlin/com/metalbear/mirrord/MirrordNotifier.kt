@@ -15,12 +15,12 @@ import com.intellij.openapi.vfs.VirtualFile
  */
 class MirrordNotifier(private val service: MirrordProjectService) {
     private val notificationManager: NotificationGroup = NotificationGroupManager
-            .getInstance()
-            .getNotificationGroup("mirrord Notification Handler")
+        .getInstance()
+        .getNotificationGroup("mirrord Notification Handler")
 
     private val warningNotificationManager: NotificationGroup = NotificationGroupManager
-            .getInstance()
-            .getNotificationGroup("mirrord Warning Notification Handler")
+        .getInstance()
+        .getNotificationGroup("mirrord Warning Notification Handler")
 
     class MirrordNotification(private val inner: Notification, private val project: Project) {
         private var id: MirrordSettingsState.NotificationId? = null;
@@ -75,8 +75,8 @@ class MirrordNotifier(private val service: MirrordProjectService) {
 
     fun notification(message: String, type: NotificationType): MirrordNotification {
         return MirrordNotification(
-                notificationManager.createNotification("mirrord", message, type),
-                service.project,
+            notificationManager.createNotification("mirrord", message, type),
+            service.project,
         )
     }
 
@@ -88,27 +88,27 @@ class MirrordNotifier(private val service: MirrordProjectService) {
             }
 
             notificationManager
-                    .createNotification("mirrord", message, type)
-                    .notify(service.project)
+                .createNotification("mirrord", message, type)
+                .notify(service.project)
         }
     }
 
     fun notifyRichError(message: String) {
         ApplicationManager.getApplication().invokeLater {
             notification(message, NotificationType.ERROR)
-                    .withAction("Get support on Discord") { _, n ->
-                        BrowserUtil.browse("https://discord.gg/metalbear")
-                        n.expire()
-                    }
-                    .withAction("Report on GitHub") { _, n ->
-                        BrowserUtil.browse("https://github.com/metalbear-co/mirrord/issues/new?assignees=&labels=bug&template=bug_report.yml")
-                        n.expire()
-                    }
-                    .withAction("Send us an email") { _, n ->
-                        BrowserUtil.browse("mailto:hi@metalbear.co")
-                        n.expire()
-                    }
-                    .fire()
+                .withAction("Get support on Discord") { _, n ->
+                    BrowserUtil.browse("https://discord.gg/metalbear")
+                    n.expire()
+                }
+                .withAction("Report on GitHub") { _, n ->
+                    BrowserUtil.browse("https://github.com/metalbear-co/mirrord/issues/new?assignees=&labels=bug&template=bug_report.yml")
+                    n.expire()
+                }
+                .withAction("Send us an email") { _, n ->
+                    BrowserUtil.browse("mailto:hi@metalbear.co")
+                    n.expire()
+                }
+                .fire()
         }
     }
 }

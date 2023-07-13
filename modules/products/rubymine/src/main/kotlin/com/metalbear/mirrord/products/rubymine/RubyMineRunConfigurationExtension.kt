@@ -17,7 +17,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: AbstractRubyRunConfiguration<*>,
-        runnerSettings: RunnerSettings?
+        runnerSettings: RunnerSettings?,
     ): Boolean {
         return true
     }
@@ -26,7 +26,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         configuration: AbstractRubyRunConfiguration<*>,
         runnerSettings: RunnerSettings?,
         cmdLine: GeneralCommandLine,
-        runnerId: String
+        runnerId: String,
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 
@@ -38,11 +38,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         val currentEnv = configuration.envs
 
         service.execManager.start(
-                wsl,
-                "rubymine",
-                currentEnv[CONFIG_ENV_NAME]
-        )?.let {
-                env ->
+            wsl,
+            "rubymine",
+            currentEnv[CONFIG_ENV_NAME]
+        )?.let { env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
             }

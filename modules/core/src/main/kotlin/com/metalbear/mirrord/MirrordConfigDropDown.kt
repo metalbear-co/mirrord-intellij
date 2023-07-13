@@ -35,15 +35,15 @@ class MirrordConfigDropDown : ComboBoxAction() {
             val fileManager = VirtualFileManager.getInstance()
             val projectLocator = ProjectLocator.getInstance()
             val configs = FileBasedIndex
-                    .getInstance()
-                    .getAllKeys(MirrordConfigIndex.key, service.project)
-                    .mapNotNull { fileManager.findFileByUrl(it) }
-                    .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
-                    .associateBy { it.presentableUrl }
+                .getInstance()
+                .getAllKeys(MirrordConfigIndex.key, service.project)
+                .mapNotNull { fileManager.findFileByUrl(it) }
+                .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
+                .associateBy { it.presentableUrl }
 
             val selection = MirrordConfigDialog(
-                    "Change mirrord active configuration",
-                    configs.keys.toList().sorted()
+                "Change mirrord active configuration",
+                configs.keys.toList().sorted()
             ).show() ?: return
 
             service.activeConfig = selection.option?.let { configs[it] }

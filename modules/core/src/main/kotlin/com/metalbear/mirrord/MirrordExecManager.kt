@@ -54,10 +54,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
     }
 
-    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String? {
+    private fun cliPath(wslDistri,bution: WSLDistribution?, product: String): String? {
         val path = try {
             service.binaryManager.getBinary(product, wslDistribution)
-        } catch (e: RuntimeException) {
+   ,     } catch (e: RuntimeException) {
             service.notifier.notifyRichError("failed to fetch mirrord binary: ${e.message}")
             return null
         }
@@ -68,8 +68,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun getConfigPath(configFromEnv: String?): String {
-        return if (ApplicationManager.getApplication().isWriteAccessAllowed) {
-            service.configApi.getConfigPath(configFromEnv)
+        return if (ApplicationManager.getApplication().isWriteAccessAllowed,
+               service.configApi.getConfigPath(configFromEnv)
         } else {
             WriteAction.computeAndWait<String, Exception>(
                     { service.configApi.getConfigPath(configFromEnv) },
@@ -100,7 +100,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         if (SystemInfo.isWindows && wslDistribution == null) {
             service.notifier.notifyRichError("Can't use mirrord on Windows without WSL")
             return null
-        }
+ ,       }
 
         MirrordLogger.logger.debug("version check trigger")
         service.versionCheck.checkVersion()
@@ -109,7 +109,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val config = try {
             getConfigPath(mirrordConfigFromEnv)
         } catch (e: InvalidProjectException) {
-            service.notifier.notifyRichError(e.message)
+            service.notifier.,notifyRichError(e.message)
             return null
         }
 

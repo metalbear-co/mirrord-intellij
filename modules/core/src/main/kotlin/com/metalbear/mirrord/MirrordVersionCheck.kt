@@ -16,7 +16,7 @@ private val PLUGIN_ID = PluginId.getId("com.metalbear.mirrord")
 val VERSION: String? = PluginManagerCore.getPlugin(PLUGIN_ID)?.version
 private val OS: String = java.net.URLEncoder.encode(SystemInfo.OS_NAME, "utf-8")
 private val VERSION_CHECK_ENDPOINT: String =
-        "https://version.mirrord.dev/get-latest-version?source=3&version=$VERSION&platform=$OS"
+    "https://version.mirrord.dev/get-latest-version?source=3&version=$VERSION&platform=$OS"
 private const val LAST_CHECK_KEY = "lastCheck"
 
 class MirrordVersionCheck(private val service: MirrordProjectService) {
@@ -49,18 +49,18 @@ class MirrordVersionCheck(private val service: MirrordProjectService) {
                     "The version of the mirrord plugin is outdated. Would you like to update it now?",
                     NotificationType.INFORMATION
                 )
-                        .withAction("Update") { _, n ->
-                            try {
-                                PluginManagerConfigurable.showPluginConfigurable(service.project, listOf(PLUGIN_ID))
-                            } finally {
-                                n.expire()
-                            }
-                        }
-                        .withAction("Don't show again") { _, n ->
-                            MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
+                    .withAction("Update") { _, n ->
+                        try {
+                            PluginManagerConfigurable.showPluginConfigurable(service.project, listOf(PLUGIN_ID))
+                        } finally {
                             n.expire()
                         }
-                        .fire()
+                    }
+                    .withAction("Don't show again") { _, n ->
+                        MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
+                        n.expire()
+                    }
+                    .fire()
             }
         }
         return

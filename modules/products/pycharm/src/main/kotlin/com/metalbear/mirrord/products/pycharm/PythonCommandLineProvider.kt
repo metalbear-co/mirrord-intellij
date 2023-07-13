@@ -17,7 +17,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
         project: Project,
         helpersAwareTargetRequest: HelpersAwareTargetEnvironmentRequest,
         pythonExecution: PythonExecution,
-        runParams: PythonRunParams
+        runParams: PythonRunParams,
     ) {
         val service = project.service<MirrordProjectService>()
 
@@ -32,11 +32,10 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 }
 
                 service.execManager.start(
-                        wsl,
-                        "pycharm",
-                        runParams.getEnvs()[CONFIG_ENV_NAME]
-                )?.let {
-                        env ->
+                    wsl,
+                    "pycharm",
+                    runParams.getEnvs()[CONFIG_ENV_NAME]
+                )?.let { env ->
                     for (entry in env.entries.iterator()) {
                         pythonExecution.addEnvironmentVariable(entry.key, entry.value)
                     }

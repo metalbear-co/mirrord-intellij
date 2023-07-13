@@ -26,6 +26,7 @@ class MirrordProjectService(val project: Project) : Disposable {
 
     @Volatile
     var activeConfig: VirtualFile? = null
+
     @Volatile
     private var _enabled = false
 
@@ -55,25 +56,25 @@ class MirrordProjectService(val project: Project) : Disposable {
     private fun telemetryConsent() {
         ApplicationManager.getApplication().invokeLater {
             notifier
-                    .notification(
+                .notification(
                     "Allow mirrord to send telemetries",
                     NotificationType.INFORMATION
-                    )
-                    .withAction("Deny (disables version check)") { _, n ->
-                        MirrordSettingsState.instance.mirrordState.telemetryEnabled = false
-                        MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
-                        n.expire()
-                    }
-                    .withAction("More info") { _, _ ->
-                        BrowserUtil.browse("https://github.com/metalbear-co/mirrord/blob/main/TELEMETRY.md")
-                    }
-                    .withAction("Allow") { _, n ->
-                        MirrordSettingsState.instance.mirrordState.telemetryEnabled = true
-                        MirrordSettingsState.instance.mirrordState.versionCheckEnabled = true
-                        n.expire()
-                    }
-                    .withCollapseDirection(Notification.CollapseActionsDirection.KEEP_RIGHTMOST)
-                    .fire()
+                )
+                .withAction("Deny (disables version check)") { _, n ->
+                    MirrordSettingsState.instance.mirrordState.telemetryEnabled = false
+                    MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
+                    n.expire()
+                }
+                .withAction("More info") { _, _ ->
+                    BrowserUtil.browse("https://github.com/metalbear-co/mirrord/blob/main/TELEMETRY.md")
+                }
+                .withAction("Allow") { _, n ->
+                    MirrordSettingsState.instance.mirrordState.telemetryEnabled = true
+                    MirrordSettingsState.instance.mirrordState.versionCheckEnabled = true
+                    n.expire()
+                }
+                .withCollapseDirection(Notification.CollapseActionsDirection.KEEP_RIGHTMOST)
+                .fire()
         }
     }
 

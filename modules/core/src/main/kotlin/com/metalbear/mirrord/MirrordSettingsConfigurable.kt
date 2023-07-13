@@ -9,6 +9,7 @@ class MirrordSettingsConfigurable : Configurable {
     override fun getDisplayName(): String {
         return "mirrord"
     }
+
     override fun getPreferredFocusedComponent(): JComponent {
         return mySettingsComponent!!.preferredFocusedComponent
     }
@@ -18,13 +19,12 @@ class MirrordSettingsConfigurable : Configurable {
         return mySettingsComponent!!.panel
     }
 
-    override fun isModified(): Boolean
-        {
-            val settings = MirrordSettingsState.instance.mirrordState
-            return (mySettingsComponent!!.telemetryEnabledStatus != settings.telemetryEnabled)
-                    || (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled)
-                    || (mySettingsComponent!!.notificationsDisabledStatus != settings.disabledNotifications)
-        }
+    override fun isModified(): Boolean {
+        val settings = MirrordSettingsState.instance.mirrordState
+        return (mySettingsComponent!!.telemetryEnabledStatus != settings.telemetryEnabled)
+            || (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled)
+            || (mySettingsComponent!!.notificationsDisabledStatus != settings.disabledNotifications)
+    }
 
     override fun apply() {
         val settings = MirrordSettingsState.instance.mirrordState

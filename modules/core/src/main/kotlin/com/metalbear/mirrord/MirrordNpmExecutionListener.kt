@@ -10,8 +10,8 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 
 data class RunConfigGuard(val executionId: Long) {
-	var originEnv: Map<String, String> = LinkedHashMap()
-	var originPackageManagerPackageRef: Any? = null
+    var originEnv: Map<String, String> = LinkedHashMap()
+    var originPackageManagerPackageRef: Any? = null
 }
 
 class MirrordNpmExecutionListener : ExecutionListener {
@@ -24,38 +24,41 @@ class MirrordNpmExecutionListener : ExecutionListener {
         return env.runProfile::class.qualifiedName == "com.intellij.lang.javascript.buildTools.npm.rc.NpmRunConfiguration"
     }
 
-	private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
-		val service = env.project.service<MirrordProjectService>()
+    private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
+        val service = env.project.service<MirrordProjectService>()
 
-		val executionGuard = executions[env.executionId]!!
+        val executionGuard = executions[env.executionId]!!
 
         try {
             val runSettings = MirrordNpmMutableRunSettings.fromRunProfile(env.project, env.runProfile)
 
-            val executablePath = if (SystemInfo.isMac) { runSettings.packageManagerPackagePath } else { null }
+            val executablePath = if (SystemInfo.isMac) {
+                runSettings.packageManagerPackagePath
+            } else {
+                null
+            }
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-			service.execManager.start(
-					wslDistribution,
-					executablePath,
-					"JS",
-					runSettings.envs[CONFIG_ENV_NAME]
-			)?.let {
-				(newEnv, patchedPath) ->
+            service.execManager.start(
+                wslDistribution,
+                executablePath,
+                "JS",
+                runSettings.envs[CONFIG_ENV_NAME]
+            )?.let { (newEnv, patchedPath) ->
 
                 runSettings.envs = executionGuard.originEnv + newEnv
 
-				patchedPath?.let {
-					executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
-					runSettings.packageManagerPackagePath = it
-				}
-			}
-		} catch (e: Exception) {
-			MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
-			service.notifier.notifyRichError("mirrord failed to patch npm run")
-		}
-	}
+                patchedPath?.let {
+                    executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
+                    runSettings.packageManagerPackagePath = it
+                }
+            }
+        } catch (e: Exception) {
+            MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
+            service.notifier.notifyRichError("mirrord failed to patch npm run")
+        }
+    }
 
     private fun clearNpmEnv(env: ExecutionEnvironment) {
         val executionGuard = executions[env.executionId]!!
@@ -64,26 +67,26 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             runSettings.envs = executionGuard.originEnv
 
-			if (SystemInfo.isMac) {
-				executionGuard.originPackageManagerPackageRef?.let {
-					runSettings.packageManagerPackageRef = it
-				}
-			}
-		} catch (e: Exception) {
-			MirrordLogger.logger.error("mirrord failed to clear npm run patch: $e")
-			val service = env.project.service<MirrordProjectService>()
-			service.notifier.notifyRichError("mirrord failed to clear npm run patch")
-		} finally {
-			executions.remove(env.executionId)
-		}
-	}
+            if (SystemInfo.isMac) {
+                executionGuard.originPackageManagerPackageRef?.let {
+                    runSettings.packageManagerPackageRef = it
+                }
+            }
+        } catch (e: Exception) {
+            MirrordLogger.logger.error("mirrord failed to clear npm run patch: $e")
+            val service = env.project.service<MirrordProjectService>()
+            service.notifier.notifyRichError("mirrord failed to clear npm run patch")
+        } finally {
+            executions.remove(env.executionId)
+        }
+    }
 
-	override fun processStarting(executorId: String, env: ExecutionEnvironment) {
-		val service = env.project.service<MirrordProjectService>()
+    override fun processStarting(executorId: String, env: ExecutionEnvironment) {
+        val service = env.project.service<MirrordProjectService>()
 
-		if (!service.enabled || !this.detectNpmRunConfiguration(env)) {
-			return super.processStarting(executorId, env)
-		}
+        if (!service.enabled || !this.detectNpmRunConfiguration(env)) {
+            return super.processStarting(executorId, env)
+        }
 
         executions[env.executionId] = RunConfigGuard(env.executionId)
 

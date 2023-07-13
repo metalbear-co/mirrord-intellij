@@ -20,7 +20,7 @@ data class ConfigDataSimple(val target: String?)
 const val CONFIG_ENV_NAME: String = "MIRRORD_CONFIG_FILE"
 
 private const val DEFAULT_CONFIG =
-        """{
+    """{
     "accept_invalid_certificates": false,
     "feature": {
         "network": {
@@ -44,7 +44,7 @@ class InvalidConfigException(path: String, reason: String) : Exception() {
 fun isTargetSet(configPath: String): Boolean {
     val file = try {
         VirtualFileManager.getInstance().findFileByNioPath(Path.of(configPath))
-                ?: throw InvalidConfigException(configPath, "file not found")
+            ?: throw InvalidConfigException(configPath, "file not found")
     } catch (_: InvalidPathException) {
         throw InvalidConfigException(configPath, "invalid path")
     }
@@ -82,11 +82,11 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     fun getConfigPath(configFromEnv: String?): String {
         service.activeConfig?.let {
             service.notifier.notification(
-                    "Using mirrord active config",
-                    NotificationType.INFORMATION,
+                "Using mirrord active config",
+                NotificationType.INFORMATION,
             )
-                    .withOpenFile(it)
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_USED).fire()
+                .withOpenFile(it)
+                .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_USED).fire()
 
             return it.path
         }
@@ -97,23 +97,23 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
 
         getDefaultConfig()?.let {
             service.notifier.notification(
-                    "Using mirrord default config",
-                    NotificationType.INFORMATION,
+                "Using mirrord default config",
+                NotificationType.INFORMATION,
             )
-                    .withOpenFile(it)
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_USED)
-                    .fire()
+                .withOpenFile(it)
+                .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_USED)
+                .fire()
             return it.path
         }
 
         val config = createDefaultConfig()
         service.notifier.notification(
-                "Created a mirrord default config",
-                NotificationType.WARNING,
+            "Created a mirrord default config",
+            NotificationType.WARNING,
         )
-                .withOpenFile(config)
-                .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_CREATED)
-                .fire()
+            .withOpenFile(config)
+            .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_CREATED)
+            .fire()
         return config.path
     }
 
@@ -124,7 +124,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      */
     private fun getMirrordDirParent(): VirtualFile {
         val projectFile = service.project.workspaceFile
-                ?: throw InvalidProjectException(service.project, "mirrord cannot be used with the default project")
+            ?: throw InvalidProjectException(service.project, "mirrord cannot be used with the default project")
 
         val dir = if (projectFile.name == "workspace.xml") {
             projectFile.parent?.parent
@@ -133,7 +133,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         }
 
         return dir
-                ?: throw InvalidProjectException(service.project, "could not determine parent directory for mirrord files")
+            ?: throw InvalidProjectException(service.project, "could not determine parent directory for mirrord files")
     }
 
     /**
@@ -158,9 +158,9 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      */
     fun getDefaultConfig(): VirtualFile? {
         return getMirrordDir()
-                ?.children
-                ?.filter { it.name.endsWith("mirrord.json") }
-                ?.minByOrNull { it.name }
+            ?.children
+            ?.filter { it.name.endsWith("mirrord.json") }
+            ?.minByOrNull { it.name }
     }
 
     /**
@@ -172,6 +172,6 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
 
         return mirrordDir.createChildData(this, "mirrord.json")
-                .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
+            .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
     }
 }

@@ -18,22 +18,22 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: RunConfigurationBase<*>,
-        runnerSettings: RunnerSettings?
+        runnerSettings: RunnerSettings?,
     ): Boolean {
         return true
     }
 
-    private fun < T: RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
+    private fun <T : RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
         return params.env[CONFIG_ENV_NAME]
-                ?: if (configuration is ExternalSystemRunConfiguration) {
-                    val ext = configuration as ExternalSystemRunConfiguration
-                    ext.settings.env[CONFIG_ENV_NAME]
-                } else {
-                    null
-                }
+            ?: if (configuration is ExternalSystemRunConfiguration) {
+                val ext = configuration as ExternalSystemRunConfiguration
+                ext.settings.env[CONFIG_ENV_NAME]
+            } else {
+                null
+            }
     }
 
-    private fun < T: RunConfigurationBase<*>> patchEnv (configuration: T, params: JavaParameters) {
+    private fun <T : RunConfigurationBase<*>> patchEnv(configuration: T, params: JavaParameters) {
         val service = configuration.project.service<MirrordProjectService>()
 
         MirrordLogger.logger.debug("Check if relevant")
@@ -54,11 +54,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         val mirrordEnv = HashMap<String, String>()
         MirrordLogger.logger.debug("calling start")
         service.execManager.start(
-                wsl,
-                "idea",
-                getMirrordConfigPath(configuration, params),
-        )?.let {
-                env ->
+            wsl,
+            "idea",
+            getMirrordConfigPath(configuration, params),
+        )?.let { env ->
             for (entry in env.entries.iterator()) {
                 mirrordEnv[entry.key] = entry.value
             }
@@ -74,11 +73,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         }
         MirrordLogger.logger.debug("setting env and finishing")
     }
+
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
         runnerSettings: RunnerSettings?,
-        executor: Executor
+        executor: Executor,
     ) {
         MirrordLogger.logger.debug("updateJavaParameters called")
         patchEnv(configuration, params)
@@ -87,7 +87,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
-        runnerSettings: RunnerSettings?
+        runnerSettings: RunnerSettings?,
     ) {
         MirrordLogger.logger.debug("updateJavaParameters (with less parameters) called")
         patchEnv(configuration, params)

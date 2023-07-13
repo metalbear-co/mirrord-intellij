@@ -10,8 +10,8 @@ class MirrordActiveConfigWatch(private val service: MirrordProjectService) : Asy
     override fun prepareChange(events: MutableList<out VFileEvent>): AsyncFileListener.ChangeApplier? {
         val removeActive = service.activeConfig?.url?.let { activeUrl ->
             events
-                    .filter { it is VFileDeleteEvent || it is VFileMoveEvent }
-                    .any { it.file?.url == activeUrl }
+                .filter { it is VFileDeleteEvent || it is VFileMoveEvent }
+                .any { it.file?.url == activeUrl }
         } ?: false
 
         return if (removeActive) {
@@ -19,11 +19,11 @@ class MirrordActiveConfigWatch(private val service: MirrordProjectService) : Asy
                 override fun afterVfsChange() {
                     service.activeConfig = null
                     service.notifier.notification(
-                            "mirrord active config has been removed",
-                            NotificationType.WARNING,
+                        "mirrord active config has been removed",
+                        NotificationType.WARNING,
                     )
-                            .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_REMOVED)
-                            .fire()
+                        .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_REMOVED)
+                        .fire()
                 }
             }
         } else {
