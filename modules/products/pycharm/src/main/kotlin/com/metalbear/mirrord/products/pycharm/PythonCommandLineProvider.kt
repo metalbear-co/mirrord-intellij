@@ -10,7 +10,6 @@ import com.jetbrains.python.run.PythonRunParams
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
 import com.metalbear.mirrord.CONFIG_ENV_NAME
-import com.metalbear.mirrord.MirrordExecManager
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {

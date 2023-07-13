@@ -4,7 +4,6 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
 import java.net.URI

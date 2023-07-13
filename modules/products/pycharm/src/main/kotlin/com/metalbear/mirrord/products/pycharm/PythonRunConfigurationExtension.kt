@@ -8,8 +8,6 @@ import com.intellij.openapi.components.service
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
 import com.metalbear.mirrord.CONFIG_ENV_NAME
-import com.metalbear.mirrord.MirrordConfigAPI
-import com.metalbear.mirrord.MirrordExecManager
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {

@@ -3,7 +3,6 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.util.SystemInfo
 import kotlinx.collections.immutable.toImmutableMap
 
