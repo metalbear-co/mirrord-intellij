@@ -103,7 +103,7 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
                     VERSION ?: "unknown"
                 }
 
-                val url = StringBuilder(versionEndpoint)
+                val url = StringBuilder(VERSION_ENDPOINT)
                     .append("?source=3")
                     .append("&version=")
                     .append(URLEncoder.encode(version, Charset.defaultCharset()))
