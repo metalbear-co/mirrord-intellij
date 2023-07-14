@@ -93,11 +93,18 @@ internal class MirrordPluginTest {
         idea {
             step("Create config file") {
                 waitFor(ofSeconds(30)) {
-                    createMirrordConfig.isShowing
+                    mirrordDropdownButton.isShowing
                 }
                 dumbAware {
-                    createMirrordConfig.click()
+                    mirrordDropdownButton.click()
                 }
+
+                waitFor(ofSeconds(1)) {
+                    mirrordDropdownMenu.isShowing
+                }
+
+                mirrordDropdownMenu.findText("Settings").click()
+
                 editorTabs {
                     waitFor {
                         isFileOpened("mirrord.json")
@@ -183,6 +190,7 @@ internal class MirrordPluginTest {
                     xDebuggerFramesList.isShowing
                 }
             }
+
             stopDebugging.click()
         }
     }

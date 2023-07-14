@@ -24,14 +24,16 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
-    val createMirrordConfig
+
+    val mirrordDropdownButton
         get() = find<ContainerFixture>(
-            byXpath(
-                "//div[@accessiblename='Open mirrord configuration file' " +
-                    "and @class='ActionButton' " +
-                    "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
-            ),
+            byXpath("//div[@text='mirrord' and @class='ComboBoxButton']"),
             Duration.ofSeconds(30)
+        )
+
+    val mirrordDropdownMenu
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='MyList' and @visible_text='Disabled || Select Active Config || Configuration || Settings']")
         )
 
     val startDebugging
