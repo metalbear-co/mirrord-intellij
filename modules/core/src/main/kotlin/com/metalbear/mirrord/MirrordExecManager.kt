@@ -3,11 +3,10 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.util.SystemInfo
 import kotlinx.collections.immutable.toImmutableMap
-import com.intellij.openapi.application.ModalityState
-
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -19,16 +18,16 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * pod or the targetless target
      */
     private fun chooseTarget(
-            cli: String,
-            wslDistribution: WSLDistribution?,
-            config: String,
+        cli: String,
+        wslDistribution: WSLDistribution?,
+        config: String
     ): String? {
         MirrordLogger.logger.debug("choose target called")
 
         val pods = service.mirrordApi.listPods(
-                cli,
-                config,
-                wslDistribution,
+            cli,
+            config,
+            wslDistribution
         ) ?: return null
 
         val application = ApplicationManager.getApplication()
@@ -69,29 +68,29 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
     private fun getConfigPath(configFromEnv: String?): String {
         return if (ApplicationManager.getApplication().isWriteAccessAllowed) {
-               service.configApi.getConfigPath(configFromEnv)
+            service.configApi.getConfigPath(configFromEnv)
         } else {
             WriteAction.computeAndWait<String, Exception>(
-                    { service.configApi.getConfigPath(configFromEnv) },
-                    ModalityState.NON_MODAL,
+                { service.configApi.getConfigPath(configFromEnv) },
+                ModalityState.NON_MODAL
             )
         }
     }
 
     fun start(
-            wslDistribution: WSLDistribution?,
-            product: String,
-            mirrordConfigFromEnv: String?
+        wslDistribution: WSLDistribution?,
+        product: String,
+        mirrordConfigFromEnv: String?
     ): Map<String, String>? {
         return start(wslDistribution, null, product, mirrordConfigFromEnv)?.first
     }
 
     /** Starts mirrord, shows dialog for selecting pod if target not set and returns env to set. */
     fun start(
-            wslDistribution: WSLDistribution?,
-            executable: String?,
-            product: String,
-            mirrordConfigFromEnv: String?,
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        mirrordConfigFromEnv: String?
     ): Pair<Map<String, String>, String?>? {
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
@@ -134,21 +133,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             if (target == MirrordExecDialog.targetlessTargetName) {
                 MirrordLogger.logger.info("No target specified - running targetless")
                 service.notifier.notification(
-                        "No target specified, mirrord running targetless.",
-                        NotificationType.INFORMATION
+                    "No target specified, mirrord running targetless.",
+                    NotificationType.INFORMATION
                 )
-                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                        .fire()
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                    .fire()
                 target = null
             }
         }
 
         val executionInfo = service.mirrordApi.exec(
-                cli,
-                target,
-                config,
-                executable,
-                wslDistribution
+            cli,
+            target,
+            config,
+            executable,
+            wslDistribution
         )
 
         executionInfo?.let {

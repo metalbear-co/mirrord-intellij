@@ -1,10 +1,10 @@
 package com.metalbear.mirrord
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.google.gson.Gson
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -83,7 +83,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         service.activeConfig?.let {
             service.notifier.notification(
                 "Using mirrord active config",
-                NotificationType.INFORMATION,
+                NotificationType.INFORMATION
             )
                 .withOpenFile(it)
                 .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_USED).fire()
@@ -98,7 +98,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         getDefaultConfig()?.let {
             service.notifier.notification(
                 "Using mirrord default config",
-                NotificationType.INFORMATION,
+                NotificationType.INFORMATION
             )
                 .withOpenFile(it)
                 .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_USED)
@@ -109,7 +109,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         val config = createDefaultConfig()
         service.notifier.notification(
             "Created a mirrord default config",
-            NotificationType.WARNING,
+            NotificationType.WARNING
         )
             .withOpenFile(config)
             .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_CREATED)

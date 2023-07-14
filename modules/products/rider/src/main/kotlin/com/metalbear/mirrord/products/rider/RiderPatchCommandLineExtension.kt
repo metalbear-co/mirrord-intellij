@@ -27,7 +27,6 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         }
 
-
         service.execManager.start(
             wsl,
             "rider",
@@ -42,7 +41,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     override fun patchDebugCommandLine(
         lifetime: Lifetime,
         workerRunInfo: WorkerRunInfo,
-        project: Project,
+        project: Project
     ): Promise<WorkerRunInfo> {
         patchCommandLine(workerRunInfo.commandLine, project)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
@@ -52,7 +51,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     override fun patchRunCommandLine(
         commandLine: GeneralCommandLine,
         dotNetRuntime: DotNetRuntime,
-        project: Project,
+        project: Project
     ): ProcessListener? {
         patchCommandLine(commandLine, project)
         return null

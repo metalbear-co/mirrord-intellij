@@ -26,7 +26,7 @@ data class Message(
     val name: String,
     val parent: String?,
     val success: Boolean?,
-    val message: String?,
+    val message: String?
 )
 
 data class Error(
@@ -35,13 +35,13 @@ data class Error(
     val causes: List<String>,
     val help: String,
     val labels: List<String>,
-    val related: List<String>,
+    val related: List<String>
 )
 
 data class MirrordExecution(
     val environment: MutableMap<String, String>,
     @SerializedName("patched_path")
-    val patchedPath: String?,
+    val patchedPath: String?
 )
 
 /**
@@ -58,7 +58,7 @@ class MirrordApi(private val service: MirrordProjectService) {
     fun listPods(
         cli: String,
         configFile: String?,
-        wslDistribution: WSLDistribution?,
+        wslDistribution: WSLDistribution?
     ): List<String>? {
         logger.debug("listing pods")
 
@@ -112,7 +112,7 @@ class MirrordApi(private val service: MirrordProjectService) {
             service.notifier.notifySimple(
                 "No mirrord target available in the configured namespace. " +
                     "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                NotificationType.INFORMATION,
+                NotificationType.INFORMATION
             )
         }
 
@@ -124,7 +124,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         target: String?,
         configFile: String?,
         executable: String?,
-        wslDistribution: WSLDistribution?,
+        wslDistribution: WSLDistribution?
     ): MirrordExecution? {
         val commandLine = GeneralCommandLine(cli, "ext").apply {
             target?.let {

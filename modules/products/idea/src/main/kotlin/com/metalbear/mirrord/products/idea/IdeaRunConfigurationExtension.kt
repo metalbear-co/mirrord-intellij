@@ -18,7 +18,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: RunConfigurationBase<*>,
-        runnerSettings: RunnerSettings?,
+        runnerSettings: RunnerSettings?
     ): Boolean {
         return true
     }
@@ -56,7 +56,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         service.execManager.start(
             wsl,
             "idea",
-            getMirrordConfigPath(configuration, params),
+            getMirrordConfigPath(configuration, params)
         )?.let { env ->
             for (entry in env.entries.iterator()) {
                 mirrordEnv[entry.key] = entry.value
@@ -78,7 +78,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         configuration: T,
         params: JavaParameters,
         runnerSettings: RunnerSettings?,
-        executor: Executor,
+        executor: Executor
     ) {
         MirrordLogger.logger.debug("updateJavaParameters called")
         patchEnv(configuration, params)
@@ -87,7 +87,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
-        runnerSettings: RunnerSettings?,
+        runnerSettings: RunnerSettings?
     ) {
         MirrordLogger.logger.debug("updateJavaParameters (with less parameters) called")
         patchEnv(configuration, params)

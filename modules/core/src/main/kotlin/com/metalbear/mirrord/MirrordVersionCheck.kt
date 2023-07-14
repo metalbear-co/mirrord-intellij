@@ -41,7 +41,6 @@ class MirrordVersionCheck(private val service: MirrordProjectService) {
             return
         }
 
-
         val localVersion = Version.valueOf(VERSION)
         if (localVersion.lessThan(remoteVersion)) {
             ApplicationManager.getApplication().invokeLater {

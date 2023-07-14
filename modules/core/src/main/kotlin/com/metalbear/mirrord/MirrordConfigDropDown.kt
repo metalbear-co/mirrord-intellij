@@ -113,7 +113,7 @@ class MirrordConfigDropDown : ComboBoxAction() {
         "Deprecated in Java",
         ReplaceWith(
             "createPopupActionGroup(button, DataManager.getInstance().getDataContext(button))",
-            "com.intellij.ide.DataManager",
+            "com.intellij.ide.DataManager"
         )
     )
     override fun createPopupActionGroup(button: JComponent): DefaultActionGroup {

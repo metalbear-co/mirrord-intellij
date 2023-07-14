@@ -17,7 +17,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: AbstractRubyRunConfiguration<*>,
-        runnerSettings: RunnerSettings?,
+        runnerSettings: RunnerSettings?
     ): Boolean {
         return true
     }
@@ -26,7 +26,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         configuration: AbstractRubyRunConfiguration<*>,
         runnerSettings: RunnerSettings?,
         cmdLine: GeneralCommandLine,
-        runnerId: String,
+        runnerId: String
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 

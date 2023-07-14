@@ -6,8 +6,8 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 
 @Service(Service.Level.PROJECT)
@@ -34,7 +34,7 @@ class MirrordProjectService(val project: Project) : Disposable {
         get() = _enabled
         set(value) {
             if (value == _enabled) {
-                return;
+                return
             }
 
             if (value) {

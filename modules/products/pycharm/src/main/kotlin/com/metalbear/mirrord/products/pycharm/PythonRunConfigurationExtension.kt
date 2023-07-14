@@ -17,7 +17,7 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: AbstractPythonRunConfiguration<*>,
-        runnerSettings: RunnerSettings?,
+        runnerSettings: RunnerSettings?
     ): Boolean {
         return true
     }
@@ -26,7 +26,7 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
         configuration: AbstractPythonRunConfiguration<*>,
         runnerSettings: RunnerSettings?,
         cmdLine: GeneralCommandLine,
-        runnerId: String,
+        runnerId: String
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 

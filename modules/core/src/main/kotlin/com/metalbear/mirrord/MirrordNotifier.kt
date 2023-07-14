@@ -23,7 +23,7 @@ class MirrordNotifier(private val service: MirrordProjectService) {
         .getNotificationGroup("mirrord Warning Notification Handler")
 
     class MirrordNotification(private val inner: Notification, private val project: Project) {
-        private var id: MirrordSettingsState.NotificationId? = null;
+        private var id: MirrordSettingsState.NotificationId? = null
 
         fun withAction(name: String, handler: (e: AnActionEvent, notification: Notification) -> Unit): MirrordNotification {
             inner.addAction(object : NotificationAction(name) {
@@ -76,7 +76,7 @@ class MirrordNotifier(private val service: MirrordProjectService) {
     fun notification(message: String, type: NotificationType): MirrordNotification {
         return MirrordNotification(
             notificationManager.createNotification("mirrord", message, type),
-            service.project,
+            service.project
         )
     }
 

@@ -20,7 +20,7 @@ class MirrordActiveConfigWatch(private val service: MirrordProjectService) : Asy
                     service.activeConfig = null
                     service.notifier.notification(
                         "mirrord active config has been removed",
-                        NotificationType.WARNING,
+                        NotificationType.WARNING
                     )
                         .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_REMOVED)
                         .fire()

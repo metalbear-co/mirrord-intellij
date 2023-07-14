@@ -17,7 +17,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
         project: Project,
         helpersAwareTargetRequest: HelpersAwareTargetEnvironmentRequest,
         pythonExecution: PythonExecution,
-        runParams: PythonRunParams,
+        runParams: PythonRunParams
     ) {
         val service = project.service<MirrordProjectService>()
 
