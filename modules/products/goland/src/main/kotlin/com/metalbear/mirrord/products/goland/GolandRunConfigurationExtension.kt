@@ -23,7 +23,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: GoRunConfigurationBase<*>,
-        runnerSettings: RunnerSettings?,
+        runnerSettings: RunnerSettings?
     ): Boolean {
         return true
     }
@@ -34,7 +34,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         cmdLine: TargetedCommandLineBuilder,
         runnerId: String,
         state: GoRunningState<out GoRunConfigurationBase<*>>,
-        commandLineType: GoRunningState.CommandLineType,
+        commandLineType: GoRunningState.CommandLineType
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
             val service = configuration.getProject().service<MirrordProjectService>()
@@ -50,7 +50,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             service.execManager.start(
                 wsl,
                 "goland",
-                configuration.getCustomEnvironment()[CONFIG_ENV_NAME],
+                configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             )?.let { env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
@@ -67,7 +67,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         executor: GoExecutor,
         runnerId: String,
         state: GoRunningState<out GoRunConfigurationBase<*>>,
-        commandLineType: GoRunningState.CommandLineType,
+        commandLineType: GoRunningState.CommandLineType
     ) {
         val service = configuration.getProject().service<MirrordProjectService>()
 
