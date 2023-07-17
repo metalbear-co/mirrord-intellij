@@ -39,6 +39,7 @@ class MirrordConfigDropDown : ComboBoxAction() {
                 .getInstance()
                 .getAllKeys(MirrordConfigIndex.key, service.project)
                 .mapNotNull { fileManager.findFileByUrl(it) }
+                .filter { !it.isDirectory }
                 .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
                 .associateBy { it.presentableUrl }
 
