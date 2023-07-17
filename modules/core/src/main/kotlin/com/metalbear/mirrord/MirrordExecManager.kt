@@ -3,10 +3,9 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.util.SystemInfo
 import kotlinx.collections.immutable.toImmutableMap
+import java.util.concurrent.CompletableFuture
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -67,14 +66,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun getConfigPath(configFromEnv: String?): String {
-        return if (ApplicationManager.getApplication().isWriteAccessAllowed) {
-            service.configApi.getConfigPath(configFromEnv)
-        } else {
-            WriteAction.computeAndWait<String, Exception>(
-                { service.configApi.getConfigPath(configFromEnv) },
-                ModalityState.NON_MODAL
-            )
+        val config = CompletableFuture<Pair<String?, InvalidProjectException?>>()
+
+        ApplicationManager.getApplication().invokeLater {
+            try {
+                val path = service.configApi.getConfigPath(configFromEnv)
+                config.complete(Pair(path, null))
+            } catch (e: InvalidProjectException) {
+                config.complete(Pair(null, e))
+            }
         }
+
+        val result = config.get()
+
+        result.first?.let { return it }
+        throw result.second!!
     }
 
     fun start(
