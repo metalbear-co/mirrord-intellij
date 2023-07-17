@@ -118,18 +118,22 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     }
 
     /**
-     * Finds a parent directory for the `.mirrord` directory. This is a parent directory of the `.idea` directory
-     * or the `*.ipr` file.
+     * Finds a parent directory for the `.mirrord` directory. This is a parent directory of the `.idea` directory,
+     * the `*.ipr` workspace file or the `*.iml` project file.
      * @throws InvalidProjectException if the directory could not be found.
      */
     private fun getMirrordDirParent(): VirtualFile {
-        val projectFile = service.project.projectFile
-            ?: throw InvalidProjectException(service.project, "mirrord cannot be used with the default project")
+        val knownLocationFile = service.project.projectFile
+            ?: service.project.workspaceFile
+            ?: throw InvalidProjectException(
+                service.project,
+                "could not determine parent directory for mirrord files, project must contain a project file or a workspace file"
+            )
 
-        val dir = if (projectFile.extension == "xml") {
-            projectFile.parent?.parent
+        val dir = if (knownLocationFile.extension == "xml") {
+            knownLocationFile.parent?.parent
         } else {
-            projectFile.parent
+            knownLocationFile.parent
         }
 
         return dir
