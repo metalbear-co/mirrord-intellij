@@ -112,6 +112,8 @@ internal class MirrordPluginTest {
                 }
             }
 
+            selectCurrentFileInProject()
+
             step("Open `app.py`") {
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
