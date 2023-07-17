@@ -8,13 +8,13 @@ import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
 
 class MirrordActiveConfigWatch(private val service: MirrordProjectService) : AsyncFileListener {
     override fun prepareChange(events: MutableList<out VFileEvent>): AsyncFileListener.ChangeApplier? {
-        return service
+        val notification = service
             .activeConfig
             ?.url
             ?.let { activeUrl ->
                 events
                     .filter { it.file?.url == activeUrl }
-                    .firstNotNullOf {
+                    .firstNotNullOfOrNull {
                         when (it) {
                             is VFileDeleteEvent -> service.notifier.notification(
                                 "mirrord active config has been removed",
@@ -31,13 +31,28 @@ class MirrordActiveConfigWatch(private val service: MirrordProjectService) : Asy
                             else -> null
                         }
                     }
-            }?.let {
-                object : AsyncFileListener.ChangeApplier {
-                    override fun afterVfsChange() {
+            }
+
+        return object : AsyncFileListener.ChangeApplier {
+            override fun afterVfsChange() {
+                notification?.let {
+                    service.activeConfig = null
+                    it.fire()
+                    return
+                }
+
+                service.activeConfig?.let {
+                    if (!it.isValid) {
                         service.activeConfig = null
-                        it.fire()
+                        service.notifier.notification(
+                            "directory containing mirrord active config has been moved or removed",
+                            NotificationType.WARNING
+                        )
+                            .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_REMOVED)
+                            .fire()
                     }
                 }
             }
+        }
     }
 }
