@@ -129,6 +129,8 @@ class MirrordConfigDropDown : ComboBoxAction() {
         e.presentation.isVisible = true
         e.presentation.isEnabled = projectOpen
         e.presentation.description = if (projectOpen) "Options for mirrord plugin" else "Plugin requires an open project"
+
+        super.update(e)
     }
 }
 
