@@ -87,15 +87,14 @@ class MirrordConfigDialog(private val title: String, private val options: List<S
             add(
                 searchField.apply {
                     alignmentX = JBScrollPane.LEFT_ALIGNMENT
-                    preferredSize = Dimension(250, 30)
-                    size = Dimension(250, 30)
+                    minimumSize = Dimension(350, 30)
                 }
             )
             add(Box.createRigidArea(Dimension(0, 10)))
             add(
                 JBScrollPane(
                     items.apply {
-                        minimumSize = Dimension(250, 350)
+                        minimumSize = Dimension(350, 350)
                     }
                 ).apply {
                     alignmentX = JBScrollPane.LEFT_ALIGNMENT
