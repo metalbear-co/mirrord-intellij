@@ -66,21 +66,24 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun getConfigPath(configFromEnv: String?): String {
-        val config = CompletableFuture<Pair<String?, InvalidProjectException?>>()
+        return if (ApplicationManager.getApplication().isDispatchThread) {
+            service.configApi.getConfigPath(configFromEnv)
+        } else {
+            val config = CompletableFuture<Pair<String?, InvalidProjectException?>>()
 
-        ApplicationManager.getApplication().invokeLater {
-            try {
-                val path = service.configApi.getConfigPath(configFromEnv)
-                config.complete(Pair(path, null))
-            } catch (e: InvalidProjectException) {
-                config.complete(Pair(null, e))
+            ApplicationManager.getApplication().invokeLater {
+                try {
+                    val path = service.configApi.getConfigPath(configFromEnv)
+                    config.complete(Pair(path, null))
+                } catch (e: InvalidProjectException) {
+                    config.complete(Pair(null, e))
+                }
             }
+
+            val result = config.get()
+            result.second?.let { throw it }
+            result.first!!
         }
-
-        val result = config.get()
-
-        result.first?.let { return it }
-        throw result.second!!
     }
 
     fun start(
