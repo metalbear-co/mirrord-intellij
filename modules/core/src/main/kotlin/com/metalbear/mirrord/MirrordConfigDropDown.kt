@@ -75,15 +75,14 @@ class MirrordConfigDropDown : ComboBoxAction() {
                 }
             }
 
-            val options = configs.keys.toList().sorted()
-
-            val selected = if (options.size == 1) {
-                options.first()
-            } else if (options.size > 1) {
-                MirrordConfigDialog("Edit mirrord configuration", options).show()?.option
-            } else {
-                null
-            }
+            val selected = configs
+                .keys
+                .toList()
+                .sorted()
+                .ifEmpty { null }
+                ?.let {
+                    it.singleOrNull() ?: MirrordConfigDialog("Edit mirrord configuration", it).show()?.option
+                }
 
             selected?.let {
                 try {
