@@ -3,6 +3,7 @@ package com.metalbear.mirrord
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.ProjectLocator
@@ -66,8 +67,10 @@ class MirrordConfigDropDown : ComboBoxAction() {
             val defaultConfig = service.configApi.getDefaultConfig()
             if (defaultConfig == null) {
                 configs["(create default)"] = {
-                    val config = service.configApi.createDefaultConfig()
-                    FileEditorManager.getInstance(service.project).openFile(config, true)
+                    WriteAction.compute<_, InvalidProjectException> {
+                        val config = service.configApi.createDefaultConfig()
+                        FileEditorManager.getInstance(service.project).openFile(config, true)
+                    }
                 }
             } else {
                 configs["(default) %s".format(defaultConfig.presentableUrl)] = {
