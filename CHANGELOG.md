@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.49.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.49.1) - 2023-07-18
+
+
+### Changed
+
+- Ignored debugger port range starts from 35000: mirrord will not touch
+  connections to ports above 35000.
+
+
+### Internal
+
+- Add e2e tests
+  [#22](https://github.com/metalbear-co/mirrord-intellij/issues/22)
+- Add support for Rollout in target selection.
+
+
 ## [3.49.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.49.0) - 2023-07-05
 
 
