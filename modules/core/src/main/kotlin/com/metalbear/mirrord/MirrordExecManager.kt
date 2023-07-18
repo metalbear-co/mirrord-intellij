@@ -160,7 +160,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         )
 
         executionInfo?.let {
-            executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "45000-65535"
+            executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
             return Pair(executionInfo.environment.toImmutableMap(), executionInfo.patchedPath)
         }
         return null
