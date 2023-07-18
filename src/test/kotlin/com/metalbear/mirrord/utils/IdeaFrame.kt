@@ -20,12 +20,6 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    val projectViewTree
-        get() = find<ContainerFixture>(
-            byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),
-            Duration.ofSeconds(60)
-        )
-
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
 
@@ -47,13 +41,13 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         )
 
     val stopDebugging
-        get() = find<ContainerFixture>(
-            byXpath("//div[contains(@myvisibleactions, 'Me')]//div[@myaction.key='action.Stop.text']")
-        )
+        get() = findAll<ContainerFixture>(
+            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop process)']")
+        ).first()
 
     val runnerTabDebugger
         get() = find<ContainerFixture>(
-            byXpath("//div[@accessiblename='Debugger' and @accessiblename.key='xdebugger.attach.popup.selectDebugger.title xdebugger.debugger.tab.title' and @class='SingleHeightLabel']"),
+            byXpath("//div[@class='SimpleColoredComponent' and @visible_text='Debugger']"),
             Duration.ofSeconds(30)
         )
 
