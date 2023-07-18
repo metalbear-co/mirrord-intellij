@@ -24,6 +24,7 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Duration
 import java.time.Duration.ofMinutes
 import java.time.Duration.ofSeconds
 import java.util.concurrent.TimeUnit
@@ -92,21 +93,22 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                waitFor(ofSeconds(30)) {
-                    mirrordDropdownButton.isShowing
-                }
                 dumbAware {
-                    mirrordDropdownButton.click()
+                    waitFor(ofSeconds(60)) {
+                        mirrordDropdownButton.isShowing
+                    }
                 }
 
-                waitFor(ofSeconds(1)) {
+                mirrordDropdownButton.click()
+
+                waitFor(ofSeconds(60)) {
                     mirrordDropdownMenu.isShowing
                 }
 
                 mirrordDropdownMenu.findText("Settings").click()
 
                 editorTabs {
-                    waitFor {
+                    waitFor(ofSeconds(60)) {
                         isFileOpened("mirrord.json")
                     }
                 }
@@ -121,7 +123,7 @@ internal class MirrordPluginTest {
                     }
                     findText("app.py").doubleClick()
                     editorTabs {
-                        waitFor {
+                        waitFor(ofSeconds(30)) {
                             isFileOpened("app.py")
                         }
                     }

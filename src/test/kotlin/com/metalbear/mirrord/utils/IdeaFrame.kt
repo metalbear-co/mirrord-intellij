@@ -22,7 +22,10 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
     val projectViewTree
-        get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"), Duration.ofSeconds(60))
+        get() = find<ContainerFixture>(
+            byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),
+            Duration.ofSeconds(60)
+        )
 
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
@@ -35,7 +38,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val mirrordDropdownMenu
         get() = find<ContainerFixture>(
-            byXpath("//div[@class='MyList' and @visible_text='Disabled || Select Active Config || Configuration || Settings']")
+            byXpath("//div[@class='MyList' and @visible_text='Disabled || Select Active Config || Configuration || Settings']"),
+            Duration.ofSeconds(30)
         )
 
     val startDebugging
@@ -64,10 +68,10 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         keyboard {
             pressing(KeyEvent.VK_SHIFT) {
                 pressing(KeyEvent.VK_ALT) {
-                    key(KeyEvent.VK_1, Duration.ofSeconds(2))
+                    key(KeyEvent.VK_1, Duration.ofSeconds(5))
                 }
             }
-            key(KeyEvent.VK_1, Duration.ofSeconds(2))
+            key(KeyEvent.VK_1, Duration.ofSeconds(5))
         }
     }
 

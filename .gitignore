@@ -11,3 +11,6 @@
 .qodana/
 build/
 bin/
+
+# Artifacts from e2e tests
+/video/
