@@ -3,9 +3,12 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.collections.immutable.toImmutableMap
-import java.util.concurrent.CompletableFuture
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -65,24 +68,54 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return path
     }
 
-    private fun getConfigPath(configFromEnv: String?): String {
+    private fun getConfigPath(configFromEnv: String?): String? {
         return if (ApplicationManager.getApplication().isDispatchThread) {
-            service.configApi.getConfigPath(configFromEnv)
-        } else {
-            val config = CompletableFuture<Pair<String?, InvalidProjectException?>>()
+            // We can create a file via VFS from the dispatch thread.
+            WriteAction.compute<String, InvalidProjectException> {
+                service.configApi.getConfigPath(configFromEnv, true)
+            }
+        } else if (ApplicationManager.getApplication().isReadAccessAllowed) {
+            // This thread already holds a read lock, and it's not a dispatch thread.
+            // There is no way to create a file via VFS here.
+            // We abort if the config does not yet exist.
 
-            ApplicationManager.getApplication().invokeLater {
-                try {
-                    val path = service.configApi.getConfigPath(configFromEnv)
-                    config.complete(Pair(path, null))
+            service.configApi.getConfigPath(configFromEnv, false)?.let {
+                return it
+            }
+
+            service
+                .notifier
+                .notification("mirrord requires configuration", NotificationType.WARNING)
+                .withAction("Create default") { e, n ->
+                    e
+                        .project
+                        ?.service<MirrordProjectService>()
+                        ?.let {
+                            val config = WriteAction.compute<VirtualFile, InvalidProjectException> {
+                                service.configApi.createDefaultConfig()
+                            }
+                            FileEditorManager.getInstance(service.project).openFile(config, true)
+                        }
+                    n.expire()
+                }
+                .fire()
+            null
+        } else {
+            // This thread does not hold any lock,
+            // we can safely wait for the config to be created in the dispatch thread.
+            var config: Pair<String?, InvalidProjectException?> = Pair(null, null)
+
+            ApplicationManager.getApplication().invokeAndWait {
+                config = try {
+                    val path = service.configApi.getConfigPath(configFromEnv, true)
+                    Pair(path, null)
                 } catch (e: InvalidProjectException) {
-                    config.complete(Pair(null, e))
+                    Pair(null, e)
                 }
             }
 
-            val result = config.get()
-            result.second?.let { throw it }
-            result.first!!
+            config.second?.let { throw it }
+            config.first!!
         }
     }
 
@@ -115,7 +148,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val cli = this.cliPath(wslDistribution, product) ?: return null
         val config = try {
-            getConfigPath(mirrordConfigFromEnv)
+            getConfigPath(mirrordConfigFromEnv) ?: return null
         } catch (e: InvalidProjectException) {
             service.notifier.notifyRichError(e.message)
             return null
