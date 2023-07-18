@@ -7,7 +7,6 @@ import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
-import java.awt.event.KeyEvent
 import java.time.Duration
 
 // Note: some implementation is taken from the example provided at https://github.com/JetBrains/intellij-ui-test-robot
@@ -64,15 +63,25 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
 
-    fun selectCurrentFileInProject() {
-        keyboard {
-            pressing(KeyEvent.VK_SHIFT) {
-                pressing(KeyEvent.VK_ALT) {
-                    key(KeyEvent.VK_1, Duration.ofSeconds(5))
-                }
-            }
-            key(KeyEvent.VK_1, Duration.ofSeconds(5))
+    fun openFileByName(name: String) {
+        find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
+        waitFor {
+            findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
+                .isNotEmpty()
         }
+        findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
+            .first()
+            .click()
+        find<ContainerFixture>(byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']")).click()
+        keyboard {
+            enterText(name)
+        }
+        var listElems = emptyList<ContainerFixture>()
+        waitFor(Duration.ofSeconds(30)) {
+            listElems = findAll<ContainerFixture>(byXpath("//div[@class='JBList']")).filter { it.hasText(name) }
+            listElems.isNotEmpty()
+        }
+        listElems.first().findText(name).click()
     }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively

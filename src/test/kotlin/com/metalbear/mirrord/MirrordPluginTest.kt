@@ -113,20 +113,15 @@ internal class MirrordPluginTest {
                 }
             }
 
-            selectCurrentFileInProject()
-
             step("Open `app.py`") {
-                with(projectViewTree) {
+                openFileByName("app.py")
+
+                editorTabs {
                     waitFor(ofSeconds(30)) {
-                        hasText("app.py")
-                    }
-                    findText("app.py").doubleClick()
-                    editorTabs {
-                        waitFor(ofSeconds(30)) {
-                            isFileOpened("app.py")
-                        }
+                        isFileOpened("app.py")
                     }
                 }
+
                 step("Set up Poetry Environment") {
                     // blue stripe appears on top of the text window asking
                     // to set up poetry environment, we click on setup poetry
