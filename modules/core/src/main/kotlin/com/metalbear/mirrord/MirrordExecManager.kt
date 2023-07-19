@@ -78,28 +78,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             // This thread already holds a read lock, and it's not a dispatch thread.
             // There is no way to create a file via VFS here.
             // We abort if the config does not yet exist.
-
-            service.configApi.getConfigPath(configFromEnv, false)?.let {
-                return it
-            }
-
-            service
-                .notifier
-                .notification("mirrord requires configuration", NotificationType.WARNING)
-                .withAction("Create default") { e, n ->
-                    e
-                        .project
-                        ?.service<MirrordProjectService>()
-                        ?.let {
-                            val config = WriteAction.compute<VirtualFile, InvalidProjectException> {
-                                service.configApi.createDefaultConfig()
-                            }
-                            FileEditorManager.getInstance(service.project).openFile(config, true)
-                        }
-                    n.expire()
-                }
-                .fire()
-            null
+            service.configApi.getConfigPath(configFromEnv, false)
         } else {
             // This thread does not hold any lock,
             // we can safely wait for the config to be created in the dispatch thread.
@@ -115,7 +94,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             }
 
             config.second?.let { throw it }
-            config.first!!
+            config.first
         }
     }
 
@@ -148,9 +127,30 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val cli = this.cliPath(wslDistribution, product) ?: return null
         val config = try {
-            getConfigPath(mirrordConfigFromEnv) ?: return null
+            getConfigPath(mirrordConfigFromEnv)
         } catch (e: InvalidProjectException) {
             service.notifier.notifyRichError(e.message)
+            return null
+        }
+
+        if (config == null) {
+            service
+                .notifier
+                .notification("mirrord requires configuration", NotificationType.WARNING)
+                .withAction("Create default") { e, n ->
+                    e
+                        .project
+                        ?.service<MirrordProjectService>()
+                        ?.let {
+                            val newConfig = WriteAction.compute<VirtualFile, InvalidProjectException> {
+                                service.configApi.createDefaultConfig()
+                            }
+                            FileEditorManager.getInstance(service.project).openFile(newConfig, true)
+                        }
+                    n.expire()
+                }
+                .fire()
+
             return null
         }
 
