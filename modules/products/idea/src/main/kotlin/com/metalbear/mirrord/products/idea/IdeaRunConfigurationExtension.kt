@@ -49,6 +49,9 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             }
         }
 
+        // Help mirrord detect debugger port and exclude it.
+        mirrordEnv["MIRRORD_DETECT_DEBUGGER_PORT"] = "javaagent"
+
         params.env = currentEnv + mirrordEnv
 
         // Gradle support (and external system configuration)
