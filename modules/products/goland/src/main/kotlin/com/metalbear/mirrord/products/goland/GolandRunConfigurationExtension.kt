@@ -8,9 +8,11 @@ import com.goide.util.GoExecutor
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
-import com.metalbear.mirrord.MirrordExecManager
+import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordPathManager
+import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
@@ -35,6 +37,8 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         commandLineType: GoRunningState.CommandLineType
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
+            val service = configuration.getProject().service<MirrordProjectService>()
+
             val wsl = state.targetEnvironmentRequest?.let {
                 if (it is WslTargetEnvironmentRequest) {
                     it.configuration.distribution
@@ -42,10 +46,12 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                     null
                 }
             }
-            val project = configuration.getProject()
 
-            MirrordExecManager.start(wsl, project, "goland")?.let {
-                    env ->
+            service.execManager.start(
+                wsl,
+                "goland",
+                configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
+            )?.let { env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
@@ -63,8 +69,10 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         state: GoRunningState<out GoRunConfigurationBase<*>>,
         commandLineType: GoRunningState.CommandLineType
     ) {
+        val service = configuration.getProject().service<MirrordProjectService>()
+
         if (commandLineType == GoRunningState.CommandLineType.RUN &&
-            MirrordExecManager.enabled &&
+            service.enabled &&
             SystemInfo.isMac &&
             state.isDebug
         ) {

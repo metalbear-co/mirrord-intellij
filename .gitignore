@@ -1,5 +1,6 @@
 .idea/
 !test-workspace/.idea/
+!sample/project/.idea/
 
 .DS_Store
 **/.DS_Store
@@ -10,3 +11,6 @@
 .qodana/
 build/
 bin/
+
+# Artifacts from e2e tests
+/video/

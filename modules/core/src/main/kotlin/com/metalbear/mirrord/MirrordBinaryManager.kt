@@ -4,7 +4,6 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
 import java.net.URI
@@ -19,14 +18,14 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
+private const val CLI_BINARY = "mirrord"
+private const val VERSION_ENDPOINT = "https://version.mirrord.dev/v1/version"
+private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/releases/download"
+
 /**
  * For dynamically fetching and storing mirrord binary.
  */
-object MirrordBinaryManager {
-    private const val cliBinary = "mirrord"
-    private const val versionEndpoint = "https://version.mirrord.dev/v1/version"
-    private const val downloadEndpoint = "https://github.com/metalbear-co/mirrord/releases/download"
-
+class MirrordBinaryManager(private val service: MirrordProjectService) {
     /**
      * @return version of mirrord binary
      *
@@ -78,7 +77,7 @@ object MirrordBinaryManager {
         }
 
         try {
-            MirrordPathManager.getBinary(this.cliBinary, true)?.let {
+            MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
                 if (requiredVersion == null || requiredVersion == this.getVersion(it)) {
                     return it
                 }
@@ -90,9 +89,9 @@ object MirrordBinaryManager {
         return null
     }
 
-    private fun getLatestSupportedVersion(product: String, timeout: Duration, project: Project): String {
+    private fun getLatestSupportedVersion(product: String, timeout: Duration): String {
         val environment = CompletableFuture<String>()
-        val versionCheckTask = object : Task.Backgroundable(project, "mirrord", true) {
+        val versionCheckTask = object : Task.Backgroundable(service.project, "mirrord", true) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is checking the latest supported version..."
 
@@ -101,10 +100,10 @@ object MirrordBinaryManager {
                 val version = if (testing) {
                     "test"
                 } else {
-                    MirrordVersionCheck.version ?: "unknown"
+                    VERSION ?: "unknown"
                 }
 
-                val url = StringBuilder(versionEndpoint)
+                val url = StringBuilder(VERSION_ENDPOINT)
                     .append("?source=3")
                     .append("&version=")
                     .append(URLEncoder.encode(version, Charset.defaultCharset()))
@@ -138,14 +137,14 @@ object MirrordBinaryManager {
         }
     }
 
-    private fun downloadBinary(destination: Path, version: String, project: Project) {
+    private fun downloadBinary(destination: Path, version: String) {
         val url = if (SystemInfo.isMac) {
-            "$downloadEndpoint/$version/mirrord_mac_universal"
+            "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
         } else if (SystemInfo.isLinux || SystemInfo.isWindows) {
             if (CpuArch.isArm64()) {
-                "$downloadEndpoint/$version/mirrord_linux_aarch64"
+                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
             } else if (CpuArch.isIntel64()) {
-                "$downloadEndpoint/$version/mirrord_linux_x86_64"
+                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
             } else {
                 throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
             }
@@ -154,7 +153,7 @@ object MirrordBinaryManager {
         }
 
         val environment = CompletableFuture<ByteArray>()
-        val versionCheckTask = object : Task.Backgroundable(project, "mirrord", true) {
+        val versionCheckTask = object : Task.Backgroundable(service.project, "mirrord", true) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is downloading version $version..."
                 indicator.fraction = 0.0
@@ -206,15 +205,15 @@ object MirrordBinaryManager {
      *
      * @throws RuntimeException
      */
-    fun getBinary(project: Project, product: String, wslDistribution: WSLDistribution?): String {
+    fun getBinary(product: String, wslDistribution: WSLDistribution?): String {
         val timeout = if (this.getLocalBinary(null, wslDistribution) == null) 10L else 1L
-        val latestVersion = this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout), project)
+        val latestVersion = this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout))
         this.getLocalBinary(latestVersion, wslDistribution)?.let {
             return it
         }
 
-        val destinationPath = MirrordPathManager.getPath(this.cliBinary, true)
-        this.downloadBinary(destinationPath, latestVersion, project)
+        val destinationPath = MirrordPathManager.getPath(CLI_BINARY, true)
+        this.downloadBinary(destinationPath, latestVersion)
 
         return destinationPath.toString()
     }

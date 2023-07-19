@@ -7,7 +7,7 @@ import com.intellij.openapi.components.*
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
     companion object {
         val instance: MirrordSettingsState
-            get() = ApplicationManager.getApplication().getService(MirrordSettingsState::class.java)
+            get() = ApplicationManager.getApplication().service<MirrordSettingsState>()
     }
 
     var mirrordState: MirrordState = MirrordState()
@@ -21,12 +21,28 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         mirrordState = state
     }
 
+    enum class NotificationId(val presentableName: String) {
+        RUNNING_TARGETLESS("mirrord running targetless"),
+        ACTIVE_CONFIG_REMOVED("active mirrord config is removed or moved to another directory"),
+        ACTIVE_CONFIG_USED("active mirrord config is used"),
+        DEFAULT_CONFIG_USED("default mirrord config is used"),
+        DEFAULT_CONFIG_CREATED("default mirrord config is created")
+    }
+
     class MirrordState {
-        var telemetryEnabled: Boolean? = null
-        var versionCheckEnabled: Boolean = false
+        var versionCheckEnabled: Boolean? = null
         var lastChosenTarget: String? = null
         var showPodsInSelection: Boolean? = null
         var showDeploymentsInSelection: Boolean? = null
         var showRolloutsInSelection: Boolean? = null
+        var disabledNotifications: Set<NotificationId>? = null
+
+        fun disableNotification(id: NotificationId) {
+            disabledNotifications = disabledNotifications.orEmpty() + id
+        }
+
+        fun isNotificationDisabled(id: NotificationId): Boolean {
+            return disabledNotifications?.contains(id) ?: false
+        }
     }
 }

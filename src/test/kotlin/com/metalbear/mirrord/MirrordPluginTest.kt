@@ -92,31 +92,36 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                waitFor(ofSeconds(30)) {
-                    createMirrordConfig.isShowing
-                }
                 dumbAware {
-                    createMirrordConfig.click()
+                    waitFor(ofSeconds(60)) {
+                        mirrordDropdownButton.isShowing
+                    }
                 }
+
+                mirrordDropdownButton.click()
+
+                waitFor(ofSeconds(60)) {
+                    mirrordDropdownMenu.isShowing
+                }
+
+                mirrordDropdownMenu.findText("Settings").click()
+
                 editorTabs {
-                    waitFor {
+                    waitFor(ofSeconds(60)) {
                         isFileOpened("mirrord.json")
                     }
                 }
             }
 
             step("Open `app.py`") {
-                with(projectViewTree) {
+                openFileByName("app.py")
+
+                editorTabs {
                     waitFor(ofSeconds(30)) {
-                        hasText("app.py")
-                    }
-                    findText("app.py").doubleClick()
-                    editorTabs {
-                        waitFor {
-                            isFileOpened("app.py")
-                        }
+                        isFileOpened("app.py")
                     }
                 }
+
                 step("Set up Poetry Environment") {
                     // blue stripe appears on top of the text window asking
                     // to set up poetry environment, we click on setup poetry
@@ -183,6 +188,7 @@ internal class MirrordPluginTest {
                     xDebuggerFramesList.isShowing
                 }
             }
+
             stopDebugging.click()
         }
     }

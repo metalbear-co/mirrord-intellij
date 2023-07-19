@@ -5,6 +5,7 @@ import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
+import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
@@ -19,18 +20,18 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    val projectViewTree
-        get() = find<ContainerFixture>(byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"), Duration.ofSeconds(60))
-
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
-    val createMirrordConfig
+
+    val mirrordDropdownButton
         get() = find<ContainerFixture>(
-            byXpath(
-                "//div[@accessiblename='Open mirrord configuration file' " +
-                    "and @class='ActionButton' " +
-                    "and @myaction='Open mirrord configuration file (Opens/creates the default mirrord configuration file)']"
-            ),
+            byXpath("//div[@text='mirrord' and @class='ComboBoxButton']"),
+            Duration.ofSeconds(30)
+        )
+
+    val mirrordDropdownMenu
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='MyList' and @visible_text='Disabled || Select Active Config || Configuration || Settings']"),
             Duration.ofSeconds(30)
         )
 
@@ -40,13 +41,13 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         )
 
     val stopDebugging
-        get() = find<ContainerFixture>(
-            byXpath("//div[contains(@myvisibleactions, 'Me')]//div[@myaction.key='action.Stop.text']")
-        )
+        get() = findAll<ContainerFixture>(
+            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop process)']")
+        ).first()
 
     val runnerTabDebugger
         get() = find<ContainerFixture>(
-            byXpath("//div[@accessiblename='Debugger' and @accessiblename.key='xdebugger.attach.popup.selectDebugger.title xdebugger.debugger.tab.title' and @class='SingleHeightLabel']"),
+            byXpath("//div[@class='SimpleColoredComponent' and @visible_text='Debugger']"),
             Duration.ofSeconds(30)
         )
 
@@ -55,6 +56,27 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
+
+    fun openFileByName(name: String) {
+        find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
+        waitFor {
+            findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
+                .isNotEmpty()
+        }
+        findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
+            .first()
+            .click()
+        find<ContainerFixture>(byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']")).click()
+        keyboard {
+            enterText(name)
+        }
+        var listElems = emptyList<ContainerFixture>()
+        waitFor(Duration.ofSeconds(30)) {
+            listElems = findAll<ContainerFixture>(byXpath("//div[@class='JBList']")).filter { it.hasText(name) }
+            listElems.isNotEmpty()
+        }
+        listElems.first().findText(name).click()
+    }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads

@@ -6,12 +6,14 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.notification.*
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 
 /**
- * Mirrord notification handler
+ * Mirrord notification handler.
  */
-object MirrordNotifier {
+class MirrordNotifier(private val service: MirrordProjectService) {
     private val notificationManager: NotificationGroup = NotificationGroupManager
         .getInstance()
         .getNotificationGroup("mirrord Notification Handler")
@@ -20,7 +22,65 @@ object MirrordNotifier {
         .getInstance()
         .getNotificationGroup("mirrord Warning Notification Handler")
 
-    fun notify(message: String, type: NotificationType, project: Project?) {
+    class MirrordNotification(private val inner: Notification, private val project: Project) {
+        private var id: MirrordSettingsState.NotificationId? = null
+
+        fun withAction(name: String, handler: (e: AnActionEvent, notification: Notification) -> Unit): MirrordNotification {
+            inner.addAction(object : NotificationAction(name) {
+                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                    handler(e, notification)
+                }
+            })
+
+            return this
+        }
+
+        fun withOpenFile(file: VirtualFile): MirrordNotification {
+            inner.addAction(object : NotificationAction("Open") {
+                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                    FileEditorManager.getInstance(project).openFile(file, true)
+                }
+            })
+
+            return this
+        }
+
+        fun withDontShowAgain(id: MirrordSettingsState.NotificationId): MirrordNotification {
+            this.id = id
+            inner.addAction(object : NotificationAction("Don't show again") {
+                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                    MirrordSettingsState.instance.mirrordState.disableNotification(id)
+                    notification.expire()
+                }
+            })
+
+            return this
+        }
+
+        fun withCollapseDirection(direction: Notification.CollapseActionsDirection): MirrordNotification {
+            inner.setCollapseDirection(direction)
+
+            return this
+        }
+
+        fun fire() {
+            id?.let {
+                if (MirrordSettingsState.instance.mirrordState.isNotificationDisabled(it)) {
+                    return
+                }
+            }
+            inner.notify(project)
+        }
+    }
+
+    fun notification(message: String, type: NotificationType): MirrordNotification {
+        return MirrordNotification(
+            notificationManager.createNotification("mirrord", message, type),
+            service.project
+        )
+    }
+
+    fun notifySimple(message: String, type: NotificationType) {
         ApplicationManager.getApplication().invokeLater {
             val notificationManager = when (type) {
                 NotificationType.WARNING -> warningNotificationManager
@@ -29,32 +89,26 @@ object MirrordNotifier {
 
             notificationManager
                 .createNotification("mirrord", message, type)
-                .notify(project)
+                .notify(service.project)
         }
     }
 
-    fun notifier(message: String, type: NotificationType): Notification {
-        return notificationManager.createNotification("mirrord", message, type)
-    }
-
-    fun errorNotification(message: String, project: Project?) {
+    fun notifyRichError(message: String) {
         ApplicationManager.getApplication().invokeLater {
-            notifier(message, NotificationType.ERROR).addAction(object : NotificationAction("Get support on Discord") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+            notification(message, NotificationType.ERROR)
+                .withAction("Get support on Discord") { _, n ->
                     BrowserUtil.browse("https://discord.gg/metalbear")
-                    notification.expire()
+                    n.expire()
                 }
-            }).addAction(object : NotificationAction("Report on GitHub") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                .withAction("Report on GitHub") { _, n ->
                     BrowserUtil.browse("https://github.com/metalbear-co/mirrord/issues/new?assignees=&labels=bug&template=bug_report.yml")
-                    notification.expire()
+                    n.expire()
                 }
-            }).addAction(object : NotificationAction("Send us an email") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                .withAction("Send us an email") { _, n ->
                     BrowserUtil.browse("mailto:hi@metalbear.co")
-                    notification.expire()
+                    n.expire()
                 }
-            }).notify(project)
+                .fire()
         }
     }
 }

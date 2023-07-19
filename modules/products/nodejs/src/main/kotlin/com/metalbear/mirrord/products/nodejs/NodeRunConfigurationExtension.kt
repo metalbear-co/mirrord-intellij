@@ -6,9 +6,11 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javascript.nodejs.execution.AbstractNodeTargetRunProfile
 import com.intellij.javascript.nodejs.execution.runConfiguration.AbstractNodeRunConfigurationExtension
 import com.intellij.javascript.nodejs.execution.runConfiguration.NodeRunConfigurationLaunchSession
+import com.intellij.openapi.components.service
 import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
-import com.metalbear.mirrord.MirrordExecManager
+import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordProjectService
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
@@ -20,17 +22,16 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
         configuration: AbstractNodeTargetRunProfile,
         environment: ExecutionEnvironment
     ): NodeRunConfigurationLaunchSession? {
-        val project = configuration.project
+        val service = configuration.project.service<MirrordProjectService>()
 
         // Find out if we're running in wsl.
-        val wsl = when (val request = createEnvironmentRequest(configuration, project)) {
+        val wsl = when (val request = createEnvironmentRequest(configuration, service.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
 
-        MirrordExecManager.start(wsl, project, "npm")?.let {
-                env ->
-            val config = configuration as NodeJsRunConfiguration
+        val config = configuration as NodeJsRunConfiguration
+        service.execManager.start(wsl, "npm", config.envs[CONFIG_ENV_NAME])?.let { env ->
             config.envs = config.envs + env
         }
 
