@@ -1,6 +1,5 @@
 package com.metalbear.mirrord
 
-import com.intellij.ide.BrowserUtil
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable

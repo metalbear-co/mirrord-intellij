@@ -1,7 +1,5 @@
 package com.metalbear.mirrord
 
-import com.intellij.ide.BrowserUtil
-import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
