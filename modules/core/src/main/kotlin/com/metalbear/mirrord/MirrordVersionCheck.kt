@@ -37,7 +37,7 @@ class MirrordVersionCheck(private val service: MirrordProjectService) {
         val remoteVersion = Version.valueOf(URL(VERSION_CHECK_ENDPOINT).readText())
 
         // Don't show user anything
-        if (!MirrordSettingsState.instance.mirrordState.versionCheckEnabled) {
+        if (MirrordSettingsState.instance.mirrordState.versionCheckEnabled != true) {
             return
         }
 

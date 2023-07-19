@@ -45,31 +45,26 @@ class MirrordProjectService(val project: Project) : Disposable {
 
             this._enabled = value
 
-            if (MirrordSettingsState.instance.mirrordState.telemetryEnabled == null) {
-                telemetryConsent()
+            if (MirrordSettingsState.instance.mirrordState.versionCheckEnabled == null) {
+                versionCheckConsent()
             }
         }
 
     /**
      * Shows a notification asking for consent to send telemetries
      */
-    private fun telemetryConsent() {
+    private fun versionCheckConsent() {
         ApplicationManager.getApplication().invokeLater {
             notifier
                 .notification(
-                    "Allow mirrord to send telemetries",
+                    "Allow mirrord plugin version check",
                     NotificationType.INFORMATION
                 )
-                .withAction("Deny (disables version check)") { _, n ->
-                    MirrordSettingsState.instance.mirrordState.telemetryEnabled = false
+                .withAction("Deny") { _, n ->
                     MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
                     n.expire()
                 }
-                .withAction("More info") { _, _ ->
-                    BrowserUtil.browse("https://github.com/metalbear-co/mirrord/blob/main/TELEMETRY.md")
-                }
                 .withAction("Allow") { _, n ->
-                    MirrordSettingsState.instance.mirrordState.telemetryEnabled = true
                     MirrordSettingsState.instance.mirrordState.versionCheckEnabled = true
                     n.expire()
                 }

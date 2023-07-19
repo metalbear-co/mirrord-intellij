@@ -10,54 +10,30 @@ import javax.swing.JPanel
 
 class MirrordSettingsComponent {
 
-    private val telemetryEnabled = JBCheckBox("Telemetry")
     private val versionCheckEnabled = JBCheckBox("Version check")
     private val notificationsEnabled = MirrordSettingsState
         .NotificationId
         .values()
         .associateWith { JBCheckBox(it.presentableName) }
 
-    val panel: JPanel
-
-    init {
-        val externalLink = ActionLink("Read more") { _ -> BrowserUtil.browse("https://github.com/metalbear-co/mirrord-intellij/blob/main/TELEMETRY.md") }
-        panel = FormBuilder
-            .createFormBuilder()
-            .setAlignLabelOnRight(true)
-            .addLabeledComponent(telemetryEnabled, externalLink)
-            .addComponent(versionCheckEnabled)
-            .addSeparator()
-            .addComponent(JBLabel("Notify when:"))
-            .apply {
-                notificationsEnabled.forEach {
-                    addComponent(it.value)
-                }
-            }
-            .addComponentFillVertically(JPanel(), 0)
-            .panel
-
-        // Check version can only be enabled if telemetry is enabled.
-        telemetryEnabled.addActionListener {
-            versionCheckEnabled.isEnabled = telemetryEnabled.isSelected
-            if (!telemetryEnabled.isSelected) {
-                versionCheckEnabled.isSelected = false
+    val panel: JPanel = FormBuilder
+        .createFormBuilder()
+        .addComponent(versionCheckEnabled)
+        .addSeparator()
+        .addComponent(JBLabel("Notify when:"))
+        .apply {
+            notificationsEnabled.forEach {
+                addComponent(it.value)
             }
         }
-    }
+        .addComponentFillVertically(JPanel(), 0)
+        .panel
 
     val preferredFocusedComponent: JComponent
-        get() = telemetryEnabled
-
-    var telemetryEnabledStatus: Boolean
-        get() = telemetryEnabled.isSelected
-        set(newStatus) {
-            telemetryEnabled.isSelected = newStatus
-            // Check version can only be enabled if telemetry is enabled.
-            versionCheckEnabled.isEnabled = newStatus
-        }
+        get() = versionCheckEnabled
 
     var versionCheckEnabledStatus: Boolean
-        get() = versionCheckEnabled.isSelected && telemetryEnabledStatus
+        get() = versionCheckEnabled.isSelected
         set(newStatus) {
             versionCheckEnabled.isSelected = newStatus
         }

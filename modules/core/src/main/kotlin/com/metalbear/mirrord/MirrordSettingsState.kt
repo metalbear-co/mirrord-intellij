@@ -30,8 +30,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
     }
 
     class MirrordState {
-        var telemetryEnabled: Boolean? = null
-        var versionCheckEnabled: Boolean = false
+        var versionCheckEnabled: Boolean? = null
         var lastChosenTarget: String? = null
         var showPodsInSelection: Boolean? = null
         var showDeploymentsInSelection: Boolean? = null
