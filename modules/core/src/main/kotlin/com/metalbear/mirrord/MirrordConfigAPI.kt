@@ -150,13 +150,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
     private fun getMirrordDir(): VirtualFile? {
-        val dir = getMirrordDirParent().findChild(".mirrord") ?: return null
-
-        return if (dir.isDirectory) {
-            dir
-        } else {
-            null
-        }
+        return getMirrordDirParent().findChild(".mirrord")?.takeIf { it.isDirectory }
     }
 
     /**
