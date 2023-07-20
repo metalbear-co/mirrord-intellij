@@ -6,6 +6,8 @@ import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.ProjectLocator
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -15,7 +17,7 @@ import com.intellij.util.io.KeyDescriptor
 import java.util.Collections
 import javax.swing.JComponent
 
-class MirrordConfigDropDown : ComboBoxAction() {
+class MirrordConfigDropDown : ComboBoxAction(), DumbAware {
     private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
@@ -51,6 +53,13 @@ class MirrordConfigDropDown : ComboBoxAction() {
 
             service.activeConfig = selection.option?.let { configs[it] }
         }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = e.project?.let { !DumbService.isDumb(it) } ?: false
+            super.update(e)
+        }
+
+        override fun getActionUpdateThread() = ActionUpdateThread.BGT
     }
 
     private class SettingsAction : AnAction("Settings") {

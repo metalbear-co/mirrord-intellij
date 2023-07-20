@@ -93,17 +93,15 @@ internal class MirrordPluginTest {
         idea {
             step("Create config file") {
                 dumbAware {
-                    waitFor(ofSeconds(60)) {
+                    waitFor(ofSeconds(30)) {
                         mirrordDropdownButton.isShowing
                     }
                 }
-
                 mirrordDropdownButton.click()
 
-                waitFor(ofSeconds(60)) {
+                waitFor(ofSeconds(30)) {
                     mirrordDropdownMenu.isShowing
                 }
-
                 mirrordDropdownMenu.findText("Settings").click()
 
                 editorTabs {
