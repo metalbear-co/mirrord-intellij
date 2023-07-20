@@ -97,9 +97,7 @@ internal class MirrordPluginTest {
                     mirrordDropdownButton.isShowing
                 }
 
-                dumbAware {
-                    mirrordDropdownButton.click()
-                }
+                mirrordDropdownButton.click()
 
                 waitFor(ofSeconds(30)) {
                     mirrordDropdownMenu.isShowing
@@ -164,8 +162,9 @@ internal class MirrordPluginTest {
                     enableMirrord.isShowing
                     startDebugging.isShowing
                 }
+                enableMirrord.click()
+
                 dumbAware {
-                    enableMirrord.click()
                     startDebugging.click()
                 }
                 step("Select pod to mirror traffic from") {
