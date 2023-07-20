@@ -61,7 +61,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
         find<ContainerFixture>(
             byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"),
-            Duration.ofSeconds(30)
+            Duration.ofSeconds(60)
         )
             .click()
 
