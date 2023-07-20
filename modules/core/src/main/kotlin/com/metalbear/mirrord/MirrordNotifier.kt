@@ -61,7 +61,6 @@ class MirrordNotifier(private val service: MirrordProjectService) {
             inner.addAction(object : NotificationAction(action) {
                 override fun actionPerformed(e: AnActionEvent, notification: Notification) {
                     BrowserUtil.browse(url)
-                    notification.expire()
                 }
             })
 
