@@ -31,7 +31,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val mirrordDropdownMenu
         get() = find<ContainerFixture>(
-            byXpath("//div[@class='MyList' and @visible_text='Disabled || Select Active Config || Configuration || Settings']"),
+            byXpath("//div[@class='MyList' and (@visible_text='Disabled || Select Active Config || Configuration || Settings' or @visible_text='Disabled || Settings || Configuration')]"),
             Duration.ofSeconds(30)
         )
 
