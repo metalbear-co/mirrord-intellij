@@ -35,6 +35,7 @@ internal class MirrordPluginTest {
     init {
         StepsLogger.init()
     }
+
     companion object {
         private var ideaProcess: Process? = null
         private var tmpDir: Path = Files.createTempDirectory("launcher")
@@ -92,16 +93,18 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                dumbAware {
-                    waitFor(ofSeconds(30)) {
-                        mirrordDropdownButton.isShowing
-                    }
+                waitFor(ofSeconds(30)) {
+                    mirrordDropdownButton.isShowing
                 }
-                mirrordDropdownButton.click()
+
+                dumbAware {
+                    mirrordDropdownButton.click()
+                }
 
                 waitFor(ofSeconds(30)) {
                     mirrordDropdownMenu.isShowing
                 }
+
                 mirrordDropdownMenu.findText("Settings").click()
 
                 editorTabs {
@@ -112,11 +115,15 @@ internal class MirrordPluginTest {
             }
 
             step("Open `app.py`") {
-                openFileByName("app.py")
-
-                editorTabs {
+                with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
-                        isFileOpened("app.py")
+                        hasText("app.py")
+                    }
+                    findText("app.py").doubleClick()
+                    editorTabs {
+                        waitFor {
+                            isFileOpened("app.py")
+                        }
                     }
                 }
 

@@ -29,6 +29,13 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    val projectViewTree
+        get() = find<ContainerFixture>(
+            byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),
+            Duration.ofSeconds(60)
+        )
+
+
     val mirrordDropdownMenu
         get() = find<ContainerFixture>(
             byXpath("//div[@class='MyList' and (@visible_text='Disabled || Select Active Config || Configuration || Settings' or @visible_text='Disabled || Settings || Configuration')]"),
@@ -57,13 +64,10 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
 
-    fun openFileByName(name: String) {
-        find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
-        find<ContainerFixture>(
-            byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"),
-            Duration.ofSeconds(60)
-        )
-            .click()
+    fun openFileByName(name: String) = with(remoteRobot) {
+        navigate {
+            searchEverywhere.click()
+        }
 
         find<ContainerFixture>(
             byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']"),
@@ -163,11 +167,16 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     }
 }
 
-fun RemoteRobot.leftStripe(function: LeftStripe.() -> Unit) {
-    find<LeftStripe>(timeout = Duration.ofSeconds(60)).apply(function)
+fun RemoteRobot.navigate(function: Navigate.() -> Unit) {
+    find<Navigate>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
 // reprsents the slim bar on the left showing bookmarks, project, etc.
-@DefaultXpath("Stripe type", "//div[@class='Stripe'][.//div[contains(@text.key, 'project.scheme')]]")
-class LeftStripe(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent)
+@DefaultXpath("Navigate type", "//div[@class='ActionMenu' and @text='Navigate']")
+class Navigate(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent) {
+    val searchEverywhere = find<ContainerFixture>(
+        byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"),
+        Duration.ofSeconds(60)
+    )
+}
