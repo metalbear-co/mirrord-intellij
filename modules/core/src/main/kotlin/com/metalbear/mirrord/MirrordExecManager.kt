@@ -64,7 +64,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     val configFile = try {
                         val path = Path.of(config)
                         VirtualFileManager.getInstance().findFileByNioPath(path)
-                    } catch (e : Exception) {
+                    } catch (e: Exception) {
                         MirrordLogger.logger.debug("failed to find config under path $config", e)
                         null
                     }
