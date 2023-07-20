@@ -26,7 +26,8 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         ACTIVE_CONFIG_REMOVED("active mirrord config is removed or moved to another directory"),
         ACTIVE_CONFIG_USED("active mirrord config is used"),
         DEFAULT_CONFIG_USED("default mirrord config is used"),
-        DEFAULT_CONFIG_CREATED("default mirrord config is created")
+        DEFAULT_CONFIG_CREATED("default mirrord config is created"),
+        POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used")
     }
 
     class MirrordState {

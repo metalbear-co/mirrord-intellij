@@ -1,6 +1,7 @@
 package com.metalbear.mirrord
 
 import com.intellij.execution.wsl.WSLDistribution
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -26,50 +27,49 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
  * For dynamically fetching and storing mirrord binary.
  */
 class MirrordBinaryManager(private val service: MirrordProjectService) {
-    /**
-     * @return version of mirrord binary
-     *
-     * @throws RuntimeException if `--version` command failed
-     */
-    private fun getVersion(cliPath: String): String {
-        val child = Runtime.getRuntime().exec(arrayOf(cliPath, "--version"))
+    class MirrordBinary(val command: String) {
+        val version: String
 
-        val result = child.waitFor()
-        if (result != 0) {
-            MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
-            throw RuntimeException("failed to get mirrord version")
+        init {
+            val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+
+            val result = child.waitFor()
+            if (result != 0) {
+                MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
+                throw RuntimeException("failed to get mirrord version")
+            }
+
+            version = child.inputReader().readLine().split(' ')[1].trim()
         }
-
-        return child.inputReader().readLine().split(' ')[1].trim()
     }
 
     /**
      * @return executable found by `which mirrord`
      */
-    private fun findBinaryInPath(wslDistribution: WSLDistribution?): String {
+    private fun findBinaryInPath(wslDistribution: WSLDistribution?): MirrordBinary {
         return if (wslDistribution == null) {
             val child = Runtime.getRuntime().exec(arrayOf("which", "mirrord"))
             val result = child.waitFor()
             if (result != 0) {
                 throw RuntimeException("`which` failed with code $result")
             }
-            child.inputReader().readLine().trim()
+            MirrordBinary(child.inputReader().readLine().trim())
         } else {
             val output = wslDistribution.executeOnWsl(1000, "which", "mirrord")
             if (output.exitCode != 0) {
                 throw RuntimeException("`which` failed with code ${output.exitCode}")
             }
-            output.stdoutLines.first().trim()
+           MirrordBinary(output.stdoutLines.first().trim())
         }
     }
 
     /**
-     * @return path to the local installation of mirrord
+     * @return the local installation of mirrord
      */
-    private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): String? {
+    private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
             val foundInPath = this.findBinaryInPath(wslDistribution)
-            if (requiredVersion == null || requiredVersion == this.getVersion(foundInPath)) {
+            if (requiredVersion == null || requiredVersion == foundInPath.version) {
                 return foundInPath
             }
         } catch (e: Exception) {
@@ -78,8 +78,9 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
 
         try {
             MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
-                if (requiredVersion == null || requiredVersion == this.getVersion(it)) {
-                    return it
+                val binary = MirrordBinary(it)
+                if (requiredVersion == null || requiredVersion == binary.version) {
+                    return binary
                 }
             }
         } catch (e: Exception) {
@@ -130,11 +131,7 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
 
         ProgressManager.getInstance().run(versionCheckTask)
 
-        return try {
-            environment.get(timeout.seconds, TimeUnit.SECONDS)
-        } catch (e: Exception) {
-            throw RuntimeException("failed to check the latest supported version of mirrord", e)
-        }
+        return environment.get(timeout.seconds, TimeUnit.SECONDS)
     }
 
     private fun downloadBinary(destination: Path, version: String) {
@@ -206,15 +203,42 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
      * @throws RuntimeException
      */
     fun getBinary(product: String, wslDistribution: WSLDistribution?): String {
-        val timeout = if (this.getLocalBinary(null, wslDistribution) == null) 10L else 1L
-        val latestVersion = this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout))
-        this.getLocalBinary(latestVersion, wslDistribution)?.let {
-            return it
+        var localBinary = this.getLocalBinary(null, wslDistribution)
+
+        val timeout = if (localBinary == null) 10L else 1L
+        val latestVersion = try {
+            this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout))
+        } catch (e: Exception) {
+            MirrordLogger.logger.debug("failed to fetch latest supported version of the mirrord binary", e)
+            null
         }
 
-        val destinationPath = MirrordPathManager.getPath(CLI_BINARY, true)
-        this.downloadBinary(destinationPath, latestVersion)
+        latestVersion?.let { version ->
+            getLocalBinary(version, wslDistribution)?.let { return it.command }
 
-        return destinationPath.toString()
+            try {
+                val destinationPath = MirrordPathManager.getPath(CLI_BINARY, true)
+                downloadBinary(destinationPath, version)
+                val upToDateBinary = MirrordBinary((destinationPath.toString()))
+                localBinary = upToDateBinary
+            } catch (e: Exception) {
+                MirrordLogger.logger.debug("failed to fetch the mirrord binary", e)
+            }
+        }
+
+        localBinary?.let {
+            if (latestVersion == null) {
+                service
+                    .notifier
+                    .notification(
+                        "failed to fetch the mirrord binary, using a local installation with version ${it.version}",
+                        NotificationType.WARNING,
+                    )
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
+                    .fire()
+            }
+        }
+
+        return localBinary?.command ?: throw RuntimeException("failed to fetch the mirrord binary")
     }
 }
