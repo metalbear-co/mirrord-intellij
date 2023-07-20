@@ -118,6 +118,7 @@ internal class MirrordPluginTest {
                 with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
                         hasText("app.py")
+                        hasText(".mirrord")
                     }
                     findText("app.py").doubleClick()
                     editorTabs {
