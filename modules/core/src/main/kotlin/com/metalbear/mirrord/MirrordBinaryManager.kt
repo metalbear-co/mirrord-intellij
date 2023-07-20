@@ -203,13 +203,13 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
      * @throws RuntimeException
      */
     fun getBinary(product: String, wslDistribution: WSLDistribution?): String {
-        var localBinary = this.getLocalBinary(null, wslDistribution)
+        val staleBinary = this.getLocalBinary(null, wslDistribution)
 
-        val timeout = if (localBinary == null) 10L else 1L
+        val timeout = if (staleBinary == null) 10L else 1L
         val latestVersion = try {
             this.getLatestSupportedVersion(product, Duration.ofSeconds(timeout))
         } catch (e: Exception) {
-            MirrordLogger.logger.debug("failed to fetch latest supported version of the mirrord binary", e)
+            MirrordLogger.logger.debug("failed to check the latest supported version of the mirrord binary", e)
             null
         }
 
@@ -219,26 +219,25 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
             try {
                 val destinationPath = MirrordPathManager.getPath(CLI_BINARY, true)
                 downloadBinary(destinationPath, version)
-                val upToDateBinary = MirrordBinary((destinationPath.toString()))
-                localBinary = upToDateBinary
+                return MirrordBinary(destinationPath.toString()).command
             } catch (e: Exception) {
-                MirrordLogger.logger.debug("failed to fetch the mirrord binary", e)
+                MirrordLogger.logger.debug("failed to download the mirrord binary", e)
             }
         }
 
-        localBinary?.let {
-            if (latestVersion == null) {
-                service
-                    .notifier
-                    .notification(
-                        "failed to fetch the mirrord binary, using a local installation with version ${it.version}",
-                        NotificationType.WARNING,
-                    )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
-                    .fire()
-            }
+        staleBinary?.let {
+            service
+                .notifier
+                .notification(
+                    "failed to download the mirrord binary, using a local installation with version $it",
+                    NotificationType.WARNING,
+                )
+                .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
+                .fire()
+
+            return it.command
         }
 
-        return localBinary?.command ?: throw RuntimeException("failed to fetch the mirrord binary")
+        throw RuntimeException("no local installation found and download failed")
     }
 }
