@@ -63,13 +63,20 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
                 .isNotEmpty()
         }
+
         findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
             .first()
             .click()
-        find<ContainerFixture>(byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']")).click()
+
+        find<ContainerFixture>(
+            byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']"),
+            Duration.ofSeconds(30)
+        ).click()
+
         keyboard {
             enterText(name)
         }
+
         var listElems = emptyList<ContainerFixture>()
         waitFor(Duration.ofSeconds(30)) {
             listElems = findAll<ContainerFixture>(byXpath("//div[@class='JBList']")).filter { it.hasText(name) }
