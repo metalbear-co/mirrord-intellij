@@ -92,7 +92,14 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
+                waitFor(ofSeconds(30)) {
+                    mirrordDropdownButton.isShowing
+                }
                 mirrordDropdownButton.click()
+
+                waitFor(ofSeconds(30)) {
+                    mirrordDropdownMenu.isShowing
+                }
                 mirrordDropdownMenu.findText("Settings").click()
 
                 editorTabs {
