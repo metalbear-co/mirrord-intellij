@@ -8,6 +8,30 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.50.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.50.0) - 2023-07-20
+
+
+### Added
+
+- Improved UI for multiple mirrord configurations.
+  Plugin now handles configs specified in run configurations, overriding those
+  with an active config, falling back to a default config.
+  [#31](https://github.com/metalbear-co/mirrord-intellij/issues/31)
+- The user can now toggle mirrord and jump to settings when the IDE is in
+  indexing mode.
+  [#55](https://github.com/metalbear-co/mirrord-intellij/issues/55)
+
+
+### Fixed
+
+- Fixed Debug launch failing on Java applications
+  [#42](https://github.com/metalbear-co/mirrord-intellij/issues/42)
+- The plugin now aborts mirrord execution when displaying the target selection
+  dialog might cause a deadlock.
+  [#53](https://github.com/metalbear-co/mirrord-intellij/issues/53)
+- The plugin now uses a local mirrord installation if the version check fails.
+
+
 ## [3.49.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.49.1) - 2023-07-18
 
 
