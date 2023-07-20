@@ -96,8 +96,12 @@ internal class MirrordPluginTest {
                 waitFor(ofSeconds(30)) {
                     mirrordDropdownButton.isShowing
                 }
-
-                mirrordDropdownButton.click()
+                // as per the extension this doesn't need to be in the dumbAware block
+                // however, there can be a loading page which can only be ignored by the
+                // dumbAware block
+                dumbAware {
+                    mirrordDropdownButton.click()
+                }
 
                 waitFor(ofSeconds(30)) {
                     mirrordDropdownMenu.isShowing
@@ -163,7 +167,6 @@ internal class MirrordPluginTest {
                     startDebugging.isShowing
                 }
                 enableMirrord.click()
-
                 dumbAware {
                     startDebugging.click()
                 }
