@@ -59,13 +59,10 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     fun openFileByName(name: String) {
         find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
-        waitFor {
-            findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
-                .isNotEmpty()
-        }
-
-        findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
-            .first()
+        find<ContainerFixture>(
+            byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"),
+            Duration.ofSeconds(30)
+        )
             .click()
 
         find<ContainerFixture>(
