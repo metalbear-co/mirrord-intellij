@@ -59,7 +59,7 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
             if (output.exitCode != 0) {
                 throw RuntimeException("`which` failed with code ${output.exitCode}")
             }
-           MirrordBinary(output.stdoutLines.first().trim())
+            MirrordBinary(output.stdoutLines.first().trim())
         }
     }
 
@@ -230,7 +230,7 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
                 .notifier
                 .notification(
                     "failed to download the mirrord binary, using a local installation with version $it",
-                    NotificationType.WARNING,
+                    NotificationType.WARNING
                 )
                 .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
                 .fire()
