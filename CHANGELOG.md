@@ -8,6 +8,23 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.50.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.50.0) - 2023-07-20
+
+
+### Added
+
+- Improved UI for multiple mirrord configurations.
+  Plugin now handles configs specified in run configurations, overriding those
+  with an active config, falling back to a default config.
+  [#31](https://github.com/metalbear-co/mirrord-intellij/issues/31)
+
+
+### Fixed
+
+- Fixed Debug launch failing on Java applications
+  [#42](https://github.com/metalbear-co/mirrord-intellij/issues/42)
+
+
 ## [3.49.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.49.1) - 2023-07-18
 
 
