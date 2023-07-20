@@ -8,7 +8,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import kotlinx.collections.immutable.toImmutableMap
+import java.nio.file.Path
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -16,8 +18,11 @@ import kotlinx.collections.immutable.toImmutableMap
  * if it did, it will do nothing
  */
 class MirrordExecManager(private val service: MirrordProjectService) {
-    /** returns null if the user closed or cancelled target selection, otherwise the chosen target, which is either a
-     * pod or the targetless target
+    /** Attempts to show the target selection dialog and allow user to select the mirrord target.
+     * If the dialog cannot be safely displayed (platform threading rules) returns null.
+     *
+     * @return target chosen by the user (or special constant for targetless mofr)
+     * or null if the user cancelled or the dialog could not be displayed
      */
     private fun chooseTarget(
         cli: String,
@@ -33,25 +38,45 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         ) ?: return null
 
         val application = ApplicationManager.getApplication()
-        // In some cases, we're executing from a `ReadAction` context, which means we
-        // can't block and wait for a WriteAction (such as invokeAndWait).
-        // Executing it in a thread pool seems to fix :)
-        // Update: We found out that if we're on DispatchThread we can just
-        // run our function, and if we don't we get into a deadlock.
-        // We have yet come to understand what exactly is going on, which is slightly annoying.
+
         return if (application.isDispatchThread) {
-            MirrordLogger.logger.debug("choosing target on current thread")
+            MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
             MirrordExecDialog.selectTargetDialog(pods)
-        } else {
-            MirrordLogger.logger.debug("choosing target on pooled thread")
+        } else if (!application.isReadAccessAllowed) {
+            MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
             var target: String? = null
-            application.executeOnPooledThread {
-                application.invokeAndWait {
-                    MirrordLogger.logger.debug("choosing target from invoke")
-                    target = MirrordExecDialog.selectTargetDialog(pods)
-                }
-            }.get()
+            application.invokeAndWait {
+                MirrordLogger.logger.debug("choosing target from invoke")
+                target = MirrordExecDialog.selectTargetDialog(pods)
+            }
             target
+        } else {
+            MirrordLogger.logger.debug("read lock detected, aborting target selection")
+
+            service
+                .notifier
+                .notification(
+                    "mirrord plugin was unable to display the target selection dialog. " +
+                        "You can set it manually in the configuration file $config.",
+                    NotificationType.WARNING
+                )
+                .apply {
+                    val configFile = try {
+                        val path = Path.of(config)
+                        VirtualFileManager.getInstance().findFileByNioPath(path)
+                    } catch (e : Exception) {
+                        MirrordLogger.logger.debug("failed to find config under path $config", e)
+                        null
+                    }
+
+                    configFile?.let {
+                        withOpenFile(it)
+                    }
+                }
+                .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
+                .fire()
+
+            return null
         }
     }
 

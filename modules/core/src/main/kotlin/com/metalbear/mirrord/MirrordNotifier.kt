@@ -57,6 +57,17 @@ class MirrordNotifier(private val service: MirrordProjectService) {
             return this
         }
 
+        fun withLink(action: String, url: String): MirrordNotification {
+            inner.addAction(object : NotificationAction(action) {
+                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                    BrowserUtil.browse(url)
+                    notification.expire()
+                }
+            })
+
+            return this
+        }
+
         fun withCollapseDirection(direction: Notification.CollapseActionsDirection): MirrordNotification {
             inner.setCollapseDirection(direction)
 
