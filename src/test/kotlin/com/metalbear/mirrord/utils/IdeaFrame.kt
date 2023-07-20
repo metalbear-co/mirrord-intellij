@@ -5,7 +5,6 @@ import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
-import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
@@ -62,28 +61,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
-
-    fun openFileByName(name: String) = with(remoteRobot) {
-        navigate {
-            searchEverywhere.click()
-        }
-
-        find<ContainerFixture>(
-            byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']"),
-            Duration.ofSeconds(30)
-        ).click()
-
-        keyboard {
-            enterText(name)
-        }
-
-        var listElems = emptyList<ContainerFixture>()
-        waitFor(Duration.ofSeconds(30)) {
-            listElems = findAll<ContainerFixture>(byXpath("//div[@class='JBList']")).filter { it.hasText(name) }
-            listElems.isNotEmpty()
-        }
-        listElems.first().findText(name).click()
-    }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
@@ -164,18 +141,4 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             byXpath("//div[@class='JProgressBar']")
         ).isEmpty()
     }
-}
-
-fun RemoteRobot.navigate(function: Navigate.() -> Unit) {
-    find<Navigate>(timeout = Duration.ofSeconds(60)).apply(function)
-}
-
-// reprsents the slim bar on the left showing bookmarks, project, etc.
-@DefaultXpath("Navigate type", "//div[@class='ActionMenu' and @text='Navigate']")
-class Navigate(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-    val searchEverywhere = find<ContainerFixture>(
-        byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"),
-        Duration.ofSeconds(60)
-    )
 }
