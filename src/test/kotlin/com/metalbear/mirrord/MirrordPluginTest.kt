@@ -92,8 +92,10 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                waitFor(ofSeconds(30)) {
-                    mirrordDropdownButton.isShowing
+                dumbAware {
+                    waitFor(ofSeconds(30)) {
+                        mirrordDropdownButton.isShowing
+                    }
                 }
                 mirrordDropdownButton.click()
 
