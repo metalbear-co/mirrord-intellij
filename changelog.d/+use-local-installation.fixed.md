@@ -1,1 +1,0 @@
-The plugin now uses a local mirrord installation if the version check fails.
