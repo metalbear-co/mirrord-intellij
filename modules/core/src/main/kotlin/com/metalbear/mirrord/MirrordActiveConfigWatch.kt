@@ -15,6 +15,11 @@ class MirrordActiveConfigWatch(private val service: MirrordProjectService) : Asy
      */
     class ConfigMovedTo(val url: String?)
 
+    /**
+     * Searches for deletions and renames of the active config file (or any of its parent directories).
+     * When the change has been applied to the VFS, a warning notification is displayed to the user
+     * and the active config file reference is updated.
+     */
     override fun prepareChange(events: MutableList<out VFileEvent>): AsyncFileListener.ChangeApplier? {
         val result: ConfigMovedTo? = service
             .activeConfig
