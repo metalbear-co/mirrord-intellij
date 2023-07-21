@@ -23,11 +23,12 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
 
     enum class NotificationId(val presentableName: String) {
         RUNNING_TARGETLESS("mirrord running targetless"),
-        ACTIVE_CONFIG_REMOVED("active mirrord config is removed or moved to another directory"),
+        ACTIVE_CONFIG_REMOVED("active mirrord config is removed"),
         ACTIVE_CONFIG_USED("active mirrord config is used"),
         DEFAULT_CONFIG_USED("default mirrord config is used"),
         DEFAULT_CONFIG_CREATED("default mirrord config is created"),
-        POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used")
+        POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used"),
+        ACTIVE_CONFIG_MOVED("active mirrord config is moved")
     }
 
     class MirrordState {
