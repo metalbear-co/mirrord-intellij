@@ -27,15 +27,14 @@ version = properties("pluginVersion")
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
-    }
-
-    maven {
         url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+    }
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
     }
 }
 
-val remoteRobotVersion = "0.11.19.416"
+val remoteRobotVersion = "0.11.19"
 
 dependencies {
     implementation(project(":mirrord-products-idea"))
@@ -184,8 +183,7 @@ tasks {
         // binaries to copy from $projectDir/bin to $pluginDir/bin with same path.
         // we have custom delve until delve 20 is widely used
         val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
-        binaries.forEach {
-                binary ->
+        binaries.forEach { binary ->
             from(file(project.projectDir.resolve("bin").resolve(binary))) {
                 // into treats last part as directory, so need to drop it.
                 into(Paths.get(pluginName.get(), "bin", binary).parent.toString())

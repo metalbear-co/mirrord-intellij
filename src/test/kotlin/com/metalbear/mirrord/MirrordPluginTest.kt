@@ -35,6 +35,7 @@ internal class MirrordPluginTest {
     init {
         StepsLogger.init()
     }
+
     companion object {
         private var ideaProcess: Process? = null
         private var tmpDir: Path = Files.createTempDirectory("launcher")
@@ -92,16 +93,22 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                dumbAware {
-                    waitFor(ofSeconds(30)) {
-                        mirrordDropdownButton.isShowing
-                    }
+                waitFor(ofSeconds(60)) {
+                    mirrordDropdownButton.isShowing
+                    // issue here is that elements move when git is visible
+                    git.isShowing
                 }
-                mirrordDropdownButton.click()
+                // as per the extension this doesn't need to be in the dumbAware block
+                // however, there can be a loading page which can only be ignored by the
+                // dumbAware block
+                dumbAware {
+                    mirrordDropdownButton.click()
+                }
 
                 waitFor(ofSeconds(30)) {
                     mirrordDropdownMenu.isShowing
                 }
+
                 mirrordDropdownMenu.findText("Settings").click()
 
                 editorTabs {
@@ -112,11 +119,16 @@ internal class MirrordPluginTest {
             }
 
             step("Open `app.py`") {
-                openFileByName("app.py")
-
-                editorTabs {
+                with(projectViewTree) {
                     waitFor(ofSeconds(30)) {
-                        isFileOpened("app.py")
+                        hasText("app.py")
+                        hasText(".mirrord")
+                    }
+                    findText("app.py").doubleClick()
+                    editorTabs {
+                        waitFor {
+                            isFileOpened("app.py")
+                        }
                     }
                 }
 
@@ -156,8 +168,8 @@ internal class MirrordPluginTest {
                     enableMirrord.isShowing
                     startDebugging.isShowing
                 }
+                enableMirrord.click()
                 dumbAware {
-                    enableMirrord.click()
                     startDebugging.click()
                 }
                 step("Select pod to mirror traffic from") {

@@ -5,7 +5,6 @@ import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
-import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
@@ -27,6 +26,15 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         get() = find<ContainerFixture>(
             byXpath("//div[@text='mirrord' and @class='ComboBoxButton']"),
             Duration.ofSeconds(30)
+        )
+
+    val git
+        get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
+
+    val projectViewTree
+        get() = find<ContainerFixture>(
+            byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),
+            Duration.ofSeconds(60)
         )
 
     val mirrordDropdownMenu
@@ -56,27 +64,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val xDebuggerFramesList
         get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
-
-    fun openFileByName(name: String) {
-        find<ContainerFixture>(byXpath("//div[@class='ActionMenu' and @text='Navigate']")).click()
-        waitFor {
-            findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
-                .isNotEmpty()
-        }
-        findAll<ContainerFixture>(byXpath("//div[@class='ActionMenuItem' and @text='Search Everywhere' and @defaulticon='find.svg']"))
-            .first()
-            .click()
-        find<ContainerFixture>(byXpath("//div[@class='SearchField' and @visible_text='Type / to see commands']")).click()
-        keyboard {
-            enterText(name)
-        }
-        var listElems = emptyList<ContainerFixture>()
-        waitFor(Duration.ofSeconds(30)) {
-            listElems = findAll<ContainerFixture>(byXpath("//div[@class='JBList']")).filter { it.hasText(name) }
-            listElems.isNotEmpty()
-        }
-        listElems.first().findText(name).click()
-    }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
@@ -158,12 +145,3 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         ).isEmpty()
     }
 }
-
-fun RemoteRobot.leftStripe(function: LeftStripe.() -> Unit) {
-    find<LeftStripe>(timeout = Duration.ofSeconds(60)).apply(function)
-}
-
-// reprsents the slim bar on the left showing bookmarks, project, etc.
-@DefaultXpath("Stripe type", "//div[@class='Stripe'][.//div[contains(@text.key, 'project.scheme')]]")
-class LeftStripe(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent)
