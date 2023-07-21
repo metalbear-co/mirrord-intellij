@@ -26,6 +26,11 @@ version = properties("pluginVersion")
 // Configure project's dependencies
 repositories {
     mavenCentral()
+    repositories {
+        maven {
+            url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+        }
+    }
     maven {
         url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
     }
@@ -42,7 +47,7 @@ dependencies {
     implementation(project(":mirrord-products-rider"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
-    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19")
+    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
