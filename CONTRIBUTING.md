@@ -68,7 +68,7 @@ go to [localhost:8082](http://localhost:8082) and choose the elements you want t
 
 - As a rule of thumb try to encapsulate functionality in fixtures in the `utils` folder.
 
-- To verify things work as expected locally, 
+- To run the tests locally from scratch run, `./gradlew test` which download the latest stable pycharm IDE. 
 
 
 
