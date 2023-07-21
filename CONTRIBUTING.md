@@ -54,3 +54,21 @@ Running this configuration in debug will open a new IDE window.
 You can set breakpoints in the plugin's code in the first window, and use the plugin in the second window to reach the breakpoints.
 
 You can control which IDE is opened with a `PLATFORMTYPE` environment variable. For example, set `PLATFORMTYPE=IU` for IntelliJ IDEA Ultimate.
+
+
+## Adding E2E tests
+
+We use the [intellij-ui-test-robot](https://github.com/JetBrains/intellij-ui-test-robot) to automate UI tests for the extension.
+
+- If you have made a change to the UI, to add new tests, run `./gradlew runIdeForUITests` and open a test project,
+go to [localhost:8082](http://localhost:8082) and choose the elements you want to click on by their Xpath.
+
+- To make sure the test doesn't flake in the CI, check if all the elements related to UI component have loaded by using
+ a `waitFor` fixture or if a change depends on files to be indexed, use the `dumbAware` fixture.
+
+- As a rule of thumb try to encapsulate functionality in fixtures in the `utils` folder.
+
+- To verify things work as expected locally, 
+
+
+
