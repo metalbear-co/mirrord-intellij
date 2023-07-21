@@ -93,8 +93,10 @@ internal class MirrordPluginTest {
         }
         idea {
             step("Create config file") {
-                waitFor(ofSeconds(30)) {
+                waitFor(ofSeconds(60)) {
                     mirrordDropdownButton.isShowing
+                    // issue here is that elements move when git is visible
+                    git.isShowing
                 }
                 // as per the extension this doesn't need to be in the dumbAware block
                 // however, there can be a loading page which can only be ignored by the

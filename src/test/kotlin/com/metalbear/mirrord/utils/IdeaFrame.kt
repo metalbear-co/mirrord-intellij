@@ -28,6 +28,9 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    val git
+        get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git' and @class='MyLabel']"), Duration.ofSeconds(30))
+
     val projectViewTree
         get() = find<ContainerFixture>(
             byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),

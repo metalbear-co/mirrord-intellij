@@ -29,13 +29,9 @@ repositories {
     maven {
         url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
     }
-
-    maven {
-        url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
-    }
 }
 
-val remoteRobotVersion = "0.11.19.416"
+val remoteRobotVersion = "0.11.19"
 
 dependencies {
     implementation(project(":mirrord-products-idea"))
