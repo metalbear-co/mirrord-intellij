@@ -47,7 +47,7 @@ dependencies {
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.3")
     testImplementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
