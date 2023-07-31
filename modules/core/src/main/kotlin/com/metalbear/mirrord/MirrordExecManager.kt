@@ -209,6 +209,15 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             }
         }
 
+        var feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter();
+        if (feedbackCounter >= FOO) {
+            service.notifier.notifySimple(
+                "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we highly appreciate it!",
+                NotificationType.INFORMATION
+            )
+        }
+
+        
         val executionInfo = service.mirrordApi.exec(
             cli,
             target,

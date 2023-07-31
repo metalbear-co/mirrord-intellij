@@ -43,6 +43,10 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
             disabledNotifications = disabledNotifications.orEmpty() + id
         }
 
+        // TODO(alex) [high] 2023-07-31: How do I change this config value?
+        fun tickFeedbackCounter(): int {
+        }
+
         fun isNotificationDisabled(id: NotificationId): Boolean {
             return disabledNotifications?.contains(id) ?: false
         }
