@@ -5,19 +5,14 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.util.ui.ImageUtil
 import com.intellij.util.ui.JBUI
 import icons.MirrordIcons
 import java.awt.Dimension
 import java.awt.event.ActionEvent
-import java.awt.image.BufferedImage
-import java.io.File
-import javax.imageio.ImageIO
 import javax.swing.*
 import javax.swing.text.DefaultStyledDocument
 import javax.swing.text.StyleConstants
 import javax.swing.text.StyleContext
-
 
 const val BANNER_TEXT =
     """To enable mirrord, simply click the icon on the run toolbar.
