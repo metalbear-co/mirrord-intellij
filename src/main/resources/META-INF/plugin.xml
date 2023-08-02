@@ -40,6 +40,8 @@
                 displayName="mirrord"/>
 
         <fileBasedIndex implementation="com.metalbear.mirrord.MirrordConfigIndex"/>
+
+        <postStartupActivity implementation="com.metalbear.mirrord.MirrordUsageBanner"/>
     </extensions>
 
     <actions>
