@@ -92,6 +92,10 @@ internal class MirrordPluginTest {
             }
         }
         idea {
+            step("Close usage banner") {
+                usageBanner.findText("Close").click()
+            }
+
             step("Create config file") {
                 waitFor(ofSeconds(60)) {
                     mirrordDropdownButton.isShowing
