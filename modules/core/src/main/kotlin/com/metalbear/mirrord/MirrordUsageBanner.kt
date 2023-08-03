@@ -16,7 +16,7 @@ import javax.swing.text.StyleContext
 
 const val BANNER_TEXT =
     """To enable mirrord, simply click the icon on the run toolbar.
-When mirrord is enabled, running or debugging your project will use the context of the Kubernetes cluster specified in your kubeconfig.
+When mirrord is enabled, whenever you run or debug your project, it'll run in the context of your Kubernetes cluster (using the context specified in your kubeconfig).
 The dropdown menu next to the icon provides shortcuts for working with mirrord configuration files.
 """
 
