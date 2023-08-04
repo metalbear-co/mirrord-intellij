@@ -12,7 +12,6 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import kotlinx.collections.immutable.toImmutableMap
 import java.nio.file.Path
 
-
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
  * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
@@ -26,16 +25,16 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * or null if the user cancelled or the dialog could not be displayed
      */
     private fun chooseTarget(
-            cli: String,
-            wslDistribution: WSLDistribution?,
-            config: String
+        cli: String,
+        wslDistribution: WSLDistribution?,
+        config: String
     ): String? {
         MirrordLogger.logger.debug("choose target called")
 
         val pods = service.mirrordApi.listPods(
-                cli,
-                config,
-                wslDistribution
+            cli,
+            config,
+            wslDistribution
         ) ?: return null
 
         val application = ApplicationManager.getApplication()
@@ -55,27 +54,27 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("read lock detected, aborting target selection")
 
             service
-                    .notifier
-                    .notification(
-                            "mirrord plugin was unable to display the target selection dialog. " +
-                                    "You can set it manually in the configuration file $config.",
-                            NotificationType.WARNING
-                    )
-                    .apply {
-                        val configFile = try {
-                            val path = Path.of(config)
-                            VirtualFileManager.getInstance().findFileByNioPath(path)
-                        } catch (e: Exception) {
-                            MirrordLogger.logger.debug("failed to find config under path $config", e)
-                            null
-                        }
-
-                        configFile?.let {
-                            withOpenFile(it)
-                        }
+                .notifier
+                .notification(
+                    "mirrord plugin was unable to display the target selection dialog. " +
+                        "You can set it manually in the configuration file $config.",
+                    NotificationType.WARNING
+                )
+                .apply {
+                    val configFile = try {
+                        val path = Path.of(config)
+                        VirtualFileManager.getInstance().findFileByNioPath(path)
+                    } catch (e: Exception) {
+                        MirrordLogger.logger.debug("failed to find config under path $config", e)
+                        null
                     }
-                    .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
-                    .fire()
+
+                    configFile?.let {
+                        withOpenFile(it)
+                    }
+                }
+                .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
+                .fire()
 
             return null
         }
@@ -125,19 +124,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     fun start(
-            wslDistribution: WSLDistribution?,
-            product: String,
-            mirrordConfigFromEnv: String?
+        wslDistribution: WSLDistribution?,
+        product: String,
+        mirrordConfigFromEnv: String?
     ): Map<String, String>? {
         return start(wslDistribution, null, product, mirrordConfigFromEnv)?.first
     }
 
     /** Starts mirrord, shows dialog for selecting pod if target not set and returns env to set. */
     fun start(
-            wslDistribution: WSLDistribution?,
-            executable: String?,
-            product: String,
-            mirrordConfigFromEnv: String?
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        mirrordConfigFromEnv: String?
     ): Pair<Map<String, String>, String?>? {
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
@@ -161,21 +160,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         if (config == null) {
             service
-                    .notifier
-                    .notification("mirrord requires configuration", NotificationType.WARNING)
-                    .withAction("Create default") { e, n ->
-                        e
-                                .project
-                                ?.service<MirrordProjectService>()
-                                ?.let {
-                                    val newConfig = WriteAction.compute<VirtualFile, InvalidProjectException> {
-                                        service.configApi.createDefaultConfig()
-                                    }
-                                    FileEditorManager.getInstance(service.project).openFile(newConfig, true)
-                                }
-                        n.expire()
-                    }
-                    .fire()
+                .notifier
+                .notification("mirrord requires configuration", NotificationType.WARNING)
+                .withAction("Create default") { e, n ->
+                    e
+                        .project
+                        ?.service<MirrordProjectService>()
+                        ?.let {
+                            val newConfig = WriteAction.compute<VirtualFile, InvalidProjectException> {
+                                service.configApi.createDefaultConfig()
+                            }
+                            FileEditorManager.getInstance(service.project).openFile(newConfig, true)
+                        }
+                    n.expire()
+                }
+                .fire()
 
             return null
         }
@@ -201,11 +200,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             if (target == MirrordExecDialog.targetlessTargetName) {
                 MirrordLogger.logger.info("No target specified - running targetless")
                 service.notifier.notification(
-                        "No target specified, mirrord running targetless.",
-                        NotificationType.INFORMATION
+                    "No target specified, mirrord running targetless.",
+                    NotificationType.INFORMATION
                 )
-                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                        .fire()
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                    .fire()
                 target = null
             }
         }
@@ -213,22 +212,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter()
         if (feedbackCounter >= FEEDBACK_COUNTER_REVIEW_AFTER) {
             service.notifier
-                    .notification(
-                            "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
-                            NotificationType.INFORMATION
-                    )
-                    .withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews")
-                    .withLink("Feedback", "https://mirrord.dev/feedback")
-                    .fire()
+                .notification(
+                    "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
+                    NotificationType.INFORMATION
+                )
+                .withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews")
+                .withLink("Feedback", "https://mirrord.dev/feedback")
+                .fire()
         }
 
-
         val executionInfo = service.mirrordApi.exec(
-                cli,
-                target,
-                config,
-                executable,
-                wslDistribution
+            cli,
+            target,
+            config,
+            executable,
+            wslDistribution
         )
 
         executionInfo?.let {
