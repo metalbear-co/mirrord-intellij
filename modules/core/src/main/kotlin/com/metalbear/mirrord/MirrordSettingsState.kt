@@ -38,6 +38,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var showDeploymentsInSelection: Boolean? = null
         var showRolloutsInSelection: Boolean? = null
         var disabledNotifications: Set<NotificationId>? = null
+        var showUsageBanner: Boolean = true
 
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id

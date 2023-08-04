@@ -28,6 +28,12 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    val usageBanner
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='MyDialog' and @title='How to use mirrord']"),
+            Duration.ofSeconds(30)
+        )
+
     val git
         get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
 
