@@ -229,7 +229,7 @@ class MirrordBinaryManager(private val service: MirrordProjectService) {
             service
                 .notifier
                 .notification(
-                    "failed to download the mirrord binary, using a local installation with version $it",
+                    "failed to download the mirrord binary, using a local installation with version ${it.version}",
                     NotificationType.WARNING
                 )
                 .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)

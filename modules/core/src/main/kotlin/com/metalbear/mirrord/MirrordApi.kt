@@ -45,6 +45,30 @@ data class MirrordExecution(
 )
 
 /**
+ * Wrapper around Gson for parsing messages from the mirrord binary.
+ */
+private class SafeParser {
+    class ParseError(e: Exception) : Exception() {
+        override val message = "failed to parse a message from the mirrord binary, try updating to the latest version"
+        override val cause = e
+    }
+
+    private val gson = Gson()
+
+    /**
+     * @throws ParseError
+     */
+    fun <T> parse(value: String, classOfT: Class<T>): T {
+        return try {
+            gson.fromJson(value, classOfT)
+        } catch (e: Exception) {
+            MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
+            throw ParseError(e)
+        }
+    }
+}
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
@@ -157,7 +181,7 @@ class MirrordApi(private val service: MirrordProjectService) {
             .redirectError(ProcessBuilder.Redirect.PIPE)
             .start()
 
-        val gson = Gson()
+        val parser = SafeParser()
         val bufferedReader = process.inputStream.reader().buffered()
 
         val environment = CompletableFuture<MirrordExecution?>()
@@ -166,13 +190,13 @@ class MirrordApi(private val service: MirrordProjectService) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.text = "mirrord is starting..."
                 for (line in bufferedReader.lines()) {
-                    val message = gson.fromJson(line, Message::class.java)
+                    val message = parser.parse(line, Message::class.java)
                     when {
                         message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
                             val success = message.success ?: throw Error("Invalid message")
                             if (success) {
                                 val innerMessage = message.message ?: throw Error("Invalid inner message")
-                                val executionInfo = gson.fromJson(innerMessage, MirrordExecution::class.java)
+                                val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                                 indicator.text = "mirrord is running"
                                 environment.complete(executionInfo)
                                 return
@@ -205,6 +229,11 @@ class MirrordApi(private val service: MirrordProjectService) {
                 process.destroy()
                 service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
             }
+
+            /**
+             * Prevents IntelliJ from showing error notification
+             */
+            override fun onThrowable(error: Throwable) {}
         }
 
         ProgressManager.getInstance().run(mirrordProgressTask)
@@ -212,17 +241,28 @@ class MirrordApi(private val service: MirrordProjectService) {
         try {
             return environment.get(30, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            service.notifier.notifyRichError("mirrord failed to fetch the env")
+            var message = "mirrord failed to fetch the env"
+            logger.debug(message, e)
+            e.message?.let { message += ": $it" }
+            service.notifier.notifyRichError(message)
         }
 
         val processStdError = process.errorStream.reader().readText()
         if (processStdError.startsWith("Error: ")) {
             val trimmedError = processStdError.removePrefix("Error: ")
-            val error = gson.fromJson(trimmedError, Error::class.java)
-            service.notifier.notifyRichError(error.message)
-            service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
+
+            try {
+                val error = parser.parse(trimmedError, Error::class.java)
+                service.notifier.notifyRichError(error.message)
+                service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
+            } catch (e: SafeParser.ParseError) {
+                service.notifier.notifyRichError(trimmedError)
+                service.notifier.notifySimple(e.message, NotificationType.WARNING)
+            }
+
             return null
         }
+
         logger.error("mirrord stderr: $processStdError")
         throw Error("mirrord failed to start")
     }
