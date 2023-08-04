@@ -13,9 +13,11 @@ class MirrordSettingsComponent {
         .NotificationId
         .values()
         .associateWith { JBCheckBox(it.presentableName) }
+    private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
 
     val panel: JPanel = FormBuilder
         .createFormBuilder()
+        .addComponent(usageBannerEnabled)
         .addComponent(versionCheckEnabled)
         .addSeparator()
         .addComponent(JBLabel("Notify when:"))
@@ -29,6 +31,12 @@ class MirrordSettingsComponent {
 
     val preferredFocusedComponent: JComponent
         get() = versionCheckEnabled
+
+    var usageBannerEnabledStatus: Boolean
+        get() = usageBannerEnabled.isSelected
+        set(value) {
+            usageBannerEnabled.isSelected = value
+        }
 
     var versionCheckEnabledStatus: Boolean
         get() = versionCheckEnabled.isSelected

@@ -73,6 +73,10 @@ jobs:
     env:
       CI_BUILD_PLUGIN: "true"
     steps:
+      - name: Remove unnecessary files
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v3
       - name: Setup Java
         uses: actions/setup-java@v3
