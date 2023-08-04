@@ -211,7 +211,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             }
         }
 
-        val feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter();
+        val feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter()
         if (feedbackCounter >= FEEDBACK_COUNTER_REVIEW_AFTER) {
             service.notifier
                     .notification(
