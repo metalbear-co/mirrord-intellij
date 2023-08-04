@@ -12,6 +12,8 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import kotlinx.collections.immutable.toImmutableMap
 import java.nio.file.Path
 
+
+
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
  * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
@@ -209,15 +211,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             }
         }
 
-        var feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter();
-        if (feedbackCounter >= FOO) {
-            service.notifier.notifySimple(
-                "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we highly appreciate it!",
-                NotificationType.INFORMATION
-            )
+        val feedbackCounter = MirrordSettingsState.instance.mirrordState.tickFeedbackCounter();
+        if (feedbackCounter >= FEEDBACK_COUNTER_REVIEW_AFTER) {
+            service.notifier
+                    .notification(
+                        "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
+                        NotificationType.INFORMATION
+                    )
+                    .withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews")
+                    .withLink("Feedback", "https://mirrord.dev/feedback")
+                    .fire()
         }
 
-        
+
         val executionInfo = service.mirrordApi.exec(
             cli,
             target,
