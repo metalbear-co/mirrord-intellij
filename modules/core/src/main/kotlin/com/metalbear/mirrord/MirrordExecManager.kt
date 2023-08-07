@@ -84,7 +84,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val path = try {
             service.binaryManager.getBinary(product, wslDistribution)
         } catch (e: Exception) {
-            service.notifier.notifyRichError("failed to fetch mirrord binary: ${e.message}")
+            service.notifier.notifyRichError("failed to found mirrord binary: ${e.message}")
             return null
         }
         wslDistribution?.let {
