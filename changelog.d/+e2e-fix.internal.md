@@ -1,1 +1,1 @@
-Fix e2e flakiness
+Better way to open files in e2e tests - reduce flakiness
