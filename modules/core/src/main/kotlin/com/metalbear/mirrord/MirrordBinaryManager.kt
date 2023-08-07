@@ -38,8 +38,10 @@ class MirrordBinaryManager(val service: MirrordProjectService) {
      */
     private class VersionCheckTask(private val manager: MirrordBinaryManager, val product: String?) : Task.Backgroundable(manager.service.project, "mirrord", true) {
         override fun run(indicator: ProgressIndicator) {
-            val pluginVersion = if (System.getenv("CI_BUILD_PLUGIN") == "true" ||
-                System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true") {
+            val pluginVersion = if (
+                System.getenv("CI_BUILD_PLUGIN") == "true" ||
+                System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
+            ) {
                 "test"
             } else {
                 VERSION ?: "unknown"
