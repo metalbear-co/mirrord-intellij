@@ -5,6 +5,7 @@ import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.*
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.stepsProcessing.step
+import com.intellij.remoterobot.utils.component
 import com.intellij.remoterobot.utils.waitFor
 import java.time.Duration
 
@@ -36,12 +37,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val git
         get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
-
-    val projectViewTree
-        get() = find<ContainerFixture>(
-            byXpath("ProjectViewTree", "//div[@class='ProjectViewTree']"),
-            Duration.ofSeconds(60)
-        )
 
     val mirrordDropdownMenu
         get() = find<ContainerFixture>(
@@ -150,4 +145,30 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             byXpath("//div[@class='JProgressBar']")
         ).isEmpty()
     }
+}
+
+fun RemoteRobot.openFile(path: String) {
+    val ideaFrame = component("//div[@class='IdeFrameImpl']")
+    ideaFrame.runJs(
+        """
+            importPackage(com.intellij.openapi.fileEditor)
+            importPackage(com.intellij.openapi.vfs)
+            importPackage(com.intellij.openapi.wm.impl)
+            
+            const path = '$path'
+            const frameHelper = ProjectFrameHelper.getFrameHelper(component)
+            if (frameHelper) {
+                const project = frameHelper.getProject()
+                const projectPath = project.getBasePath()
+                const file = LocalFileSystem.getInstance().findFileByPath(projectPath + '/' + path)
+                FileEditorManager.getInstance(project).openTextEditor(
+                    new OpenFileDescriptor(
+                        project,
+                        file
+                    ), true
+                )
+            }
+        """,
+        true
+    )
 }
