@@ -240,7 +240,7 @@ class MirrordBinaryManager(val service: MirrordProjectService) {
         val message = if (downloadTaskRunning.get()) {
             "no local installation found, downloading in the background"
         } else {
-            "no local installation found"
+            "no local installation found, mirrord needs network access to download binary"
         }
         throw RuntimeException(message)
     }
