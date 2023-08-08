@@ -45,7 +45,7 @@ dependencies {
     implementation(project(":mirrord-products-rider"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
-    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
+    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.420")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
