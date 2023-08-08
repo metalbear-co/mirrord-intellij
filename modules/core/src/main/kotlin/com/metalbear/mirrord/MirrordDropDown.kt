@@ -111,7 +111,6 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             val project = e.project ?: return
             MirrordWaitlistDialog(project).show()
         }
-
     }
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 

@@ -20,7 +20,6 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-
 private const val SIGNUP_ENDPOINT = "https://waitlist.metalbear.co/v1/waitlist"
 
 /**
@@ -107,9 +106,11 @@ class MirrordWaitlistDialog(private val project: Project) {
                 border = JBUI.Borders.empty(10, 5)
                 add(JLabel("Email Address:"))
                 add(Box.createRigidArea(Dimension(10, 0)))
-                add(textField.apply {
-                    minimumSize = Dimension(250, 50)
-                })
+                add(
+                    textField.apply {
+                        minimumSize = Dimension(250, 50)
+                    }
+                )
             }
             setCenterPanel(panel)
             setTitle("mirrord for Teams Waitlist Signup")
