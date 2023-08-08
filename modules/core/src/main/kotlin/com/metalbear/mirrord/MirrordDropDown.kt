@@ -17,7 +17,7 @@ import com.intellij.util.io.KeyDescriptor
 import java.util.Collections
 import javax.swing.JComponent
 
-class MirrordConfigDropDown : ComboBoxAction(), DumbAware {
+class MirrordDropDown : ComboBoxAction(), DumbAware {
     private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
@@ -106,6 +106,13 @@ class MirrordConfigDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
+    private class WaitlistSignupAction : AnAction("Waitlist Signup") {
+        override fun actionPerformed(e: AnActionEvent) {
+            val project = e.project ?: return
+            MirrordWaitlistDialog(project).show()
+        }
+
+    }
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun createPopupActionGroup(button: JComponent, dataContext: DataContext): DefaultActionGroup {
@@ -118,6 +125,8 @@ class MirrordConfigDropDown : ComboBoxAction(), DumbAware {
             service.activeConfig?.let { add(ShowActiveConfigAction(it)) }
             add(SelectActiveConfigAction())
             add(SettingsAction())
+            addSeparator("mirrord for Teams")
+            add(WaitlistSignupAction())
         }
     }
 
