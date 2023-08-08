@@ -140,7 +140,15 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
 class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    val progressBar = find<ContainerFixture>(byXpath("//div[@class='JProgressBar']"), Duration.ofSeconds(30))
+    fun waitForProgressFinished(timeout: Duration) {
+        waitFor(duration = timeout, errorMessage = "There are still some active background processes") {
+            val found = find<ContainerFixture>(
+                byXpath("//div[@class='IdeStatusBarImpl']//div[@class='InlineProgressPanel']"),
+                Duration.ofSeconds(30)
+            ).findAllText().map { it.text }
+            found.isEmpty()
+        }
+    }
 }
 
 fun RemoteRobot.openFile(path: String) {

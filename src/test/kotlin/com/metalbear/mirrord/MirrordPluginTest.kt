@@ -24,6 +24,7 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Duration
 import java.time.Duration.ofMinutes
 import java.time.Duration.ofSeconds
 import java.util.concurrent.TimeUnit
@@ -142,10 +143,7 @@ internal class MirrordPluginTest {
                     }
                     statusBar {
                         // wait for the progress bar to disappear - poetry is set up
-                        val progressBar = progressBar
-                        waitFor(ofSeconds(60)) {
-                            !progressBar.isShowing
-                        }
+                        waitForProgressFinished(Duration.ofSeconds(120))
                     }
                 }
 
