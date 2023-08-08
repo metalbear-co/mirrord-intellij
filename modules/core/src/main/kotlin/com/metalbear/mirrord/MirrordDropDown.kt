@@ -106,7 +106,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class WaitlistSignupAction : AnAction("Waitlist Signup") {
+    private class WaitlistSignupAction : AnAction("Join the waitlist") {
         override fun actionPerformed(e: AnActionEvent) {
             val project = e.project ?: return
             MirrordWaitlistDialog(project).show()
