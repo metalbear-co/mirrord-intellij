@@ -140,11 +140,7 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
 class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
-    fun isProgressBarEmpty(): Boolean = step("Is progress bar showing") {
-        return@step remoteRobot.findAll<ComponentFixture>(
-            byXpath("//div[@class='JProgressBar']")
-        ).isEmpty()
-    }
+    val progressBar = find<ContainerFixture>(byXpath("//div[@class='JProgressBar']"), Duration.ofSeconds(30))
 }
 
 fun RemoteRobot.openFile(path: String) {

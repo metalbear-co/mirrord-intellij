@@ -141,13 +141,10 @@ internal class MirrordPluginTest {
                         }
                     }
                     statusBar {
-                        // check if poetry is being set up
-                        waitFor(ofSeconds(30)) {
-                            hasText("Updating skeletons...")
-                        }
-                        // need to make sure poetry is not doing anything
-                        waitFor(ofSeconds(120)) {
-                            isProgressBarEmpty()
+                        // wait for the progress bar to disappear - poetry is set up
+                        val progressBar = progressBar
+                        waitFor(ofSeconds(60)) {
+                            !progressBar.isShowing
                         }
                     }
                 }
