@@ -143,8 +143,7 @@ class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     fun waitForProgressFinished(timeout: Duration) {
         waitFor(duration = timeout, errorMessage = "There are still some active background processes") {
             val found = find<ContainerFixture>(
-                byXpath("//div[@class='IdeStatusBarImpl']//div[@class='InlineProgressPanel']"),
-                Duration.ofSeconds(30)
+                byXpath("//div[@class='InlineProgressPanel']")
             ).findAllText().map { it.text }
             found.isEmpty()
         }
