@@ -95,7 +95,6 @@ internal class MirrordPluginTest {
             step("Close usage banner") {
                 usageBanner.findText("Close").click()
             }
-
             step("Create config file") {
                 waitFor(ofSeconds(60)) {
                     mirrordDropdownButton.isShowing
@@ -123,16 +122,10 @@ internal class MirrordPluginTest {
             }
 
             step("Open `app.py`") {
-                with(projectViewTree) {
-                    waitFor(ofSeconds(30)) {
-                        hasText("app.py")
-                        hasText(".mirrord")
-                    }
-                    findText("app.py").doubleClick()
-                    editorTabs {
-                        waitFor {
-                            isFileOpened("app.py")
-                        }
+                openFile("app.py")
+                editorTabs {
+                    waitFor {
+                        isFileOpened("app.py")
                     }
                 }
 
@@ -148,9 +141,14 @@ internal class MirrordPluginTest {
                         }
                     }
                     statusBar {
-                        // need to make sure poetry is not doing anything
-                        waitFor(ofSeconds(120)) {
-                            isProgressBarEmpty()
+                        // wait for the progress bar to disappear - poetry is set up
+                        try {
+                            val progressIcon = progressIcon
+                            waitFor(ofSeconds(30)) {
+                                !progressIcon.isShowing
+                            }
+                        } catch (e: Exception) {
+                            waitForProgressFinished(ofSeconds(60))
                         }
                     }
                 }
