@@ -140,6 +140,12 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
 class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
+    val progressIcon
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='AsyncProcessIcon']"),
+            Duration.ofSeconds(30)
+        )
+
     fun waitForProgressFinished(timeout: Duration) {
         waitFor(duration = timeout, errorMessage = "There are still some active background processes") {
             val found = find<ContainerFixture>(
