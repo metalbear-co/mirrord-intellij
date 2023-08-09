@@ -142,11 +142,14 @@ internal class MirrordPluginTest {
                     }
                     statusBar {
                         // wait for the progress bar to disappear - poetry is set up
-                        val progressIcon = progressIcon
-                        waitFor(ofSeconds(60)) {
-                            !progressIcon.isShowing
+                        try {
+                            val progressIcon = progressIcon
+                            waitFor(ofSeconds(30)) {
+                                !progressIcon.isShowing
+                            }
+                        } catch (e: Exception) {
+                            waitForProgressFinished(ofSeconds(60))
                         }
-                        waitForProgressFinished(ofSeconds(60))
                     }
                 }
 
