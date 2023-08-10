@@ -188,6 +188,8 @@ class MirrordApi(private val service: MirrordProjectService) {
 
         val mirrordProgressTask = object : Task.Backgroundable(service.project, "mirrord", true) {
             override fun run(indicator: ProgressIndicator) {
+                val warningHandler = MirrordWarningHandler(service)
+
                 indicator.text = "mirrord is starting..."
                 for (line in bufferedReader.lines()) {
                     val message = parser.parse(line, Message::class.java)
@@ -204,7 +206,7 @@ class MirrordApi(private val service: MirrordProjectService) {
                         }
 
                         message.type == MessageType.Warning -> {
-                            message.message?.let { service.notifier.notifySimple(it, NotificationType.WARNING) }
+                            message.message?.let { warningHandler.handle(it) }
                         }
 
                         else -> {
@@ -265,5 +267,40 @@ class MirrordApi(private val service: MirrordProjectService) {
 
         logger.error("mirrord stderr: $processStdError")
         throw Error("mirrord failed to start")
+    }
+}
+
+private class MirrordWarningHandler(private val service: MirrordProjectService) {
+    /**
+     * Matches warning message from the mirrord binary to the notification id.
+     */
+    private class WarningFilter(private val filter: (message: String) -> Boolean, private val id: MirrordSettingsState.NotificationId) {
+        fun getId(warningMessage: String): MirrordSettingsState.NotificationId? {
+            return if (filter(warningMessage)) {
+                id
+            } else {
+                null
+            }
+        }
+    }
+
+    private val filters: List<WarningFilter> = listOf(
+        WarningFilter(
+            { message -> message.contains("Agent version") && message.contains("does not match the local mirrord version") },
+            MirrordSettingsState.NotificationId.AGENT_VERSION_MISMATCH
+        )
+    )
+
+    /**
+     * Shows the warning notification, optionally providing the "Don't show again" option.
+     */
+    fun handle(warningMessage: String) {
+        val notification = service.notifier.notification(warningMessage, NotificationType.WARNING)
+
+        filters.firstNotNullOfOrNull { it.getId(warningMessage) }?.let {
+            notification.withDontShowAgain(it)
+        }
+
+        notification.fire()
     }
 }
