@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
@@ -112,6 +113,15 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             MirrordWaitlistDialog(project).show()
         }
     }
+
+    private class FeedbackAction : AnAction("Give feedback") {
+        private val feedbackUrl = "https://mirrord.dev/feedback"
+
+        override fun actionPerformed(e: AnActionEvent) {
+            BrowserUtil.browse(feedbackUrl)
+        }
+    }
+
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun createPopupActionGroup(button: JComponent, dataContext: DataContext): DefaultActionGroup {
@@ -126,6 +136,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             add(SettingsAction())
             addSeparator("mirrord for Teams")
             add(WaitlistSignupAction())
+            addSeparator("Feedback")
+            add(FeedbackAction())
         }
     }
 
