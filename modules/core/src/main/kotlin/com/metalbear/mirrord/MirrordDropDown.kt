@@ -114,7 +114,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class FeedbackAction : AnAction("Give feedback") {
+    private class FeedbackAction : AnAction("Give Feedback") {
         private val feedbackUrl = "https://mirrord.dev/feedback"
 
         override fun actionPerformed(e: AnActionEvent) {
