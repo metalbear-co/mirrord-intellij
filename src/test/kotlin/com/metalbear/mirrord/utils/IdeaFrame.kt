@@ -38,11 +38,16 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val git
         get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
 
-    val mirrordDropdownMenu
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='MyList' and (@visible_text='Disabled || Select Active Config || Configuration || Settings || Join the waitlist || mirrord for Teams' or @visible_text='Disabled || Settings || Configuration || Join the waitlist || mirrord for Teams')]"),
-            Duration.ofSeconds(30)
-        )
+    val mirrordDropdownMenu: ContainerFixture
+        get() {
+            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(30)) {
+                val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                    .firstOrNull { it.hasText("mirrord for Teams") }
+                Pair(list != null, list)
+            }
+
+            return list!!
+        }
 
     val startDebugging
         get() = find<ContainerFixture>(

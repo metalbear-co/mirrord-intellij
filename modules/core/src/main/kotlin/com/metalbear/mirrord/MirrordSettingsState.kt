@@ -29,7 +29,8 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         DEFAULT_CONFIG_CREATED("default mirrord config is created"),
         POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used"),
         ACTIVE_CONFIG_MOVED("active mirrord config is moved"),
-        AGENT_VERSION_MISMATCH("agent version does not match version of the local mirrord installation")
+        AGENT_VERSION_MISMATCH("agent version does not match version of the local mirrord installation"),
+        PLUGIN_REVIEW("mirrord occasionally asks for plugin review")
     }
 
     class MirrordState {
@@ -40,6 +41,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var showRolloutsInSelection: Boolean? = null
         var disabledNotifications: Set<NotificationId>? = null
         var showUsageBanner: Boolean = true
+        var runsCounter: Int = 0
 
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id

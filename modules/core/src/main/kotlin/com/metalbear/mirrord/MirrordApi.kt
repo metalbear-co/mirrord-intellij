@@ -69,6 +69,11 @@ private class SafeParser {
 }
 
 /**
+ * How many times mirrord can be run before displaying a notification asking for marketplace review.
+ */
+private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
@@ -150,6 +155,8 @@ class MirrordApi(private val service: MirrordProjectService) {
         executable: String?,
         wslDistribution: WSLDistribution?
     ): MirrordExecution? {
+        bumpFeedbackCounter()
+
         val commandLine = GeneralCommandLine(cli, "ext").apply {
             target?.let {
                 addParameter("-t")
@@ -267,6 +274,32 @@ class MirrordApi(private val service: MirrordProjectService) {
 
         logger.error("mirrord stderr: $processStdError")
         throw Error("mirrord failed to start")
+    }
+
+    /**
+     * Increments the mirrord run counter. Occasionally displays a notification asking for marketplace review.
+     */
+    private fun bumpFeedbackCounter() {
+        val previousRuns = MirrordSettingsState.instance.mirrordState.runsCounter
+        val currentRuns = previousRuns + 1
+
+        MirrordSettingsState.instance.mirrordState.runsCounter = currentRuns
+
+        if ((currentRuns % FEEDBACK_COUNTER_REVIEW_AFTER) != 0) {
+            return
+        }
+
+        service.notifier.notification(
+            "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
+            NotificationType.INFORMATION
+        )
+            .withLink(
+                "Review",
+                "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
+            )
+            .withLink("Feedback", FEEDBACK_URL)
+            .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
+            .fire()
     }
 }
 
