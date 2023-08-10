@@ -81,15 +81,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String? {
-        val path = try {
-            service.binaryManager.getBinary(product, wslDistribution)
-        } catch (e: Exception) {
-            service.notifier.notifyRichError("failed to fetch mirrord binary: ${e.message}")
-            return null
+        val path = service<MirrordBinaryManager>()
+            .getBinary(product, wslDistribution, service.project)
+            ?.let { wslDistribution?.getWslPath(it) ?: it }
+
+        if (path == null) {
+            service.notifier.notifyRichError("no local installation of mirrord binary was found, download scheduled")
         }
-        wslDistribution?.let {
-            return it.getWslPath(path)!!
-        }
+
         return path
     }
 
