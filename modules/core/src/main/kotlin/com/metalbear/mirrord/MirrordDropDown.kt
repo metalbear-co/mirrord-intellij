@@ -18,6 +18,8 @@ import com.intellij.util.io.KeyDescriptor
 import java.util.Collections
 import javax.swing.JComponent
 
+const val FEEDBACK_URL = "https://mirrord.dev/feedback"
+
 class MirrordDropDown : ComboBoxAction(), DumbAware {
     private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
         override fun actionPerformed(e: AnActionEvent) {
@@ -115,10 +117,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
     }
 
     private class FeedbackAction : AnAction("Give Feedback") {
-        private val feedbackUrl = "https://mirrord.dev/feedback"
-
         override fun actionPerformed(e: AnActionEvent) {
-            BrowserUtil.browse(feedbackUrl)
+            BrowserUtil.browse(FEEDBACK_URL)
         }
     }
 

@@ -288,13 +288,14 @@ class MirrordApi(private val service: MirrordProjectService) {
         }
 
         service.notifier.notification(
-            "Enjoying mirrord? Don't forget to leave a review!",
+            "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
             NotificationType.INFORMATION
         )
             .withLink(
                 "Review",
                 "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
             )
+            .withLink("Feedback", FEEDBACK_URL)
             .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
             .fire()
     }
