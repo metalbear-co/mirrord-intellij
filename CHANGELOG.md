@@ -8,6 +8,41 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.51.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.51.0) - 2023-08-10
+
+
+### Added
+
+- Active config is now updated when the file is moved to another location.
+  [#60](https://github.com/metalbear-co/mirrord-intellij/issues/60)
+- Added a startup popup explaining plugin usage.
+  [#66](https://github.com/metalbear-co/mirrord-intellij/issues/66)
+- Added waitlist signup action to the dropdown menu.
+  [#77](https://github.com/metalbear-co/mirrord-intellij/issues/77)
+- Warning about agent version mismatch can now be disabled.
+  [#79](https://github.com/metalbear-co/mirrord-intellij/issues/79)
+- A notification asking for marketplace review is displayed each 100 mirrord
+  runs and can be disabled.
+  Added a feedback action to the dropdown menu.
+  [#81](https://github.com/metalbear-co/mirrord-intellij/issues/81)
+
+
+### Fixed
+
+- The plugin now manages binaries in the background to prevent UI freeze.
+  [#68](https://github.com/metalbear-co/mirrord-intellij/issues/68)
+- Fixed warning notification when downloading mirrord binary failed and a local
+  binary is used.
+  Improved parsing messages from the mirrord binary for backwards
+  compatibility.
+  [#70](https://github.com/metalbear-co/mirrord-intellij/issues/70)
+
+
+### Internal
+
+- Better way to open files in e2e tests - reduce flakiness
+
+
 ## [3.50.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.50.0) - 2023-07-20
 
 
