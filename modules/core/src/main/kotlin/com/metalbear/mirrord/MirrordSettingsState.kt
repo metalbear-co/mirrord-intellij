@@ -29,6 +29,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         DEFAULT_CONFIG_CREATED("default mirrord config is created"),
         POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used"),
         ACTIVE_CONFIG_MOVED("active mirrord config is moved"),
+        AGENT_VERSION_MISMATCH("agent version does not match version of the local mirrord installation"),
         PLUGIN_REVIEW("mirrord occasionally asks for plugin review")
     }
 
