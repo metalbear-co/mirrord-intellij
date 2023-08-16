@@ -27,11 +27,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         }
 
-        service.execManager.start(
-            wsl,
-            "rider",
-            commandLine.environment[CONFIG_ENV_NAME]
-        )?.let { env ->
+        service.execManager.wrapper("rider").apply {
+            this.wsl = wsl
+            configFromEnv = commandLine.environment[CONFIG_ENV_NAME]
+        }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)
             }

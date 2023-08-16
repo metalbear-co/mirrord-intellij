@@ -280,9 +280,10 @@ class MirrordBinaryManager {
      * Finds a local installation of the mirrord binary.
      * Schedules a binary update task to be executed in the background.
      *
+     * @throws MirrordError if no local binary was found
      * @return the path to the binary
      */
-    fun getBinary(product: String, wslDistribution: WSLDistribution?, project: Project): String? {
+    fun getBinary(product: String, wslDistribution: WSLDistribution?, project: Project): String {
         UpdateTask(project, product, wslDistribution, true).queue()
 
         latestSupportedVersion?.let { version ->
@@ -304,6 +305,9 @@ class MirrordBinaryManager {
             return it.command
         }
 
-        return null
+        throw MirrordError(
+            "no local installation of mirrord binary was found",
+            "mirrord binary will be downloaded in the background"
+        )
     }
 }

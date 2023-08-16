@@ -33,9 +33,7 @@ private const val DEFAULT_CONFIG =
 }
 """
 
-class InvalidConfigException(path: String, reason: String) : Exception() {
-    override val message: String = "failed to process mirrord config $path: $reason"
-}
+class InvalidConfigException(path: String, reason: String) : MirrordError("failed to process config $path - $reason")
 
 /**
  * Searches mirrord config for target.
@@ -62,13 +60,12 @@ fun isTargetSet(configPath: String): Boolean {
         val parsed = gson.fromJson(contents, ConfigDataSimple::class.java)
         return parsed?.target != null
     } catch (_: Exception) {
-        throw InvalidConfigException(configPath, "invalid config")
     }
+
+    throw InvalidConfigException(configPath, "invalid config")
 }
 
-class InvalidProjectException(project: Project, reason: String) : Exception() {
-    override val message: String = "${project.name}: $reason"
-}
+class InvalidProjectException(project: Project, reason: String) : MirrordError("${project.name} - $reason")
 
 /**
  * Object for interacting with the mirrord config file.

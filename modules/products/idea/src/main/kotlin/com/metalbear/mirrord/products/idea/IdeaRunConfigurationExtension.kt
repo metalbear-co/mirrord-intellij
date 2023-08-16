@@ -53,11 +53,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
         val mirrordEnv = HashMap<String, String>()
         MirrordLogger.logger.debug("calling start")
-        service.execManager.start(
-            wsl,
-            "idea",
-            getMirrordConfigPath(configuration, params)
-        )?.let { env ->
+        service.execManager.wrapper("idea").apply {
+            this.wsl = wsl
+            configFromEnv = getMirrordConfigPath(configuration, params)
+        }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 mirrordEnv[entry.key] = entry.value
             }
