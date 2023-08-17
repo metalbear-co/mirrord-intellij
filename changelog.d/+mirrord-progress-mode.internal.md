@@ -1,0 +1,1 @@
+The plugin now sets the `MIRORRD_PROGRESS_MODE` env for the mirrord binary.
