@@ -179,6 +179,8 @@ class MirrordApi(private val service: MirrordProjectService) {
                 }
                 it.patchCommandLine(this, service.project, wslOptions)
             }
+
+            environment["MIRRORD_PROGRESS_MODE"] = "json"
         }
 
         logger.info("running mirrord with following command line: ${commandLine.commandLineString}")
