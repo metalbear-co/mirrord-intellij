@@ -2,6 +2,7 @@ package com.metalbear.mirrord.products.rider
 
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessInfo
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
@@ -41,6 +42,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     override fun patchDebugCommandLine(
         lifetime: Lifetime,
         workerRunInfo: WorkerRunInfo,
+        processInfo: ProcessInfo?,
         project: Project
     ): Promise<WorkerRunInfo> {
         patchCommandLine(workerRunInfo.commandLine, project)
