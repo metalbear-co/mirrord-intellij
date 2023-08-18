@@ -55,9 +55,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         processInfo: ProcessInfo?,
         project: Project
     ): Promise<WorkerRunInfo> {
-        patchCommandLine(workerRunInfo.commandLine, project)
-        workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
-        return resolvedPromise(workerRunInfo)
+        return patchDebugCommandLine(lifetime, workerRunInfo, project)
     }
 
     override fun patchRunCommandLine(
