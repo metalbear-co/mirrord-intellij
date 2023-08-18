@@ -2,6 +2,7 @@ package com.metalbear.mirrord.products.rider
 
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessInfo
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
@@ -46,6 +47,15 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         patchCommandLine(workerRunInfo.commandLine, project)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
         return resolvedPromise(workerRunInfo)
+    }
+
+    fun patchDebugCommandLine(
+        lifetime: Lifetime,
+        workerRunInfo: WorkerRunInfo,
+        processInfo: ProcessInfo?,
+        project: Project
+    ): Promise<WorkerRunInfo> {
+        return patchDebugCommandLine(lifetime, workerRunInfo, project)
     }
 
     override fun patchRunCommandLine(
