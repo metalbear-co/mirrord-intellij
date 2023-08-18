@@ -16,7 +16,7 @@ tasks {
 }
 
 intellij {
-    version.set("2023.2")
+    version.set(properties("platformVersion"))
     type.set("RD")
 }
 
