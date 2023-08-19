@@ -8,6 +8,19 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.52.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.0) - 2023-08-19
+
+
+### Added
+
+- Add support for Rider 2023.2
+
+
+### Internal
+
+- The plugin now sets the `MIRORRD_PROGRESS_MODE` env for the mirrord binary.
+
+
 ## [3.51.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.51.0) - 2023-08-10
 
 
