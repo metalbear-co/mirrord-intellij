@@ -78,9 +78,9 @@ class MirrordBinaryManager {
             manager.latestSupportedVersion = version
 
             val local = if (checkInPath) {
-                manager.getLocalBinary(downloadingVersion, wslDistribution)
+                manager.getLocalBinary(version, wslDistribution)
             } else {
-                manager.findBinaryInStorage(downloadingVersion)
+                manager.findBinaryInStorage(version)
             }
             if (local != null) {
                 return
@@ -99,7 +99,7 @@ class MirrordBinaryManager {
 
             project.service<MirrordProjectService>()
                 .notifier
-                .notifyRichError("failed to update the mirrord binary: ${error.message}")
+                .notifyRichError("failed to update the mirrord binary: ${error.message ?: error.toString()}")
         }
 
         override fun onFinished() {
