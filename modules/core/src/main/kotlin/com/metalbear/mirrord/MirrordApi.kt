@@ -48,22 +48,20 @@ data class MirrordExecution(
  * Wrapper around Gson for parsing messages from the mirrord binary.
  */
 private class SafeParser {
-    class ParseError(e: Exception) : Exception() {
-        override val message = "failed to parse a message from the mirrord binary, try updating to the latest version"
-        override val cause = e
-    }
-
     private val gson = Gson()
 
     /**
-     * @throws ParseError
+     * @throws MirrordError
      */
     fun <T> parse(value: String, classOfT: Class<T>): T {
         return try {
             gson.fromJson(value, classOfT)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
-            throw ParseError(e)
+            throw MirrordError(
+                "failed to parse a message from the mirrord binary, try updating to the latest version",
+                e
+            )
         }
     }
 }
@@ -88,7 +86,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         cli: String,
         configFile: String?,
         wslDistribution: WSLDistribution?
-    ): List<String>? {
+    ): List<String> {
         logger.debug("listing pods")
 
         val commandLine = GeneralCommandLine(cli, "ls", "-o", "json")
@@ -118,24 +116,17 @@ class MirrordApi(private val service: MirrordProjectService) {
 
         logger.debug("process wait finished, reading output")
 
-        // failure -> error
-        // success -> empty -> targetless, else -> list of pods + targetless
-        val gson = Gson()
         if (process.exitValue() != 0) {
             val processStdError = process.errorStream.bufferedReader().readText()
-            if (processStdError.startsWith("Error: ")) {
-                val trimmedError = processStdError.removePrefix("Error: ")
-                val error = gson.fromJson(trimmedError, Error::class.java)
-                service.notifier.notifyRichError(error.message)
-                service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
-            }
-            logger.error("mirrord ls failed: $processStdError")
-            return null
+            throw MirrordError.fromStdErr(processStdError)
         }
 
         val data = process.inputStream.bufferedReader().readText()
         logger.debug("parsing $data")
-        val pods = gson.fromJson(data, Array<String>::class.java).toMutableList()
+
+        val pods = SafeParser()
+            .parse(data, Array<String>::class.java)
+            .toMutableList()
 
         if (pods.isEmpty()) {
             service.notifier.notifySimple(
@@ -154,7 +145,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         configFile: String?,
         executable: String?,
         wslDistribution: WSLDistribution?
-    ): MirrordExecution? {
+    ): MirrordExecution {
         bumpFeedbackCounter()
 
         val commandLine = GeneralCommandLine(cli, "ext").apply {
@@ -193,7 +184,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         val parser = SafeParser()
         val bufferedReader = process.inputStream.reader().buffered()
 
-        val environment = CompletableFuture<MirrordExecution?>()
+        val environment = CompletableFuture<MirrordExecution>()
 
         val mirrordProgressTask = object : Task.Backgroundable(service.project, "mirrord", true) {
             override fun run(indicator: ProgressIndicator) {
@@ -204,9 +195,9 @@ class MirrordApi(private val service: MirrordProjectService) {
                     val message = parser.parse(line, Message::class.java)
                     when {
                         message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
-                            val success = message.success ?: throw Error("Invalid message")
+                            val success = message.success ?: throw MirrordError("invalid message received from the mirrord binary")
                             if (success) {
-                                val innerMessage = message.message ?: throw Error("Invalid inner message")
+                                val innerMessage = message.message ?: throw MirrordError("invalid message received from the mirrord binary")
                                 val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                                 indicator.text = "mirrord is running"
                                 environment.complete(executionInfo)
@@ -251,31 +242,16 @@ class MirrordApi(private val service: MirrordProjectService) {
 
         try {
             return environment.get(30, TimeUnit.SECONDS)
-        } catch (e: Exception) {
-            var message = "mirrord failed to fetch the env"
-            logger.debug(message, e)
-            e.message?.let { message += ": $it" }
-            service.notifier.notifyRichError(message)
-        }
+        } catch (e: Throwable) {
+            logger.debug("failed to fetch the env", e)
 
-        val processStdError = process.errorStream.reader().readText()
-        if (processStdError.startsWith("Error: ")) {
-            val trimmedError = processStdError.removePrefix("Error: ")
-
-            try {
-                val error = parser.parse(trimmedError, Error::class.java)
-                service.notifier.notifyRichError(error.message)
-                service.notifier.notifySimple(error.help, NotificationType.INFORMATION)
-            } catch (e: SafeParser.ParseError) {
-                service.notifier.notifyRichError(trimmedError)
-                service.notifier.notifySimple(e.message, NotificationType.WARNING)
+            val processStdError = process.errorStream.reader().readText()
+            if (processStdError.startsWith("Error: ")) {
+                throw MirrordError.fromStdErr(processStdError)
             }
 
-            return null
+            throw MirrordError("failed to fetch the env", e)
         }
-
-        logger.error("mirrord stderr: $processStdError")
-        throw Error("mirrord failed to start")
     }
 
     /**

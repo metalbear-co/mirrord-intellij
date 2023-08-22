@@ -31,7 +31,10 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
         }
 
         val config = configuration as NodeJsRunConfiguration
-        service.execManager.start(wsl, "npm", config.envs[CONFIG_ENV_NAME])?.let { env ->
+        service.execManager.wrapper("npm").apply {
+            this.wsl = wsl
+            configFromEnv = config.envs[CONFIG_ENV_NAME]
+        }.start()?.first?.let { env ->
             config.envs = config.envs + env
         }
 

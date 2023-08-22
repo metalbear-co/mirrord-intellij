@@ -47,11 +47,10 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 }
             }
 
-            service.execManager.start(
-                wsl,
-                "goland",
-                configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
-            )?.let { env ->
+            service.execManager.wrapper("goland").apply {
+                this.wsl = wsl
+                configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
+            }.start()?.first?.let { env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }

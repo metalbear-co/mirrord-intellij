@@ -1,6 +1,5 @@
 package com.metalbear.mirrord.products.pycharm
 
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -22,29 +21,24 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
         val service = project.service<MirrordProjectService>()
 
         if (runParams is AbstractPythonRunConfiguration<*>) {
-            try {
-                val wsl = helpersAwareTargetRequest.targetEnvironmentRequest.let {
-                    if (it is WslTargetEnvironmentRequest) {
-                        it.configuration.distribution
-                    } else {
-                        null
-                    }
+            val wsl = helpersAwareTargetRequest.targetEnvironmentRequest.let {
+                if (it is WslTargetEnvironmentRequest) {
+                    it.configuration.distribution
+                } else {
+                    null
                 }
-
-                service.execManager.start(
-                    wsl,
-                    "pycharm",
-                    runParams.getEnvs()[CONFIG_ENV_NAME]
-                )?.let { env ->
-                    for (entry in env.entries.iterator()) {
-                        pythonExecution.addEnvironmentVariable(entry.key, entry.value)
-                    }
-                }
-
-                pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
-            } catch (e: ExecutionException) {
-                throw RuntimeException(e)
             }
+
+            service.execManager.wrapper("pycharm").apply {
+                this.wsl = wsl
+                configFromEnv = runParams.getEnvs()[CONFIG_ENV_NAME]
+            }.start()?.first?.let { env ->
+                for (entry in env.entries.iterator()) {
+                    pythonExecution.addEnvironmentVariable(entry.key, entry.value)
+                }
+            }
+
+            pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
         }
     }
 }

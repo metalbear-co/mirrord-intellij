@@ -9,7 +9,6 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
-import kotlinx.collections.immutable.toImmutableMap
 import java.nio.file.Path
 
 /**
@@ -35,7 +34,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             cli,
             config,
             wslDistribution
-        ) ?: return null
+        )
 
         val application = ApplicationManager.getApplication()
 
@@ -80,20 +79,13 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
     }
 
-    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String? {
-        val path = service<MirrordBinaryManager>()
-            .getBinary(product, wslDistribution, service.project)
-            ?.let { wslDistribution?.getWslPath(it) ?: it }
-
-        if (path == null) {
-            service.notifier.notifyRichError("no local installation of mirrord binary was found, download scheduled")
-        }
-
-        return path
+    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
+        val path = service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
+        return wslDistribution?.getWslPath(path) ?: path
     }
 
-    private fun getConfigPath(configFromEnv: String?): String? {
-        return if (ApplicationManager.getApplication().isDispatchThread) {
+    private fun getConfigPath(configFromEnv: String?): String {
+        val config = if (ApplicationManager.getApplication().isDispatchThread) {
             // We can create a file via VFS from the dispatch thread.
             WriteAction.compute<String, InvalidProjectException> {
                 service.configApi.getConfigPath(configFromEnv, true)
@@ -106,55 +98,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         } else {
             // This thread does not hold any lock,
             // we can safely wait for the config to be created in the dispatch thread.
-            var config: Pair<String?, InvalidProjectException?> = Pair(null, null)
+            var config: Pair<String?, Throwable?> = Pair(null, null)
 
             ApplicationManager.getApplication().invokeAndWait {
                 config = try {
                     val path = service.configApi.getConfigPath(configFromEnv, true)
                     Pair(path, null)
-                } catch (e: InvalidProjectException) {
+                } catch (e: Throwable) {
                     Pair(null, e)
                 }
             }
 
             config.second?.let { throw it }
             config.first
-        }
-    }
-
-    fun start(
-        wslDistribution: WSLDistribution?,
-        product: String,
-        mirrordConfigFromEnv: String?
-    ): Map<String, String>? {
-        return start(wslDistribution, null, product, mirrordConfigFromEnv)?.first
-    }
-
-    /** Starts mirrord, shows dialog for selecting pod if target not set and returns env to set. */
-    fun start(
-        wslDistribution: WSLDistribution?,
-        executable: String?,
-        product: String,
-        mirrordConfigFromEnv: String?
-    ): Pair<Map<String, String>, String?>? {
-        if (!service.enabled) {
-            MirrordLogger.logger.debug("disabled, returning")
-            return null
-        }
-        if (SystemInfo.isWindows && wslDistribution == null) {
-            service.notifier.notifyRichError("Can't use mirrord on Windows without WSL")
-            return null
-        }
-
-        MirrordLogger.logger.debug("version check trigger")
-        service.versionCheck.checkVersion()
-
-        val cli = this.cliPath(wslDistribution, product) ?: return null
-        val config = try {
-            getConfigPath(mirrordConfigFromEnv)
-        } catch (e: InvalidProjectException) {
-            service.notifier.notifyRichError(e.message)
-            return null
         }
 
         if (config == null) {
@@ -174,19 +130,43 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     n.expire()
                 }
                 .fire()
+        }
 
+        return config ?: throw MirrordError("failed to resolve configuration")
+    }
+
+    /**
+     * Starts mirrord, shows dialog for selecting pod if target not set and returns env to set.
+     *
+     * @return extra environment variables to set for the executed process and path to the patched executable.
+     * null if mirrord service is disabled or the user cancelled
+     * @throws MirrordError
+     */
+    private fun start(
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        mirrordConfigFromEnv: String?
+    ): Pair<Map<String, String>, String?>? {
+        if (!service.enabled) {
+            MirrordLogger.logger.debug("disabled, returning")
             return null
         }
+
+        if (SystemInfo.isWindows && wslDistribution == null) {
+            throw MirrordError("can't use on Windows without WSL")
+        }
+
+        MirrordLogger.logger.debug("version check trigger")
+        service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+
+        val cli = cliPath(wslDistribution, product)
+        val config = getConfigPath(mirrordConfigFromEnv)
 
         MirrordLogger.logger.debug("target selection")
-        var target: String? = null
 
-        val isTargetSet = try {
-            isTargetSet(config)
-        } catch (e: InvalidConfigException) {
-            service.notifier.notifyRichError(e.message)
-            return null
-        }
+        var target: String? = null
+        val isTargetSet = isTargetSet(config)
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
@@ -216,10 +196,30 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             wslDistribution
         )
 
-        executionInfo?.let {
-            executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
-            return Pair(executionInfo.environment.toImmutableMap(), executionInfo.patchedPath)
+        executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
+        return Pair(executionInfo.environment, executionInfo.patchedPath)
+    }
+
+    class Wrapper(private val manager: MirrordExecManager, private val product: String) {
+        var wsl: WSLDistribution? = null
+        var executable: String? = null
+        var configFromEnv: String? = null
+
+        fun start(): Pair<Map<String, String>, String?>? {
+            return try {
+                manager.start(wsl, executable, product, configFromEnv)
+            } catch (e: MirrordError) {
+                e.showHelp(manager.service.project)
+                throw e
+            } catch (e: Throwable) {
+                val mirrordError = MirrordError(e.toString(), e)
+                mirrordError.showHelp(manager.service.project)
+                throw e
+            }
         }
-        return null
+    }
+
+    fun wrapper(product: String): Wrapper {
+        return Wrapper(this, product)
     }
 }

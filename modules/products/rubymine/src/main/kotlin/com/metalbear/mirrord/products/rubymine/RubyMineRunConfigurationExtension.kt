@@ -37,11 +37,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
         val currentEnv = configuration.envs
 
-        service.execManager.start(
-            wsl,
-            "rubymine",
-            currentEnv[CONFIG_ENV_NAME]
-        )?.let { env ->
+        service.execManager.wrapper("rubymine").apply {
+            this.wsl = wsl
+            configFromEnv = currentEnv[CONFIG_ENV_NAME]
+        }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
             }

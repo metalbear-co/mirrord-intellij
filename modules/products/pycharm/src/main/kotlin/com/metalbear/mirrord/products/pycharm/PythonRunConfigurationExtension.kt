@@ -37,7 +37,10 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
 
         val currentEnv = cmdLine.environment
 
-        service.execManager.start(wsl, "pycharm", currentEnv[CONFIG_ENV_NAME])?.let { env ->
+        service.execManager.wrapper("pycharm").apply {
+            this.wsl = wsl
+            configFromEnv = currentEnv[CONFIG_ENV_NAME]
+        }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
             }
