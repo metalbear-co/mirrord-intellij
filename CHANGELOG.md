@@ -8,6 +8,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.52.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.1) - 2023-08-22
+
+
+### Fixed
+
+- mirrord now aborts execution on errors.
+  [#7](https://github.com/metalbear-co/mirrord-intellij/issues/7)
+- Fixed bug with fetching new mirrord binaries.
+
+
 ## [3.52.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.0) - 2023-08-19
 
 
