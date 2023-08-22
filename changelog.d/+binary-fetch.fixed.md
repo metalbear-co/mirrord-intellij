@@ -1,0 +1,1 @@
+Fixed bug with fetching new mirrord binaries.
