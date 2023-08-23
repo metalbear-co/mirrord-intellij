@@ -1,5 +1,6 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
+import org.jetbrains.intellij.tasks.ListProductsReleasesTask
 import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
@@ -229,6 +230,7 @@ tasks {
     listProductsReleases {
         sinceBuild.set("232.*")
         types.set(listOf("IU", "IC", "PC", "CL", "PY", "RD", "GO"))
+        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.RELEASE))
     }
 
     runPluginVerifier {
