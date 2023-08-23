@@ -21,7 +21,6 @@ const val CONFIG_ENV_NAME: String = "MIRRORD_CONFIG_FILE"
 
 private const val DEFAULT_CONFIG =
     """{
-    "accept_invalid_certificates": false,
     "feature": {
         "network": {
             "incoming": "mirror",
