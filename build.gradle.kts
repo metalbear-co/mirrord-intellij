@@ -226,8 +226,12 @@ tasks {
         channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
     }
 
+    listProductsReleases {
+        sinceBuild.set("232.*")
+        types.set(listOf("IU", "IC", "PC", "CL", "PY", "RD", "GO"))
+    }
+
     runPluginVerifier {
-        ideVersions.set(listOf("IU-232.5150.116", "IU-222.4554.10"))
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
     }
 
