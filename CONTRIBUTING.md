@@ -8,10 +8,12 @@ issue.
 
 ## Building the IntelliJ plugin
 
-First, [build the mirrord binaries](https://github.com/metalbear-co/mirrord/blob/main/CONTRIBUTING.md#build-and-run-mirrord) if not yet built. Then:
+First, make sure you have JDK 17 installed. 
+
+Then [build the mirrord binaries](https://github.com/metalbear-co/mirrord/blob/main/CONTRIBUTING.md#build-and-run-mirrord) if not yet built. Then:
 
 ```bash
-cd intellij-ext
+cd mirrord-intellij
 ```
 
 ### On macOS
@@ -19,6 +21,7 @@ cd intellij-ext
 ```bash
 cp <path to mirrord repo>/target/universal-apple-darwin/debug/libmirrord_layer.dylib .
 touch libmirrord_layer.so
+mkdir -p bin/macos
 cp <path to mirrord repo>/target/universal-apple-darwin/debug/mirrord bin/macos/
 ```
 
@@ -27,6 +30,7 @@ cp <path to mirrord repo>/target/universal-apple-darwin/debug/mirrord bin/macos/
 ```bash
 cp <path to mirrord repo>/target/debug/libmirrord_layer.so .
 touch libmirrord_layer.dylib
+mkdir -p bin/linux/x86-64/mirrord
 cp <path to mirrord repo>/target/debug/mirrord bin/linux/x86-64/mirrord
 ```
 
@@ -53,7 +57,7 @@ Now open the plugin's code in IntelliJ IDEA. Create a new Gradle run configurati
 Running this configuration in debug will open a new IDE window.
 You can set breakpoints in the plugin's code in the first window, and use the plugin in the second window to reach the breakpoints.
 
-You can control which IDE is opened with a `PLATFORMTYPE` environment variable. For example, set `PLATFORMTYPE=IU` for IntelliJ IDEA Ultimate.
+You can control which IDE is opened with a `PLATFORMTYPE` environment variable, as listed [here](https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html#intellij-extension-type). For example, set `PLATFORMTYPE=IU` for IntelliJ IDEA Ultimate.
 
 
 ## Adding E2E tests
