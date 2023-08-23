@@ -1,0 +1,1 @@
+Change default generated config to not include accept_invalid_certificate setting
