@@ -158,7 +158,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     fun getDefaultConfig(): VirtualFile? {
         return getMirrordDir()
             ?.children
-            ?.filter { it.name.endsWith("mirrord.json") }
+            ?.filter { it.name.endsWith("mirrord.json") || it.name.endsWith("mirrord.yaml") || it.name.endsWith("mirrord.toml") }
             ?.minByOrNull { it.name }
     }
 

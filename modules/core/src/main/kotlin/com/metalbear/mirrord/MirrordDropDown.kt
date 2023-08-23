@@ -193,7 +193,11 @@ class MirrordConfigIndex : ScalarIndexExtension<String>() {
 
     override fun getInputFilter(): FileBasedIndex.InputFilter {
         return FileBasedIndex.InputFilter {
-            it.isInLocalFileSystem && !it.isDirectory && it.path.endsWith("mirrord.json")
+            it.isInLocalFileSystem && !it.isDirectory && (
+                it.path.endsWith("mirrord.json") ||
+                    it.path.endsWith("mirrord.yaml") ||
+                    it.path.endsWith("mirrord.toml")
+                )
         }
     }
 
