@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.52.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.2) - 2023-08-24
+
+
+### Changed
+
+- Change default generated config to not include accept_invalid_certificate
+  setting
+
+
+### Fixed
+
+- Fixed a bug where the IDE was freezing after `mirrord ext` timeout. Increased
+  `mirrord ext` timeout to 2 minutes.
+  [#93](https://github.com/metalbear-co/mirrord-intellij/issues/93)
+
+
 ## [3.52.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.1) - 2023-08-22
 
 
