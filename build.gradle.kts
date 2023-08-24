@@ -232,7 +232,7 @@ tasks {
         System.getenv("IDE").let {
             types.set(listOf(it))
         }
-        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP))
+        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
     }
 
     runPluginVerifier {
