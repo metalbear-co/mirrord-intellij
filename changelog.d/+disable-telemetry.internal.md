@@ -1,0 +1,1 @@
+Disable telemetry in CI
