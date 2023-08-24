@@ -241,15 +241,8 @@ class MirrordApi(private val service: MirrordProjectService) {
         ProgressManager.getInstance().run(mirrordProgressTask)
 
         try {
-            return environment.get(30, TimeUnit.SECONDS)
+            return environment.get(2, TimeUnit.MINUTES)
         } catch (e: Throwable) {
-            logger.debug("failed to fetch the env", e)
-
-            val processStdError = process.errorStream.reader().readText()
-            if (processStdError.startsWith("Error: ")) {
-                throw MirrordError.fromStdErr(processStdError)
-            }
-
             throw MirrordError("failed to fetch the env", e)
         }
     }
