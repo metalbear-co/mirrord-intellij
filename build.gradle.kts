@@ -229,9 +229,10 @@ tasks {
 
     listProductsReleases {
         sinceBuild.set("232.*")
-        System.getenv("IDE").let {
+        System.getenv("IDE")?.let {
             types.set(listOf(it))
-        }
+        } ?: types.set(listOf("IU", "RD", "PY"))
+
         releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
     }
 
