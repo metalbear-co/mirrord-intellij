@@ -30,7 +30,7 @@ cp <path to mirrord repo>/target/universal-apple-darwin/debug/mirrord bin/macos/
 ```bash
 cp <path to mirrord repo>/target/debug/libmirrord_layer.so .
 touch libmirrord_layer.dylib
-mkdir -p bin/linux/x86-64/mirrord
+mkdir -p bin/linux/x86-64
 cp <path to mirrord repo>/target/debug/mirrord bin/linux/x86-64/mirrord
 ```
 
