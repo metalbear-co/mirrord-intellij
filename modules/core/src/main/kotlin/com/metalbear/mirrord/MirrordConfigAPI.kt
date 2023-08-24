@@ -76,7 +76,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @param configFromEnv path to mirrord specified in the configuration.
      * @param createIfMissing whether this method should create a default config as a last resort
      */
-    fun getConfigPath(configFromEnv: String?, createIfMissing: Boolean): String? {
+    fun getConfigPath(configFromEnv: String?): String? {
         service.activeConfig?.let {
             service.notifier.notification(
                 "Using mirrord active config",
@@ -103,19 +103,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
             return it.path
         }
 
-        if (!createIfMissing) {
-            return null
-        }
-
-        val config = createDefaultConfig()
-        service.notifier.notification(
-            "Created a mirrord default config",
-            NotificationType.WARNING
-        )
-            .withOpenFile(config)
-            .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_CREATED)
-            .fire()
-        return config.path
+        return null
     }
 
     /**
