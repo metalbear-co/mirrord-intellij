@@ -229,8 +229,10 @@ tasks {
 
     listProductsReleases {
         sinceBuild.set("232.*")
-        types.set(listOf("IU", "IC", "PC", "CL", "PY", "RD", "GO"))
-        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.RELEASE))
+        System.getenv("IDE").let {
+            types.set(listOf(it))
+        }
+        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP))
     }
 
     runPluginVerifier {
