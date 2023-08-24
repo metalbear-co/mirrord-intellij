@@ -7,9 +7,7 @@ import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.project.DumbAware
-import com.intellij.openapi.project.DumbService
-import com.intellij.openapi.project.ProjectLocator
+import com.intellij.openapi.project.*
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.indexing.*
@@ -20,6 +18,10 @@ import javax.swing.JComponent
 
 const val FEEDBACK_URL = "https://mirrord.dev/feedback"
 
+fun VirtualFile.relativePath(project: Project): String {
+    return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
+}
+
 class MirrordDropDown : ComboBoxAction(), DumbAware {
     private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
         override fun actionPerformed(e: AnActionEvent) {
@@ -28,7 +30,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class ShowActiveConfigAction(val config: VirtualFile) : AnAction("Active Config: ${config.presentableUrl}") {
+    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) : AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             FileEditorManager.getInstance(service.project).openFile(config, true)
@@ -47,7 +49,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
                 .mapNotNull { fileManager.findFileByUrl(it) }
                 .filter { !it.isDirectory }
                 .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
-                .associateBy { it.presentableUrl }
+                .associateBy { it.relativePath(service.project) }
 
             val selection = MirrordConfigDialog(
                 "Change mirrord active configuration",
@@ -71,7 +73,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
 
             val configs: MutableMap<String, () -> Unit> = mutableMapOf()
             service.activeConfig?.let {
-                configs["(active) %s".format(it.presentableUrl)] = {
+                configs["(active) %s".format(it.relativePath(service.project))] = {
                     FileEditorManager.getInstance(service.project).openFile(it, true)
                 }
             }
@@ -85,7 +87,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
                     }
                 }
             } else {
-                configs["(default) %s".format(defaultConfig.presentableUrl)] = {
+                configs["(default) %s".format(defaultConfig.relativePath(service.project))] = {
                     FileEditorManager.getInstance(service.project).openFile(defaultConfig, true)
                 }
             }
@@ -131,7 +133,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         return DefaultActionGroup().apply {
             add(EnableMirrordAction(service.enabled))
             addSeparator("Configuration")
-            service.activeConfig?.let { add(ShowActiveConfigAction(it)) }
+            service.activeConfig?.let { add(ShowActiveConfigAction(it, project)) }
             add(SelectActiveConfigAction())
             add(SettingsAction())
             addSeparator("mirrord for Teams")
