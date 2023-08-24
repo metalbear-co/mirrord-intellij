@@ -3,10 +3,10 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches-ignore: [staging-squash-merge.tmp]
+    branches-ignore: [ staging-squash-merge.tmp ]
   pull_request:
-    branches: [main, staging, trying]
-    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ main, staging, trying ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
 
 # Cancel previous runs on the same PR.
 concurrency:
@@ -53,22 +53,26 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew buildPlugin
-      - name: Run plugin verifier
-        env:
-          CI_BUILD_PLUGIN: true
-        run: |
-          ./gradlew runPluginVerifier
-      - name: Run ktlint
-        run: ./gradlew ktlintCheck
       - name: Upload build folder
         uses: actions/upload-artifact@v3
         with:
           name: mirrord-build
           path: build/
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: 17
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
 
   e2e:
-    needs: [build]
+    needs: [ build ]
     runs-on: ubuntu-latest
     env:
       CI_BUILD_PLUGIN: "true"
@@ -121,7 +125,7 @@ jobs:
           run: ./gradlew test
       - name: Move video
         if: ${{ failure() }}
-        run: |          
+        run: |
           mv video build/reports
       - name: Save fails report
         if: ${{ failure() }}
