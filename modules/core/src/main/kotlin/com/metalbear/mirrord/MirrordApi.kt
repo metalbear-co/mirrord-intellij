@@ -243,6 +243,17 @@ class MirrordApi(private val service: MirrordProjectService) {
         try {
             return environment.get(2, TimeUnit.MINUTES)
         } catch (e: Throwable) {
+            logger.debug("failed to fetch the env", e)
+
+            if (process.isAlive) {
+                process.destroyForcibly()
+            } else {
+                val processStdError = process.errorStream.reader().readText()
+                if (processStdError.startsWith("Error: ")) {
+                    throw MirrordError.fromStdErr(processStdError)
+                }
+            }
+
             throw MirrordError("failed to fetch the env", e)
         }
     }
