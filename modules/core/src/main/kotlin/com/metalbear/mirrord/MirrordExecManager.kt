@@ -1,6 +1,5 @@
 package com.metalbear.mirrord
 
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
