@@ -73,8 +73,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     /**
      * Searches for correct mirrord config path for a run configuration.
      * Displays notifications to the user.
-     * @param configFromEnv path to mirrord specified in the configuration.
-     * @param createIfMissing whether this method should create a default config as a last resort
+     * @param configFromEnv path to mirrord specified in the configuration.     
      */
     fun getConfigPath(configFromEnv: String?): String? {
         service.activeConfig?.let {
