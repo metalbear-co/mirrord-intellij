@@ -113,6 +113,7 @@ class MirrordApi(private val service: MirrordProjectService) {
                 .start()
             this.process = process
 
+            indicator.text = "mirrord is listing targets..."
             var finished = false
             while (!finished) {
                 indicator.checkCanceled()
