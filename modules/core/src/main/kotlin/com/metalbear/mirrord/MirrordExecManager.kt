@@ -1,9 +1,11 @@
 package com.metalbear.mirrord
 
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFileManager
 import java.nio.file.Path
@@ -18,13 +20,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * If the dialog cannot be safely displayed (platform threading rules) returns null.
      *
      * @return target chosen by the user (or special constant for targetless mofr)
-     * or null if the user cancelled or the dialog could not be displayed
      */
     private fun chooseTarget(
         cli: String,
         wslDistribution: WSLDistribution?,
         config: String?
-    ): String? {
+    ): String {
         MirrordLogger.logger.debug("choose target called")
 
         val pods = service.mirrordApi.listPods(
@@ -35,7 +36,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val application = ApplicationManager.getApplication()
 
-        return if (application.isDispatchThread) {
+        val selected = if (application.isDispatchThread) {
             MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
             MirrordExecDialog.selectTargetDialog(pods)
         } else if (!application.isReadAccessAllowed) {
@@ -72,8 +73,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
                 .fire()
 
-            return null
+            null
         }
+
+        return selected ?: throw ProcessCanceledException()
     }
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
@@ -86,7 +89,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * @return extra environment variables to set for the executed process and path to the patched executable.
      * null if mirrord service is disabled or the user cancelled
-     * @throws MirrordError
      */
     private fun start(
         wslDistribution: WSLDistribution?,
@@ -117,11 +119,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
             target = chooseTarget(cli, wslDistribution, config)
-            if (target == null) {
-                MirrordLogger.logger.warn("mirrord loading canceled")
-                service.notifier.notifySimple("mirrord loading canceled.", NotificationType.WARNING)
-                return null
-            }
             if (target == MirrordExecDialog.targetlessTargetName) {
                 MirrordLogger.logger.info("No target specified - running targetless")
                 service.notifier.notification(
@@ -156,6 +153,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 manager.start(wsl, executable, product, configFromEnv)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
+                throw e
+            } catch (e: ProcessCanceledException) {
+                manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
                 throw e
             } catch (e: Throwable) {
                 val mirrordError = MirrordError(e.toString(), e)
