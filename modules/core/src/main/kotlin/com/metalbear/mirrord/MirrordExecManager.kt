@@ -16,9 +16,9 @@ import java.nio.file.Path
  */
 class MirrordExecManager(private val service: MirrordProjectService) {
     /** Attempts to show the target selection dialog and allow user to select the mirrord target.
-     * If the dialog cannot be safely displayed (platform threading rules) returns null.
      *
-     * @return target chosen by the user (or special constant for targetless mofr)
+     * @return target chosen by the user (or special constant for targetless mode)
+     * @throws ProcessCanceledException if the dialog cannot be displayed
      */
     private fun chooseTarget(
         cli: String,
@@ -84,10 +84,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     /**
-     * Starts mirrord, shows dialog for selecting pod if target not set and returns env to set.
+     * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
      * @return extra environment variables to set for the executed process and path to the patched executable.
-     * null if mirrord service is disabled or the user cancelled
+     * null if mirrord service is disabled
+     * @throws ProcessCanceledException if the user cancelled
      */
     private fun start(
         wslDistribution: WSLDistribution?,

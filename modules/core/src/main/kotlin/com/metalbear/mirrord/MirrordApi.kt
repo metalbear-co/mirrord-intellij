@@ -154,6 +154,7 @@ class MirrordApi(private val service: MirrordProjectService) {
 
     /**
      * Runs `mirrord ls` to get the list of available targets.
+     * Displays a modal progress dialog.
      *
      * @return list of pods
      */
@@ -270,6 +271,12 @@ class MirrordApi(private val service: MirrordProjectService) {
         }
     }
 
+    /**
+     * Runs `mirrord ext` command to get the environment.
+     * Displays a modal progress dialog.
+     *
+     * @return environment for the user's application
+     */
     fun exec(
         cli: String,
         target: String?,
