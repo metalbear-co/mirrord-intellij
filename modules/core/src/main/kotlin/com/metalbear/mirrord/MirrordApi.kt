@@ -141,7 +141,6 @@ class MirrordApi(private val service: MirrordProjectService) {
 
             setText("mirrord is starting...")
             for (line in bufferedReader.lines()) {
-                Thread.sleep(1000)
                 val message = parser.parse(line, Message::class.java)
                 when {
                     message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
@@ -274,13 +273,16 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
     }
 
     /**
-     * Processes the output of the mirrord process.
+     * Processes the output of the mirrord process. If the user cancels the computation, process is destroyed.
      * @param setText used to present info about the computation state to the user
      */
     protected abstract fun compute(project: Project, process: Process, setText: (String) -> Unit): T
 
     /**
      * Computes the result of this invocation in a background thread. Periodically checks if the user has canceled.
+     * The extra background thread is here to make the `Cancel` button responsive
+     * (inner computation blocks on reading mirrord process output).
+     *
      * @throws ProcessCanceledException if the user has canceled
      */
     private fun computeWithResponsiveCancel(project: Project, process: Process, indicator: ProgressIndicator): T {
@@ -289,6 +291,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 try {
                     compute(project, process) { text -> indicator.text = text }
                 } catch (e: Throwable) {
+                    // Check if this exception occurred due to mirrord process being destroyed (user canceled).
                     indicator.checkCanceled()
                     throw e
                 }
