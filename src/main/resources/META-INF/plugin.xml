@@ -52,7 +52,7 @@
                     class="com.metalbear.mirrord.MirrordEnabler"
                     text="Enable/Disable mirrord"
                     description="Toggles the mirrord plugin"
-                    icon="MirrordIcons.mirrordIcon"/>
+                    icon="MirrordIcons.disabled"/>
             <action id="MirrordConfigDropDown"
                     class="com.metalbear.mirrord.MirrordDropDown"
                     text="mirrord"
