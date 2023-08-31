@@ -1,0 +1,1 @@
+Fixed a bug with handling `mirrord ext` errors.
