@@ -8,30 +8,47 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
-## [3.53.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.53.0) - 2023-08-24
+## [3.54.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.0) - 2023-08-31
 
 
 ### Added
 
-- mirrord dropdown now displays relative config paths.
-  [#89](https://github.com/metalbear-co/mirrord-intellij/issues/89)
+- A modal progress indicator is now shown when the plugin runs `mirrord ls` and
+  `mirrord ext` commands.
+  The dialog allows the user to cancel execution.
+
+  Execution with mirrord is cancelled when the user cancels target selection.
+  [#109](https://github.com/metalbear-co/mirrord-intellij/issues/109)
 
 
 ### Changed
 
-- Change default generated config to not include accept_invalid_certificate
-  setting
-- Update contributing.md
+- Support running mirrord with no configuration file
 
 
 ### Fixed
 
-- Fixed a bug where the IDE was freezing after `mirrord ext` timeout. Increased
-  `mirrord ext` timeout to 2 minutes.
-  [#93](https://github.com/metalbear-co/mirrord-intellij/issues/93)
+- Fixed showing the usage banner multiple times when more than one project is
+  opened at the same time.
+  [#114](https://github.com/metalbear-co/mirrord-intellij/issues/114)
+- Fixed a bug where Node run configuration extension was called for NPM run
+  configurations.
+
+  Fixed a bug with mirrord environment variables being persisted in the Node
+  run configuration.
 
 
-## [3.53.9](https://github.com/metalbear-co/mirrord-intellij/tree/3.53.9) - 2023-08-24
+### Internal
+
+- Run plugin verifier for latest releases by relying on `listProductsReleases`
+  which finds the releases after build `232.*`, this is used by the
+  pluginVerifier to run the tests on these releases.
+  [#91](https://github.com/metalbear-co/mirrord-intellij/issues/91)
+- Disable telemetry in CI
+- Fix changelog
+
+
+## [3.53.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.53.0) - 2023-08-24
 
 
 ### Added
