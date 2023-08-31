@@ -15,7 +15,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import java.util.concurrent.Callable
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -167,7 +166,13 @@ class MirrordApi(private val service: MirrordProjectService) {
                 }
             }
 
-            throw MirrordError("invalid output of the mirrord binary")
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            } else {
+                throw MirrordError("invalid output of the mirrord binary")
+            }
         }
     }
 
@@ -286,17 +291,20 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      * @throws ProcessCanceledException if the user has canceled
      */
     private fun computeWithResponsiveCancel(project: Project, process: Process, indicator: ProgressIndicator): T {
-        val result = ApplicationManager.getApplication().executeOnPooledThread(
-            Callable {
-                try {
-                    compute(project, process) { text -> indicator.text = text }
-                } catch (e: Throwable) {
-                    // Check if this exception occurred due to mirrord process being destroyed (user canceled).
-                    indicator.checkCanceled()
-                    throw e
+        val result = CompletableFuture<T>()
+
+        // There is a version of this method that takes a `Callable<T>`, but its implementation is broken.
+        // Therefore, we use this one and `CompletableFuture<T>`.
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val computationResult = compute(project, process) { text -> indicator.text = text }
+                result.complete(computationResult)
+            } catch (e: Throwable) {
+                if (!indicator.isCanceled) {
+                    result.completeExceptionally(e)
                 }
             }
-        )
+        }
 
         while (true) {
             indicator.checkCanceled()
