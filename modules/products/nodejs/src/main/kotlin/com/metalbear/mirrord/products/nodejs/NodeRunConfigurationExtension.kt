@@ -1,9 +1,9 @@
 package com.metalbear.mirrord.products.nodejs
 
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javascript.nodejs.execution.AbstractNodeTargetRunProfile
+import com.intellij.javascript.nodejs.execution.NodeTargetRun
 import com.intellij.javascript.nodejs.execution.runConfiguration.AbstractNodeRunConfigurationExtension
 import com.intellij.javascript.nodejs.execution.runConfiguration.NodeRunConfigurationLaunchSession
 import com.intellij.openapi.components.service
@@ -11,41 +11,49 @@ import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
+import javax.swing.JPanel
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
     override fun <P : AbstractNodeTargetRunProfile> createEditor(configuration: P): SettingsEditor<P> {
-        return RunConfigurationSettingsEditor(configuration)
-    }
+        return object : SettingsEditor<P>() {
+            override fun resetEditorFrom(s: P) {}
 
-    override fun createLaunchSession(
-        configuration: AbstractNodeTargetRunProfile,
-        environment: ExecutionEnvironment
-    ): NodeRunConfigurationLaunchSession? {
-        val service = configuration.project.service<MirrordProjectService>()
+            override fun applyEditorTo(s: P) {}
 
-        // Find out if we're running in wsl.
-        val wsl = when (val request = createEnvironmentRequest(configuration, service.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
+            override fun createEditor() = JPanel()
         }
-
-        val config = configuration as NodeJsRunConfiguration
-        service.execManager.wrapper("npm").apply {
-            this.wsl = wsl
-            configFromEnv = config.envs[CONFIG_ENV_NAME]
-        }.start()?.first?.let { env ->
-            config.envs = config.envs + env
-        }
-
-        return null
     }
 
     override fun getEditorTitle(): String? {
         return null
     }
 
+    override fun createLaunchSession(configuration: AbstractNodeTargetRunProfile, environment: ExecutionEnvironment): NodeRunConfigurationLaunchSession {
+        return object : NodeRunConfigurationLaunchSession() {
+            override fun addNodeOptionsTo(targetRun: NodeTargetRun) {
+                val service = targetRun.project.service<MirrordProjectService>()
+                val wsl = when (val request = targetRun.request) {
+                    is WslTargetEnvironmentRequest -> request.configuration.distribution
+                    else -> null
+                }
+                service.execManager.wrapper("nodejs").apply {
+                    this.wsl = wsl
+                    // following try-catch is to maintain backward compatibility with older versions of webstorm
+                    configFromEnv = try {
+                        targetRun.envData.envs[CONFIG_ENV_NAME]
+                    } catch (e: NoSuchMethodError) {
+                        val config = configuration as NodeJsRunConfiguration
+                        config.envs[CONFIG_ENV_NAME]
+                    }
+                }.start()?.first?.forEach { (key, value) ->
+                    targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
+                }
+            }
+        }
+    }
+
     override fun isApplicableFor(profile: AbstractNodeTargetRunProfile): Boolean {
-        return true
+        return profile is NodeJsRunConfiguration
     }
 }
