@@ -49,6 +49,11 @@ Then build the plugin:
 ./gradlew buildPlugin
 ```
 
+To run the IntelliJ plugin verifier:
+```bash
+./gradlew runPluginVerifier
+```
+
 ## Debugging the IntelliJ plugin
 
 To debug the IntelliJ plugin, first [build the plugin](#building-the-intellij-plugin).
