@@ -228,7 +228,7 @@ tasks {
     }
 
     listProductsReleases {
-        sinceBuild.set("232.*")
+        sinceBuild.set("222.*")
         System.getenv("IDE")?.let {
             types.set(listOf(it))
         } ?: types.set(listOf("IU", "RD", "PY"))
