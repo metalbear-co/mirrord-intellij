@@ -8,6 +8,17 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.54.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.1) - 2023-09-01
+
+
+### Fixed
+
+- mirrord environment variables are no longer persisted in Gradle run
+  configurations.
+  [#122](https://github.com/metalbear-co/mirrord-intellij/issues/122)
+- Fixed a bug with handling `mirrord ext` errors.
+
+
 ## [3.54.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.0) - 2023-08-31
 
 
