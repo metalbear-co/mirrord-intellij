@@ -40,13 +40,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     }
 
     private fun <T : RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
-        return params.env[CONFIG_ENV_NAME]
-            ?: if (configuration is ExternalSystemRunConfiguration) {
-                val ext = configuration as ExternalSystemRunConfiguration
-                ext.settings.env[CONFIG_ENV_NAME]
-            } else {
-                null
-            }
+        return params.env[CONFIG_ENV_NAME] ?: if (configuration is ExternalSystemRunConfiguration) {
+            val ext = configuration as ExternalSystemRunConfiguration
+            ext.settings.env[CONFIG_ENV_NAME]
+        } else {
+            null
+        }
     }
 
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
@@ -62,17 +61,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             else -> null
         }
 
-        val mirrordEnv = service
-            .execManager
-            .wrapper("idea")
-            .apply {
+        val mirrordEnv = service.execManager.wrapper("idea").apply {
                 this.wsl = wsl
                 configFromEnv = getMirrordConfigPath(configuration, params)
-            }
-            .start()
-            ?.first
-            ?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }
-            .orEmpty()
+            }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
         params.env = params.env + mirrordEnv
 
@@ -88,7 +80,11 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * Remove mirrord env leftovers from the external system configurations.
      */
-    override fun attachToProcess(configuration: RunConfigurationBase<*>, handler: ProcessHandler, runnerSettings: RunnerSettings?) {
+    override fun attachToProcess(
+        configuration: RunConfigurationBase<*>,
+        handler: ProcessHandler,
+        runnerSettings: RunnerSettings?
+    ) {
         if (configuration is ExternalSystemRunConfiguration) {
             val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
 
@@ -96,13 +92,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 override fun processTerminated(event: ProcessEvent) {
                     configuration.settings.env.minusAssign(envsToRemove)
                 }
-                override fun startNotified(event: ProcessEvent) {
 
-                }
+                override fun startNotified(event: ProcessEvent) {}
 
-                override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-
-                }
+                override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
             })
         }
     }
