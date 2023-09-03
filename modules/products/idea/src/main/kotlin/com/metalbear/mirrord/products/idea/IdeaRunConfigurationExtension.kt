@@ -12,6 +12,7 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.metalbear.mirrord.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -94,6 +95,13 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             handler.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {
                     configuration.settings.env.minusAssign(envsToRemove)
+                }
+                override fun startNotified(event: ProcessEvent) {
+
+                }
+
+                override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+
                 }
             })
         }
