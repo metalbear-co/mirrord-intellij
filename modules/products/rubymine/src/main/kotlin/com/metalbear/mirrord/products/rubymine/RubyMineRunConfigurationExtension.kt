@@ -9,6 +9,7 @@ import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
+import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
@@ -28,12 +29,17 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         cmdLine: GeneralCommandLine,
         runnerId: String
     ) {
+        println("############# patchCommandLine #################")
+        println(cmdLine)
+        println(runnerSettings)
         val service = configuration.project.service<MirrordProjectService>()
 
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
+        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
+        path.writeText("#!/bin/sh\n")
 
         val currentEnv = configuration.envs
 
@@ -45,5 +51,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 currentEnv[entry.key] = entry.value
             }
         }
+        path.appendLines(currentEnv.entries.map { entry -> "export ${entry.key}=${entry.value}" })
+        path.appendText(cmdLine.exePath)
+        cmdLine.exePath = path.pathString
+        path.toFile().setExecutable(true)
+        println(path.readText())
     }
 }
