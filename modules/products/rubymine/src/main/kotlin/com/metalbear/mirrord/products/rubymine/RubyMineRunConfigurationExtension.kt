@@ -9,6 +9,7 @@ import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
+import java.io.File
 import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
@@ -38,8 +39,8 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
-        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
-        path.writeText("#!/bin/sh\n")
+//        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
+//        path.writeText("#!/bin/sh\n")
 
         val currentEnv = configuration.envs
 
@@ -49,12 +50,15 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
+                cmdLine.environment[entry.key] = entry.value
             }
         }
-        path.appendLines(currentEnv.entries.map { entry -> "export ${entry.key}=${entry.value}" })
-        path.appendText(cmdLine.exePath)
-        cmdLine.exePath = path.pathString
-        path.toFile().setExecutable(true)
-        println(path.readText())
+//        path.appendLines(currentEnv.entries.map { entry -> "export ${entry.key}=${entry.value}" })
+//        path.appendText(cmdLine.exePath)
+//        cmdLine.exePath = path.pathString
+        File("/Users/tal/RubymineProjects/first/runruby.sh").writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
+        cmdLine.exePath = "/Users/tal/RubymineProjects/first/runruby.sh"
+//        path.toFile().setExecutable(true)
+//        println(path.readText())
     }
 }
