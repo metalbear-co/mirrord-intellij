@@ -8,6 +8,18 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.54.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.2) - 2023-09-06
+
+
+### Fixed
+
+- Add methods to ProcessListener to be backward compatible
+  [#129](https://github.com/metalbear-co/mirrord-intellij/issues/129)
+- The plugin now works on RubyMine on macOS when using an RVM ruby binary as
+  interpreter.
+  [#134](https://github.com/metalbear-co/mirrord-intellij/issues/134)
+
+
 ## [3.54.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.1) - 2023-09-01
 
 
