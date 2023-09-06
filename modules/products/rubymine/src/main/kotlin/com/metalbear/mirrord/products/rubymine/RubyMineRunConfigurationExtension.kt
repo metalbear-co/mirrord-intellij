@@ -10,7 +10,6 @@ import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
-import java.io.File
 import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
