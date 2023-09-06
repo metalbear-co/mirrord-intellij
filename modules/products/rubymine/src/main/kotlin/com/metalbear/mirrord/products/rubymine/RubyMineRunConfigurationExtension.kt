@@ -30,17 +30,12 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         cmdLine: GeneralCommandLine,
         runnerId: String
     ) {
-        println("############# patchCommandLine #################")
-        println(cmdLine)
-        println(runnerSettings)
         val service = configuration.project.service<MirrordProjectService>()
 
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
-//        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
-//        path.writeText("#!/bin/sh\n")
 
         val currentEnv = configuration.envs
 
@@ -53,12 +48,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 cmdLine.environment[entry.key] = entry.value
             }
         }
-//        path.appendLines(currentEnv.entries.map { entry -> "export ${entry.key}=${entry.value}" })
-//        path.appendText(cmdLine.exePath)
-//        cmdLine.exePath = path.pathString
-        File("/Users/tal/RubymineProjects/first/runruby.sh").writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
-        cmdLine.exePath = "/Users/tal/RubymineProjects/first/runruby.sh"
-//        path.toFile().setExecutable(true)
-//        println(path.readText())
+
+        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
+        path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
+        cmdLine.exePath = path.pathString
+        path.toFile().setExecutable(true)
     }
 }
