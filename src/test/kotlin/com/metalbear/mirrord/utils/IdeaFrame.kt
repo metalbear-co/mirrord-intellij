@@ -21,7 +21,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     CommonContainerFixture(remoteRobot, remoteComponent) {
 
     val enableMirrord
-        get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord.svg']"), Duration.ofSeconds(30))
+        get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord_disabled.svg']"), Duration.ofSeconds(30))
 
     val mirrordDropdownButton
         get() = find<ContainerFixture>(
