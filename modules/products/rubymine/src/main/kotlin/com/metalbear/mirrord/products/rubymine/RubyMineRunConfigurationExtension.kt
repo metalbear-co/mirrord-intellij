@@ -36,9 +36,11 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         // TODO: would be nice to have a more robust RVM detection mechanism.
         val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
         if (isMac && !isRvm) {
-            val e =  MirrordError("At the moment, only RVM Rubies are supported by mirrord on RubyMine on " +
-                    "macOS, due to SIP.", " Support for other Rubies is tracked on " +
-                    "https://github.com/metalbear-co/mirrord-intellij/issues/134.")
+            val e = MirrordError(
+                "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
+                " Support for other Rubies is tracked on " +
+                    "https://github.com/metalbear-co/mirrord-intellij/issues/134."
+            )
             e.showHelp(configuration.project)
             throw e
         }
@@ -49,7 +51,6 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }
 
         val currentEnv = configuration.envs
-
 
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
