@@ -7,6 +7,7 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
@@ -32,6 +33,17 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
     ) {
         val service = configuration.project.service<MirrordProjectService>()
         val isMac = SystemInfo.isMac
+        // TODO: would be nice to have a more robust RVM detection mechanism.
+        val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
+        if (isMac && !isRvm) {
+            val e = MirrordError(
+                "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
+                " Support for other Rubies is tracked on " +
+                    "https://github.com/metalbear-co/mirrord-intellij/issues/134."
+            )
+            e.showHelp(configuration.project)
+            throw e
+        }
 
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
@@ -39,9 +51,6 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }
 
         val currentEnv = configuration.envs
-
-        // TODO: would be nice to have a more robust RVM detection mechanism.
-        val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
 
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
