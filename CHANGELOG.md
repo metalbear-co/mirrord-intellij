@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.54.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.3) - 2023-09-10
+
+
+### Changed
+
+- Aborting the run when running on macOS with a non-RVM Ruby.
+- New enable/disable icons to make mirrord state more clear
+  [#100](https://github.com/metalbear-co/mirrord-intellij/issues/100)
+
+
+### Fixed
+
+- Fixed Ruby being patched always
+
+
 ## [3.54.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.2) - 2023-09-06
 
 
