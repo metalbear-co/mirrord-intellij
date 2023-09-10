@@ -1,1 +1,0 @@
-Fixed Ruby being patched always
