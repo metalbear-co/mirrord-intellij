@@ -63,7 +63,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 val e = MirrordError(
                     "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
                     " Support for other Rubies is tracked on " +
-                            "https://github.com/metalbear-co/mirrord-intellij/issues/134."
+                        "https://github.com/metalbear-co/mirrord-intellij/issues/134."
                 )
                 e.showHelp(configuration.project)
                 throw e
