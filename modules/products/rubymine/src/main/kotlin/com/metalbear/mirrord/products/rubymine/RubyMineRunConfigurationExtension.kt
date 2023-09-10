@@ -32,18 +32,8 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         runnerId: String
     ) {
         val service = configuration.project.service<MirrordProjectService>()
+
         val isMac = SystemInfo.isMac
-        // TODO: would be nice to have a more robust RVM detection mechanism.
-        val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
-        if (isMac && !isRvm) {
-            val e = MirrordError(
-                "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
-                " Support for other Rubies is tracked on " +
-                    "https://github.com/metalbear-co/mirrord-intellij/issues/134."
-            )
-            e.showHelp(configuration.project)
-            throw e
-        }
 
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
@@ -66,14 +56,26 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             if (isMac && patched !== null) {
                 cmdLine.exePath = patched
             }
-        }
 
-        if (isMac && isRvm) {
-            val path = createTempFile("mirrord-ruby-launcher-", ".sh")
-            // Using patched exe inside the launcher script.
-            path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
-            cmdLine.exePath = path.pathString
-            path.toFile().setExecutable(true)
+            // TODO: would be nice to have a more robust RVM detection mechanism.
+            val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
+            if (isMac && !isRvm) {
+                val e = MirrordError(
+                    "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
+                    " Support for other Rubies is tracked on " +
+                            "https://github.com/metalbear-co/mirrord-intellij/issues/134."
+                )
+                e.showHelp(configuration.project)
+                throw e
+            }
+
+            if (isMac && isRvm) {
+                val path = createTempFile("mirrord-ruby-launcher-", ".sh")
+                // Using patched exe inside the launcher script.
+                path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
+                cmdLine.exePath = path.pathString
+                path.toFile().setExecutable(true)
+            }
         }
     }
 }
