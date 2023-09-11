@@ -49,8 +49,6 @@ jobs:
 
   e2e:
     uses: ./.github/workflows/reusable_e2e.yaml
-    with:
-      mirrord_release_branch: false
 
   ci-success:
     name: ci

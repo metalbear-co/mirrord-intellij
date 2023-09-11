@@ -13,7 +13,7 @@ on:
       mirrord_release_branch:
         required: false
         type: boolean
-        default: true
+        default: false
 
 jobs:
   intellij-e2e:
@@ -38,6 +38,8 @@ jobs:
         if: ${{ !github.event.inputs.mirrord_release_branch }}
         uses: actions/checkout@v3
 
+        # mirrord_release_branch boolean when set, means we are on a release branch
+        # and hence we need to checkout into the last released tag of mirrord-intellij
       - name: checkout into mirrord-intellij if mirrord_release_branch
         if: ${{ github.event.inputs.mirrord_release_branch }}
         uses: actions/checkout@v3
@@ -61,6 +63,8 @@ jobs:
           python-version: 3.11
       - uses: abatilo/actions-poetry@v2
 
+        # we are on a release branch, so we need to download the mirrord binary from
+        # mirrord-artifacts and add it to the path
       - name: download mirrord binary
         if: ${{ github.event.inputs.mirrord_release_branch }}
         uses: actions/download-artifact@v3
