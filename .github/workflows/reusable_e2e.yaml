@@ -73,8 +73,7 @@ jobs:
         uses: medyagh/setup-minikube@master
         with:
           container-runtime: docker
-      - run: |
-          minikube image load /tmp/test.tar
+      - run: |          
           kubectl apply -f sample/kubernetes/app.yaml
           echo "POD_TO_SELECT=$(kubectl get pods -o=name | head -n 1)" >> "$GITHUB_ENV"
           kubectl wait --for=condition=ready --timeout=30s $(kubectl get pods -o=name | head -n 1)
@@ -88,7 +87,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: build plugin
-        if : ${{ github.event.inputs.mirrord_release_branch }}
         run: |
           ./gradlew buildPlugin
 
