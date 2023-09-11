@@ -1,4 +1,12 @@
-name: Run IDE e2e on release
+# This is a reusable workflow that can be run based on `mirrord_release_branch` boolean input
+# in the `mirrord` or `mirrord-intellij` repository and hence is maintained in a single place.
+# The difference in the workflow when `mirrord_release_branch` is set is as follows:
+# - we checkout into the latest released tag of `mirrord-intellij` from the perspective of binary
+# that has to be released on `mirrord` side. if not set, we checkout into the current branch.
+# - we rely on downloading the mirrord binary from `mirrord-artifacts` using `actions/download-artifact`
+# and adding it to the path. if not set, the latest version is downloaded.
+
+name: reusable_e2e
 on:
   workflow_call:
     inputs:
@@ -73,7 +81,7 @@ jobs:
         uses: medyagh/setup-minikube@master
         with:
           container-runtime: docker
-      - run: |          
+      - run: |
           kubectl apply -f sample/kubernetes/app.yaml
           echo "POD_TO_SELECT=$(kubectl get pods -o=name | head -n 1)" >> "$GITHUB_ENV"
           kubectl wait --for=condition=ready --timeout=30s $(kubectl get pods -o=name | head -n 1)
@@ -96,7 +104,7 @@ jobs:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
         with:
-          run: |            
+          run: |
             ./gradlew test
 
       - name: Save the failure video
