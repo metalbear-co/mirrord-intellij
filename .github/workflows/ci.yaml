@@ -48,7 +48,7 @@ jobs:
         run: ./gradlew ktlintCheck
 
   e2e:
-    uses: ./github/workflows/reusable_e2e.yaml
+    uses: ./.github/workflows/reusable_e2e.yaml
     with:
       mirrord_release_branch: false
 
