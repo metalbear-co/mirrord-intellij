@@ -35,19 +35,19 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - name: checkout repository
-        if: ${{ !github.event.inputs.mirrord_release_branch }}
+        if: ${{ !inputs.mirrord_release_branch }}
         uses: actions/checkout@v3
 
         # mirrord_release_branch boolean when set, means we are on a release branch
         # and hence we need to checkout into the last released tag of mirrord-intellij
       - name: checkout into mirrord-intellij if mirrord_release_branch
-        if: ${{ github.event.inputs.mirrord_release_branch }}
+        if: ${{ inputs.mirrord_release_branch }}
         uses: actions/checkout@v3
         with:
           repository: "metalbear-co/mirrord-intellij"
 
       - name: checkout into the last released tag if mirrord_release_branch
-        if: ${{ github.event.inputs.mirrord_release_branch }}
+        if: ${{ inputs.mirrord_release_branch }}
         run: |
           git fetch --all --tags
           git checkout tags/$(grep 'pluginVersion =' gradle.properties | cut -d '=' -f 2 | xargs)
@@ -66,18 +66,18 @@ jobs:
         # we are on a release branch, so we need to download the mirrord binary from
         # mirrord-artifacts and add it to the path
       - name: download mirrord binary
-        if: ${{ github.event.inputs.mirrord_release_branch }}
+        if: ${{ inputs.mirrord_release_branch }}
         uses: actions/download-artifact@v3
         with:
           name: mirrord-artifacts
       - name: add downloaded mirrord to path
-        if: ${{ github.event.inputs.mirrord_release_branch }}
+        if: ${{ inputs.mirrord_release_branch }}
         run: |
           chmod u+x mirrord
           echo "${GITHUB_WORKSPACE}" >> "$GITHUB_PATH"
 
       - name: get the latest mirrord binary
-        if: ${{ !github.event.inputs.mirrord_release_branch }}
+        if: ${{ !inputs.mirrord_release_branch }}
         run: |
           curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash
 
