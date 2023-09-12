@@ -34,6 +34,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
 
     class MirrordState {
         var versionCheckEnabled: Boolean? = null
+        var autoUpdate: Boolean? = null
         var lastChosenTarget: String? = null
         var showPodsInSelection: Boolean? = null
         var showDeploymentsInSelection: Boolean? = null

@@ -2,6 +2,8 @@ package com.metalbear.mirrord
 
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextArea
+import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -15,10 +17,18 @@ class MirrordSettingsComponent {
         .associateWith { JBCheckBox(it.presentableName) }
     private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
 
+    private val autoUpdate = FormBuilder
+        .createFormBuilder()
+        .addComponent(JBCheckBox("Auto update mirrord binary"))
+        .addComponent(JBTextField("Version"))
+        .addComponentFillVertically(JPanel(), 0)
+        .panel
+
     val panel: JPanel = FormBuilder
         .createFormBuilder()
         .addComponent(usageBannerEnabled)
         .addComponent(versionCheckEnabled)
+        .addComponent(autoUpdate)
         .addSeparator()
         .addComponent(JBLabel("Notify when:"))
         .apply {
@@ -48,5 +58,11 @@ class MirrordSettingsComponent {
         get() = notificationsEnabled.filter { !it.value.isSelected }.keys
         set(value) = notificationsEnabled.forEach {
             it.value.isSelected = !value.contains(it.key)
+        }
+
+    var autoUpdateEnabledStatus: Boolean
+        get() = autoUpdate.isEnabled
+        set(value) {
+            autoUpdate.isEnabled = value
         }
 }

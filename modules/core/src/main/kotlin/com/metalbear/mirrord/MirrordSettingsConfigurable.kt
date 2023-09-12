@@ -22,8 +22,9 @@ class MirrordSettingsConfigurable : Configurable {
     override fun isModified(): Boolean {
         val settings = MirrordSettingsState.instance.mirrordState
         return (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled) ||
-            (mySettingsComponent!!.notificationsDisabledStatus != settings.disabledNotifications) ||
-            (mySettingsComponent!!.usageBannerEnabledStatus != settings.showUsageBanner)
+                (mySettingsComponent!!.notificationsDisabledStatus != settings.disabledNotifications) ||
+                (mySettingsComponent!!.usageBannerEnabledStatus != settings.showUsageBanner) ||
+                (mySettingsComponent!!.autoUpdateEnabledStatus != settings.autoUpdate)
     }
 
     override fun apply() {
@@ -31,11 +32,13 @@ class MirrordSettingsConfigurable : Configurable {
         settings.versionCheckEnabled = mySettingsComponent!!.versionCheckEnabledStatus
         settings.disabledNotifications = mySettingsComponent!!.notificationsDisabledStatus
         settings.showUsageBanner = mySettingsComponent!!.usageBannerEnabledStatus
+        settings.autoUpdate = mySettingsComponent!!.autoUpdateEnabledStatus
     }
 
     override fun reset() {
         val settings = MirrordSettingsState.instance.mirrordState
         mySettingsComponent!!.versionCheckEnabledStatus = settings.versionCheckEnabled ?: true
+        mySettingsComponent!!.autoUpdateEnabledStatus = settings.autoUpdate ?: true
         mySettingsComponent!!.notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
         mySettingsComponent!!.usageBannerEnabledStatus = settings.showUsageBanner
     }
