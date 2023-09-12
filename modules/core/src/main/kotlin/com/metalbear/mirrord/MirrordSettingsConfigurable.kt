@@ -4,46 +4,43 @@ import com.intellij.openapi.options.Configurable
 import javax.swing.JComponent
 
 class MirrordSettingsConfigurable : Configurable {
-    private var mySettingsComponent: MirrordSettingsComponent? = null
+    private val mySettingsComponent by lazy(::MirrordSettingsComponent)
 
-    override fun getDisplayName(): String {
-        return "mirrord"
-    }
+    override fun getDisplayName() = "mirrord"
 
-    override fun getPreferredFocusedComponent(): JComponent {
-        return mySettingsComponent!!.preferredFocusedComponent
-    }
+    override fun getPreferredFocusedComponent(): JComponent = mySettingsComponent.preferredFocusedComponent
 
-    override fun createComponent(): JComponent {
-        mySettingsComponent = MirrordSettingsComponent()
-        return mySettingsComponent!!.panel
-    }
+    override fun createComponent(): JComponent = mySettingsComponent.panel
 
     override fun isModified(): Boolean {
         val settings = MirrordSettingsState.instance.mirrordState
-        return (mySettingsComponent!!.versionCheckEnabledStatus != settings.versionCheckEnabled) ||
-                (mySettingsComponent!!.notificationsDisabledStatus != settings.disabledNotifications) ||
-                (mySettingsComponent!!.usageBannerEnabledStatus != settings.showUsageBanner) ||
-                (mySettingsComponent!!.autoUpdateEnabledStatus != settings.autoUpdate)
+        return mySettingsComponent.run {
+            (versionCheckEnabledStatus != settings.versionCheckEnabled) ||
+                    (notificationsDisabledStatus != settings.disabledNotifications) ||
+                    (usageBannerEnabledStatus != settings.showUsageBanner) ||
+                    (autoUpdateEnabledStatus != settings.autoUpdate)
+        }
     }
 
     override fun apply() {
         val settings = MirrordSettingsState.instance.mirrordState
-        settings.versionCheckEnabled = mySettingsComponent!!.versionCheckEnabledStatus
-        settings.disabledNotifications = mySettingsComponent!!.notificationsDisabledStatus
-        settings.showUsageBanner = mySettingsComponent!!.usageBannerEnabledStatus
-        settings.autoUpdate = mySettingsComponent!!.autoUpdateEnabledStatus
+        mySettingsComponent.run {
+            settings.versionCheckEnabled = versionCheckEnabledStatus
+            settings.disabledNotifications = notificationsDisabledStatus
+            settings.showUsageBanner = usageBannerEnabledStatus
+            settings.autoUpdate = autoUpdateEnabledStatus
+        }
     }
 
     override fun reset() {
         val settings = MirrordSettingsState.instance.mirrordState
-        mySettingsComponent!!.versionCheckEnabledStatus = settings.versionCheckEnabled ?: true
-        mySettingsComponent!!.autoUpdateEnabledStatus = settings.autoUpdate ?: true
-        mySettingsComponent!!.notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
-        mySettingsComponent!!.usageBannerEnabledStatus = settings.showUsageBanner
+        mySettingsComponent.run {
+            versionCheckEnabledStatus = settings.versionCheckEnabled ?: true
+            autoUpdateEnabledStatus = settings.autoUpdate ?: true
+            notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
+            usageBannerEnabledStatus = settings.showUsageBanner
+        }
     }
 
-    override fun disposeUIResources() {
-        mySettingsComponent = null
-    }
+    override fun disposeUIResources() = Unit
 }
