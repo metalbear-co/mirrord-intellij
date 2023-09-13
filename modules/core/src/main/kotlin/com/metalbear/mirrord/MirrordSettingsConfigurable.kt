@@ -16,9 +16,10 @@ class MirrordSettingsConfigurable : Configurable {
         val settings = MirrordSettingsState.instance.mirrordState
         return mySettingsComponent.run {
             (versionCheckEnabledStatus != settings.versionCheckEnabled) ||
-                    (notificationsDisabledStatus != settings.disabledNotifications) ||
-                    (usageBannerEnabledStatus != settings.showUsageBanner) ||
-                    (autoUpdateEnabledStatus != settings.autoUpdate)
+                (notificationsDisabledStatus != settings.disabledNotifications) ||
+                (usageBannerEnabledStatus != settings.showUsageBanner) ||
+                (autoUpdateEnabledStatus != settings.autoUpdate) ||
+                (mirrordVersionStatus != settings.mirrordVersion)
         }
     }
 

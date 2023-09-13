@@ -80,8 +80,9 @@ class MirrordBinaryManager {
 
             val version = when {
                 !autoUpdate && mirrordVersion.isNotEmpty() -> {
-                    if (checkVersionFormat(mirrordVersion)) mirrordVersion
-                    else {
+                    if (checkVersionFormat(mirrordVersion)) {
+                        mirrordVersion
+                    } else {
                         project
                             .service<MirrordProjectService>()
                             .notifier
@@ -93,7 +94,6 @@ class MirrordBinaryManager {
                 !autoUpdate && mirrordVersion.isEmpty() -> null
                 else -> manager.fetchLatestSupportedVersion(product, indicator)
             }
-
 
             val local = if (checkInPath) {
                 manager.getLocalBinary(version, wslDistribution)
@@ -198,11 +198,7 @@ class MirrordBinaryManager {
         indicator.text = "mirrord is downloading binary version $version..."
         indicator.fraction = 0.0
 
-        val connection = try {
-            URI(url).toURL().openConnection()
-        } catch (e: IOException) {
-            throw RuntimeException("Failed to connect to $url", e)
-        }
+        val connection = URI(url).toURL().openConnection()
         connection.connect()
         val size = connection.contentLength
         val stream = connection.getInputStream()
