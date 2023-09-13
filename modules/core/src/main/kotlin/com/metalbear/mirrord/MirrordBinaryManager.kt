@@ -74,21 +74,14 @@ class MirrordBinaryManager {
 
         override fun run(indicator: ProgressIndicator) {
             val manager = service<MirrordBinaryManager>()
-            /*
-            * If auto update is set to true (or not set to anything - true should be the default value), keep current behavior (update to latest version)
-                If auto update is set to false and a version is set - download that version (if it hasn't already been downloaded)
-                If auto update is set to false, no version is set, and a CLI of some version has already been downloaded at some point - use that CLI
-                If auto update is set to false, no version is set, and no CLI has been downloaded - download the latest version
-             */
 
             val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
             val mirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
 
             val version = when {
-                (!autoUpdate && mirrordVersion != "") -> {
-                    if (checkVersionFormat(mirrordVersion)) {
-                        mirrordVersion
-                    } else {
+                !autoUpdate && mirrordVersion.isNotEmpty() -> {
+                    if (checkVersionFormat(mirrordVersion)) mirrordVersion
+                    else {
                         project
                             .service<MirrordProjectService>()
                             .notifier
@@ -97,17 +90,10 @@ class MirrordBinaryManager {
                         return
                     }
                 }
-
-                (!autoUpdate && mirrordVersion == "") -> {
-                    "latest"
-                }
-                else -> {
-                    manager.fetchLatestSupportedVersion(product, indicator)
-                }
+                !autoUpdate && mirrordVersion.isEmpty() -> null
+                else -> manager.fetchLatestSupportedVersion(product, indicator)
             }
 
-
-            manager.latestSupportedVersion = version
 
             val local = if (checkInPath) {
                 manager.getLocalBinary(version, wslDistribution)
@@ -117,6 +103,8 @@ class MirrordBinaryManager {
             if (local != null) {
                 return
             }
+
+            manager.latestSupportedVersion = version
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
