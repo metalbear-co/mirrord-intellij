@@ -29,6 +29,7 @@ class MirrordSettingsConfigurable : Configurable {
             settings.disabledNotifications = notificationsDisabledStatus
             settings.showUsageBanner = usageBannerEnabledStatus
             settings.autoUpdate = autoUpdateEnabledStatus
+            settings.mirrordVersion = mirrordVersionStatus
         }
     }
 
@@ -36,7 +37,8 @@ class MirrordSettingsConfigurable : Configurable {
         val settings = MirrordSettingsState.instance.mirrordState
         mySettingsComponent.run {
             versionCheckEnabledStatus = settings.versionCheckEnabled ?: true
-            autoUpdateEnabledStatus = settings.autoUpdate ?: true
+            autoUpdateEnabledStatus = settings.autoUpdate
+            mirrordVersionStatus = settings.mirrordVersion
             notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
             usageBannerEnabledStatus = settings.showUsageBanner
         }

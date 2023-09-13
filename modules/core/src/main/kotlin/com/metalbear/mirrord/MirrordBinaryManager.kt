@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
+import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -73,8 +74,39 @@ class MirrordBinaryManager {
 
         override fun run(indicator: ProgressIndicator) {
             val manager = service<MirrordBinaryManager>()
+            /*
+            * If auto update is set to true (or not set to anything - true should be the default value), keep current behavior (update to latest version)
+                If auto update is set to false and a version is set - download that version (if it hasn't already been downloaded)
+                If auto update is set to false, no version is set, and a CLI of some version has already been downloaded at some point - use that CLI
+                If auto update is set to false, no version is set, and no CLI has been downloaded - download the latest version
+             */
 
-            val version = manager.fetchLatestSupportedVersion(product, indicator)
+            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+            val mirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+
+            val version = when {
+                (!autoUpdate && mirrordVersion != "") -> {
+                    if (checkVersionFormat(mirrordVersion)) {
+                        mirrordVersion
+                    } else {
+                        project
+                            .service<MirrordProjectService>()
+                            .notifier
+                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                            .fire()
+                        return
+                    }
+                }
+
+                (!autoUpdate && mirrordVersion == "") -> {
+                    "latest"
+                }
+                else -> {
+                    manager.fetchLatestSupportedVersion(product, indicator)
+                }
+            }
+
+
             manager.latestSupportedVersion = version
 
             val local = if (checkInPath) {
@@ -118,6 +150,10 @@ class MirrordBinaryManager {
                         NotificationType.INFORMATION
                     )
             }
+        }
+
+        fun checkVersionFormat(version: String): Boolean {
+            return version.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
         }
     }
 
@@ -174,7 +210,11 @@ class MirrordBinaryManager {
         indicator.text = "mirrord is downloading binary version $version..."
         indicator.fraction = 0.0
 
-        val connection = URI(url).toURL().openConnection()
+        val connection = try {
+            URI(url).toURL().openConnection()
+        } catch (e: IOException) {
+            throw RuntimeException("Failed to connect to $url", e)
+        }
         connection.connect()
         val size = connection.contentLength
         val stream = connection.getInputStream()
