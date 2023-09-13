@@ -18,8 +18,9 @@ class MirrordSettingsComponent {
 
     private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
 
-    private val mirrordVersion = with(JBTextField("", 20)) {
-        toolTipText = "mirrord version"
+    private val infoMessage: JBLabel = JBLabel("")
+    private val mirrordVersion = with(JBTextField("mirrord version: ", 10)) {
+        toolTipText = "specify mirrord binary version to use"
         this
     }
 
@@ -27,6 +28,7 @@ class MirrordSettingsComponent {
         .apply {
             addItemListener { e ->
                 mirrordVersion.isEnabled = e.stateChange != ItemEvent.SELECTED
+                infoMessage.text = "mirrord binary will be updated on next restart"
             }
         }
 
@@ -51,6 +53,7 @@ class MirrordSettingsComponent {
             }
         }
         .addComponentFillVertically(JPanel(), 0)
+        .addComponent(infoMessage)
         .panel
 
     val preferredFocusedComponent: JComponent
@@ -75,9 +78,9 @@ class MirrordSettingsComponent {
         }
 
     var autoUpdateEnabledStatus: Boolean
-        get() = autoUpdate.isEnabled
+        get() = autoUpdate.isSelected
         set(value) {
-            autoUpdate.isEnabled = value
+            autoUpdate.isSelected = value
         }
 
     var mirrordVersionStatus: String
