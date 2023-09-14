@@ -11,7 +11,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
-import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -79,6 +78,7 @@ class MirrordBinaryManager {
             val mirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
 
             val version = when {
+                // auto update -> false -> use mirrordVersion if it's not empty
                 !autoUpdate && mirrordVersion.isNotEmpty() -> {
                     if (checkVersionFormat(mirrordVersion)) {
                         mirrordVersion
@@ -91,7 +91,11 @@ class MirrordBinaryManager {
                         return
                     }
                 }
+                // auto update -> false -> mirrordVersion is empty -> needs check in the path
+                // if not in path -> fetch latest version
                 !autoUpdate && mirrordVersion.isEmpty() -> null
+
+                // auto update -> true -> fetch latest version
                 else -> manager.fetchLatestSupportedVersion(product, indicator)
             }
 
@@ -100,11 +104,14 @@ class MirrordBinaryManager {
             } else {
                 manager.findBinaryInStorage(version)
             }
+
             if (local != null) {
                 return
             }
 
             manager.latestSupportedVersion = version
+                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
+                ?: manager.fetchLatestSupportedVersion(product, indicator)
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
@@ -140,6 +147,10 @@ class MirrordBinaryManager {
             }
         }
 
+        /**
+         * checks if the passed version string matches *.*.* format (numbers only)
+         * @param version version string to check
+         * */
         fun checkVersionFormat(version: String): Boolean {
             return version.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
         }
