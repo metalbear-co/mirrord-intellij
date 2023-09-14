@@ -11,13 +11,14 @@ class MirrordEnabler : ToggleAction(), DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun isSelected(e: AnActionEvent): Boolean {
-        return e.project?.service<MirrordProjectService>()?.enabled ?: false
+        val state = e.project?.service<MirrordProjectService>()?.enabled ?: false
+        e.presentation.icon = if (state) MirrordIcons.enabled else MirrordIcons.disabled
+        return state
     }
 
     override fun setSelected(e: AnActionEvent, state: Boolean) {
         val project = e.project ?: throw Error("mirrord requires an open project")
         project.service<MirrordProjectService>().enabled = state
-        e.presentation.icon = if (state) MirrordIcons.enabled else MirrordIcons.disabled
     }
 
     override fun update(e: AnActionEvent) {
