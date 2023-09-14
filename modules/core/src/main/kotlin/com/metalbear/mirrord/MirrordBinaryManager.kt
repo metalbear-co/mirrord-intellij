@@ -75,13 +75,13 @@ class MirrordBinaryManager {
             val manager = service<MirrordBinaryManager>()
 
             val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
-            val mirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+            val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
 
             val version = when {
                 // auto update -> false -> use mirrordVersion if it's not empty
-                !autoUpdate && mirrordVersion.isNotEmpty() -> {
-                    if (checkVersionFormat(mirrordVersion)) {
-                        mirrordVersion
+                !autoUpdate && userSelectedMirrordVersion.isNotEmpty() -> {
+                    if (checkVersionFormat(userSelectedMirrordVersion)) {
+                        userSelectedMirrordVersion
                     } else {
                         project
                             .service<MirrordProjectService>()
@@ -93,7 +93,7 @@ class MirrordBinaryManager {
                 }
                 // auto update -> false -> mirrordVersion is empty -> needs check in the path
                 // if not in path -> fetch latest version
-                !autoUpdate && mirrordVersion.isEmpty() -> null
+                !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
                 // auto update -> true -> fetch latest version
                 else -> manager.fetchLatestSupportedVersion(product, indicator)
