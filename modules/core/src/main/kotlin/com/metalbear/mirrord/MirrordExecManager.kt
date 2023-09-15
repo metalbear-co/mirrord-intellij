@@ -10,6 +10,12 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import java.nio.file.Path
 
 /**
+ * How to build this plugin:
+ *
+ * `./gradlew buildPlugin`
+ */
+
+/**
  * Functions to be called when one of our entry points to the program is called - when process is
  * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
  * if it did, it will do nothing
@@ -53,7 +59,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 .notifier
                 .notification(
                     "mirrord plugin was unable to display the target selection dialog. " +
-                        "You can set it manually in the configuration file $config.",
+                            "You can set it manually in the configuration file $config.",
                     NotificationType.WARNING
                 )
                 .apply {
@@ -110,11 +116,20 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val cli = cliPath(wslDistribution, product)
         val config = service.configApi.getConfigPath(mirrordConfigFromEnv)
+        // TODO(alex): Have a new type `MirrordConfig`, that does the above call `getConfigPath`
+        // then calls `verify-config` to see if there are any errors, and produces a `MirrordConfig`
+        // at the end.
+        val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
+        val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
+        val verifiedConfig = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier)
+        if (verifiedConfig.isError()) {
+            return null
+        }
 
         MirrordLogger.logger.debug("target selection")
 
         var target: String? = null
-        val isTargetSet = (config != null && isTargetSet(config))
+        val isTargetSet = (config != null && isTargetSet(verifiedConfig.config))
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
