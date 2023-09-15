@@ -2,7 +2,9 @@ package com.metalbear.mirrord
 
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import java.awt.event.ItemEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -13,12 +15,35 @@ class MirrordSettingsComponent {
         .NotificationId
         .values()
         .associateWith { JBCheckBox(it.presentableName) }
+
     private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
+
+    private val mirrordVersionLabel = JBLabel("mirrord binary version:")
+    private val mirrordVersion = with(JBTextField("", 10)) {
+        toolTipText = "specify mirrord binary version to use"
+        this
+    }
+
+    private val autoUpdate = JBCheckBox("Auto update mirrord binary")
+        .apply {
+            addItemListener { e ->
+                mirrordVersion.isEnabled = e.stateChange != ItemEvent.SELECTED
+            }
+        }
+
+    private val autoUpdatePanel = FormBuilder
+        .createFormBuilder()
+        .addComponent(autoUpdate)
+        .addLabeledComponent(mirrordVersionLabel, mirrordVersion)
+        .addComponentFillVertically(JPanel(), 0)
+        .panel
 
     val panel: JPanel = FormBuilder
         .createFormBuilder()
         .addComponent(usageBannerEnabled)
         .addComponent(versionCheckEnabled)
+        .addSeparator()
+        .addComponent(autoUpdatePanel)
         .addSeparator()
         .addComponent(JBLabel("Notify when:"))
         .apply {
@@ -26,6 +51,7 @@ class MirrordSettingsComponent {
                 addComponent(it.value)
             }
         }
+        .addSeparator()
         .addComponentFillVertically(JPanel(), 0)
         .panel
 
@@ -48,5 +74,17 @@ class MirrordSettingsComponent {
         get() = notificationsEnabled.filter { !it.value.isSelected }.keys
         set(value) = notificationsEnabled.forEach {
             it.value.isSelected = !value.contains(it.key)
+        }
+
+    var autoUpdateEnabledStatus: Boolean
+        get() = autoUpdate.isSelected
+        set(value) {
+            autoUpdate.isSelected = value
+        }
+
+    var mirrordVersionStatus: String
+        get() = mirrordVersion.text
+        set(value) {
+            mirrordVersion.text = value
         }
 }
