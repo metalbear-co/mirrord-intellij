@@ -29,26 +29,26 @@ enum class MessageType {
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
 data class Message(
-        val type: MessageType,
-        val name: String,
-        val parent: String?,
-        val success: Boolean?,
-        val message: String?
+    val type: MessageType,
+    val name: String,
+    val parent: String?,
+    val success: Boolean?,
+    val message: String?
 )
 
 data class Error(
-        val message: String,
-        val severity: String,
-        val causes: List<String>,
-        val help: String,
-        val labels: List<String>,
-        val related: List<String>
+    val message: String,
+    val severity: String,
+    val causes: List<String>,
+    val help: String,
+    val labels: List<String>,
+    val related: List<String>
 )
 
 data class MirrordExecution(
-        val environment: MutableMap<String, String>,
-        @SerializedName("patched_path")
-        val patchedPath: String?
+    val environment: MutableMap<String, String>,
+    @SerializedName("patched_path")
+    val patchedPath: String?
 )
 
 /**
@@ -66,8 +66,8 @@ private class SafeParser {
         } catch (e: Throwable) {
             MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
             throw MirrordError(
-                    "failed to parse a message from the mirrord binary, try updating to the latest version",
-                    e
+                "failed to parse a message from the mirrord binary, try updating to the latest version",
+                e
             )
         }
     }
@@ -96,14 +96,14 @@ class MirrordApi(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("parsing mirrord ls output: $data")
 
             val pods = SafeParser()
-                    .parse(data, Array<String>::class.java)
-                    .toMutableList()
+                .parse(data, Array<String>::class.java)
+                .toMutableList()
 
             if (pods.isEmpty()) {
                 project.service<MirrordProjectService>().notifier.notifySimple(
-                        "No mirrord target available in the configured namespace. " +
-                                "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                        NotificationType.INFORMATION
+                    "No mirrord target available in the configured namespace. " +
+                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                    NotificationType.INFORMATION
                 )
             }
 
@@ -118,9 +118,9 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return list of pods
      */
     fun listPods(
-            cli: String,
-            configFile: String?,
-            wslDistribution: WSLDistribution?
+        cli: String,
+        configFile: String?,
+        wslDistribution: WSLDistribution?
     ): List<String> {
         val task = MirrordLsTask(cli).apply {
             this.configFile = configFile
@@ -144,10 +144,10 @@ class MirrordApi(private val service: MirrordProjectService) {
                 when {
                     message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
                         val success = message.success
-                                ?: throw MirrordError("invalid message received from the mirrord binary")
+                            ?: throw MirrordError("invalid message received from the mirrord binary")
                         if (success) {
                             val innerMessage = message.message
-                                    ?: throw MirrordError("invalid message received from the mirrord binary")
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
@@ -207,8 +207,8 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return String containing a json with either a success + warnings, or the verified config errors.
      */
     fun verifyConfig(
-            cli: String,
-            configFilePath: String?,
+        cli: String,
+        configFilePath: String?,
     ): String {
         return MirrordVerifyConfigTask(cli, configFilePath!!).run(service.project)
     }
@@ -221,11 +221,11 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return environment for the user's application
      */
     fun exec(
-            cli: String,
-            target: String?,
-            configFile: String?,
-            executable: String?,
-            wslDistribution: WSLDistribution?
+        cli: String,
+        target: String?,
+        configFile: String?,
+        executable: String?,
+        wslDistribution: WSLDistribution?
     ): MirrordExecution {
         bumpFeedbackCounter()
 
@@ -256,16 +256,16 @@ class MirrordApi(private val service: MirrordProjectService) {
         }
 
         service.notifier.notification(
-                "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
-                NotificationType.INFORMATION
+            "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
+            NotificationType.INFORMATION
         )
-                .withLink(
-                        "Review",
-                        "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
-                )
-                .withLink("Feedback", FEEDBACK_URL)
-                .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
-                .fire()
+            .withLink(
+                    "Review",
+                    "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
+            )
+            .withLink("Feedback", FEEDBACK_URL)
+            .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
+            .fire()
     }
 }
 
@@ -371,10 +371,10 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
         MirrordLogger.logger.info("running mirrord task with following command line: ${commandLine.commandLineString}")
 
         val process = commandLine
-                .toProcessBuilder()
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start()
+            .toProcessBuilder()
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
 
         return if (ApplicationManager.getApplication().isDispatchThread) {
             // Modal dialog with progress is very visible and can be canceled by the user,
