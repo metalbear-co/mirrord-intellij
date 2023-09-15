@@ -102,7 +102,7 @@ class MirrordApi(private val service: MirrordProjectService) {
             if (pods.isEmpty()) {
                 project.service<MirrordProjectService>().notifier.notifySimple(
                     "No mirrord target available in the configured namespace. " +
-                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                        "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
                     NotificationType.INFORMATION
                 )
             }
@@ -208,11 +208,10 @@ class MirrordApi(private val service: MirrordProjectService) {
      */
     fun verifyConfig(
         cli: String,
-        configFilePath: String?,
+        configFilePath: String?
     ): String {
         return MirrordVerifyConfigTask(cli, configFilePath!!).run(service.project)
     }
-
 
     /**
      * Runs `mirrord ext` command to get the environment.
@@ -260,8 +259,8 @@ class MirrordApi(private val service: MirrordProjectService) {
             NotificationType.INFORMATION
         )
             .withLink(
-                    "Review",
-                    "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
+                "Review",
+                "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
             )
             .withLink("Feedback", FEEDBACK_URL)
             .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
@@ -446,10 +445,10 @@ private class MirrordWarningHandler(private val service: MirrordProjectService) 
     }
 
     private val filters: List<WarningFilter> = listOf(
-            WarningFilter(
-                    { message -> message.contains("Agent version") && message.contains("does not match the local mirrord version") },
-                    MirrordSettingsState.NotificationId.AGENT_VERSION_MISMATCH
-            )
+        WarningFilter(
+            { message -> message.contains("Agent version") && message.contains("does not match the local mirrord version") },
+            MirrordSettingsState.NotificationId.AGENT_VERSION_MISMATCH
+        )
     )
 
     /**

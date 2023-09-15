@@ -58,8 +58,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             service
                 .notifier
                 .notification(
-                    "mirrord plugin was unable to display the target selection dialog. " +
-                            "You can set it manually in the configuration file $config.",
+                "mirrord plugin was unable to display the target selection dialog. " +
+                        "You can set it manually in the configuration file $config.",
                     NotificationType.WARNING
                 )
                 .apply {
