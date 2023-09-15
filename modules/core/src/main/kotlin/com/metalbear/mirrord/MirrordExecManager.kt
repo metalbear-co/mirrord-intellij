@@ -116,9 +116,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val cli = cliPath(wslDistribution, product)
         val config = service.configApi.getConfigPath(mirrordConfigFromEnv)
-        // TODO(alex): Have a new type `MirrordConfig`, that does the above call `getConfigPath`
-        // then calls `verify-config` to see if there are any errors, and produces a `MirrordConfig`
-        // at the end.
+
+        // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
+        // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
         val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
         val verifiedConfig = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier)
