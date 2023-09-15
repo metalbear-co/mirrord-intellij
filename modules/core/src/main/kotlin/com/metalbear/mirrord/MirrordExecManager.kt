@@ -10,9 +10,24 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import java.nio.file.Path
 
 /**
- * How to build this plugin:
+ * # Guide on how to build and run the plugin
+ *
+ * To build just the mirrord plugin, do:
  *
  * `./gradlew buildPlugin`
+ *
+ * If you want to also run tests + lint + build the plugin:
+ *
+ * `./gradlew build`
+ *
+ * The minimum java version required is 17, if you get some `inputReader` error while building the plugin, that's
+ * probably why (outdated java version), or you may need to clean the project (search for Intellij `Invalidate cache`
+ * option).
+ *
+ * With the plugin built, you'll now have a folder `mirrord-intellij/build/distributions` that contains the
+ * `mirrord-x.y.z.zip` plugin. To install it, go on the `Plugins` option in Intellij, remove the mirrord plugin (if you
+ * already had it installed), then click on the "Settings icon" and select "Install from disk". Pick the
+ * `mirrord-x.y.z.zip` you just built, and that's it (you'll probably have to restart the IDE).
  */
 
 /**
