@@ -72,6 +72,8 @@ class MirrordBinaryManager {
         private var downloadingVersion: String? = null
 
         override fun run(indicator: ProgressIndicator) {
+            indicator.isIndeterminate = false
+
             val manager = service<MirrordBinaryManager>()
 
             val version = manager.fetchLatestSupportedVersion(product, indicator)
