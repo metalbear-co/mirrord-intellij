@@ -76,17 +76,44 @@ class MirrordBinaryManager {
 
             val manager = service<MirrordBinaryManager>()
 
-            val version = manager.fetchLatestSupportedVersion(product, indicator)
-            manager.latestSupportedVersion = version
+            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+            val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+
+            val version = when {
+                // auto update -> false -> use mirrordVersion if it's not empty
+                !autoUpdate && userSelectedMirrordVersion.isNotEmpty() -> {
+                    if (checkVersionFormat(userSelectedMirrordVersion)) {
+                        userSelectedMirrordVersion
+                    } else {
+                        project
+                            .service<MirrordProjectService>()
+                            .notifier
+                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                            .fire()
+                        return
+                    }
+                }
+                // auto update -> false -> mirrordVersion is empty -> needs check in the path
+                // if not in path -> fetch latest version
+                !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
+
+                // auto update -> true -> fetch latest version
+                else -> manager.fetchLatestSupportedVersion(product, indicator)
+            }
 
             val local = if (checkInPath) {
                 manager.getLocalBinary(version, wslDistribution)
             } else {
                 manager.findBinaryInStorage(version)
             }
+
             if (local != null) {
                 return
             }
+
+            manager.latestSupportedVersion = version
+                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
+                ?: manager.fetchLatestSupportedVersion(product, indicator)
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
@@ -120,6 +147,14 @@ class MirrordBinaryManager {
                         NotificationType.INFORMATION
                     )
             }
+        }
+
+        /**
+         * checks if the passed version string matches *.*.* format (numbers only)
+         * @param version version string to check
+         * */
+        fun checkVersionFormat(version: String): Boolean {
+            return version.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
         }
     }
 
