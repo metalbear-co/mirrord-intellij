@@ -228,17 +228,16 @@ tasks {
     }
 
     listProductsReleases {
-        sinceBuild.set("232.*")
-        System.getenv("IDE")?.let {
-            types.set(listOf(it))
-        } ?: types.set(listOf("IU", "RD", "PY"))
-
+        val ides = System.getenv("IDE")
+        types.set(ides?.split(',') ?: listOf("IU", "RD", "PY"))
+        sinceBuild.set(if (types.get() == listOf("IU")) "222.*" else "232.*")
         releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
     }
 
     runPluginVerifier {
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
     }
+
 
     test {
         useJUnitPlatform()
