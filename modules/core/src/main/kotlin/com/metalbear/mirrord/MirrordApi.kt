@@ -82,7 +82,7 @@ private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
-    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls") {
+    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls", null) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
             setText("mirrord is listing targets...")
 
@@ -131,7 +131,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext") {
+    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext", null) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -184,7 +184,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config $path") {
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", "$path") {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -271,7 +271,7 @@ class MirrordApi(private val service: MirrordProjectService) {
 /**
  * A mirrord CLI invocation.
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: String) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: String?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -307,6 +307,10 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             output?.let {
                 addParameter("-o")
+                addParameter(it)
+            }
+
+            args?.let {
                 addParameter(it)
             }
 

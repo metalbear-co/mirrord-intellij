@@ -148,6 +148,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         var target: String? = null
         val isTargetSet = (config != null && isTargetSet(verifiedConfig?.config))
+        MirrordLogger.logger.debug("$verifiedConfig")
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
