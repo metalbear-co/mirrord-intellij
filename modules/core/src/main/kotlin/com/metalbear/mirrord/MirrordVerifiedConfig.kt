@@ -30,26 +30,22 @@ class MirrordVerifiedConfig(private val verified: String, private val notifier: 
     init {
         val gson = Gson()
 
-        gson.fromJson(this.verified, Map::class.java).let { verified ->
-            val type = verified["type"].toString()
-            println("type $type")
+        this.config = gson.fromJson(this.verified, Map::class.java).let { verified ->
+            val type = verified["type"].asSafely<String>()
 
             val warnings = verified["warnings"].asSafely<List<String>>().also { warnings ->
                 warnings?.forEach { this.notifier.notifySimple(it, NotificationType.WARNING) }
             }
-            println("warnings $warnings")
             this.warnings = warnings
 
             val errors = verified["errors"].asSafely<List<String>>().also { errors ->
                 errors?.forEach { this.notifier.notifySimple(it, NotificationType.ERROR) }
             }
-            println("errors $errors")
             this.errors = errors
 
-            val innerConfig = verified["config"].toString()
-            println("config $innerConfig")
-            this.config = innerConfig
+            verified["config"].toString()
         }
+        MirrordLogger.logger.debug("verified config ${this.config}")
     }
 
     fun isError(): Boolean {

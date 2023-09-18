@@ -145,6 +145,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
 
         MirrordLogger.logger.debug("target selection")
+        service.notifier.notifySimple("verified ${verifiedConfig?.config}", NotificationType.INFORMATION)
 
         var target: String? = null
         val isTargetSet = (config != null && isTargetSet(verifiedConfig?.config))
