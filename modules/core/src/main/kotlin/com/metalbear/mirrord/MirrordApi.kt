@@ -208,9 +208,9 @@ class MirrordApi(private val service: MirrordProjectService) {
      */
     fun verifyConfig(
         cli: String,
-        configFilePath: String?
+        configFilePath: String
     ): String {
-        return MirrordVerifyConfigTask(cli, configFilePath!!).run(service.project)
+        return MirrordVerifyConfigTask(cli, configFilePath).run(service.project)
     }
 
     /**

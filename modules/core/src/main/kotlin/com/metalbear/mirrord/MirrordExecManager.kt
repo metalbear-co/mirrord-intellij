@@ -135,16 +135,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
-        val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
-        val verifiedConfig = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier)
-        if (verifiedConfig.isError()) {
-            return null
+        var verifiedConfig: MirrordVerifiedConfig? = null
+        if (configPath != null) {
+            val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
+            val verified = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).also { verifiedConfig = it }
+            if (verified.isError()) {
+                throw InvalidConfigException(configPath, "validation failed for config")
+            }
         }
 
         MirrordLogger.logger.debug("target selection")
 
         var target: String? = null
-        val isTargetSet = (config != null && isTargetSet(verifiedConfig.config))
+        val isTargetSet = (config != null && isTargetSet(verifiedConfig?.config))
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
