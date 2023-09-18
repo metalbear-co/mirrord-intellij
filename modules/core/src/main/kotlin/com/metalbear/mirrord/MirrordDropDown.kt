@@ -23,12 +23,6 @@ fun VirtualFile.relativePath(project: Project): String {
 }
 
 class MirrordDropDown : ComboBoxAction(), DumbAware {
-    private class EnableMirrordAction(val enabled: Boolean) : AnAction(if (enabled) "Enabled" else "Disabled") {
-        override fun actionPerformed(e: AnActionEvent) {
-            val service = e.project?.service<MirrordProjectService>() ?: return
-            service.enabled = !enabled
-        }
-    }
 
     private class ShowActiveConfigAction(val config: VirtualFile, project: Project) : AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
@@ -131,7 +125,6 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         val service = project.service<MirrordProjectService>()
 
         return DefaultActionGroup().apply {
-            add(EnableMirrordAction(service.enabled))
             addSeparator("Configuration")
             service.activeConfig?.let { add(ShowActiveConfigAction(it, project)) }
             add(SelectActiveConfigAction())
