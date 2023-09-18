@@ -238,7 +238,6 @@ tasks {
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
     }
 
-
     test {
         useJUnitPlatform()
         systemProperty("test.workspace", projectDir.resolve("test-workspace").absolutePath)
