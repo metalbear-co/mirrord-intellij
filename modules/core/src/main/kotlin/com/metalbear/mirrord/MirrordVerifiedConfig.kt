@@ -13,11 +13,6 @@ import com.intellij.util.asSafely
  */
 class MirrordVerifiedConfig(private val verified: String, private val notifier: MirrordNotifier) {
     /**
-     * The warnings when the output is `type = "Success"`, but some options might be conflicting.
-     */
-    private val warnings: List<String>?
-
-    /**
      * The errors when the output is `type = "Fail"`.
      */
     private val errors: List<String>?
@@ -33,10 +28,9 @@ class MirrordVerifiedConfig(private val verified: String, private val notifier: 
         this.config = gson.fromJson(this.verified, Map::class.java).let { verified ->
             val type = verified["type"].asSafely<String>()
 
-            val warnings = verified["warnings"].asSafely<List<String>>().also { warnings ->
+            verified["warnings"].asSafely<List<String>>().also { warnings ->
                 warnings?.forEach { this.notifier.notifySimple(it, NotificationType.WARNING) }
             }
-            this.warnings = warnings
 
             val errors = verified["errors"].asSafely<List<String>>().also { errors ->
                 errors?.forEach { this.notifier.notifySimple(it, NotificationType.ERROR) }
