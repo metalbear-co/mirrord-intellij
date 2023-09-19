@@ -26,8 +26,6 @@ class MirrordVerifiedConfig(private val verified: String, private val notifier: 
         val gson = Gson()
 
         this.config = gson.fromJson(this.verified, Map::class.java).let { verified ->
-            val type = verified["type"].asSafely<String>()
-
             verified["warnings"].asSafely<List<String>>().also { warnings ->
                 warnings?.forEach { this.notifier.notifySimple(it, NotificationType.WARNING) }
             }
