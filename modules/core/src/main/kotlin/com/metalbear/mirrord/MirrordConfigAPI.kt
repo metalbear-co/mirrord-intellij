@@ -4,13 +4,6 @@ import com.google.gson.Gson
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.util.asSafely
-
-data class Target(val namespace: String?, val path: Any?)
-
-data class ConfigData(val target: Target?)
-
-data class ConfigDataSimple(val target: String?)
 
 /**
  * For detecting mirrord config specified in run configuration.
@@ -39,28 +32,11 @@ class InvalidConfigException(path: String, reason: String) : MirrordError("faile
 fun isTargetSet(config: String?): Boolean {
     val gson = Gson()
 
-    // TODO(alex): Improve this!
-    // Do we always have `path`?
-    val path = gson.fromJson(config, Map::class.java).let { verified ->
-       verified["path"].toString()
-    }
+    // `path` will be either a normal string, or the string `"null"` due to `toString`.
+    val path = gson.fromJson(config, Map::class.java).let { verified -> verified["path"].toString() }
 
     // lol
     return path != "null"
-
-//    try {
-//        val parsed = gson.fromJson(config, ConfigData::class.java)
-//        return parsed?.target?.path != null
-//    } catch (_: Exception) {
-//    }
-//
-//    try {
-//        val parsed = gson.fromJson(config, ConfigDataSimple::class.java)
-//        return parsed?.target != null
-//    } catch (_: Exception) {
-//    }
-//
-//    throw InvalidConfigException(config!!, "invalid config")
 }
 
 class InvalidProjectException(project: Project, reason: String) : MirrordError("${project.name} - $reason")
