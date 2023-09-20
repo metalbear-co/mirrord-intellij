@@ -4,15 +4,6 @@ import com.google.gson.Gson
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileManager
-import java.nio.file.InvalidPathException
-import java.nio.file.Path
-
-data class Target(val namespace: String?, val path: Any?)
-
-data class ConfigData(val target: Target?)
-
-data class ConfigDataSimple(val target: String?)
 
 /**
  * For detecting mirrord config specified in run configuration.
@@ -38,30 +29,14 @@ class InvalidConfigException(path: String, reason: String) : MirrordError("faile
  * Searches mirrord config for target.
  * @throws InvalidConfigException if config cannot be found or parsed.
  */
-fun isTargetSet(configPath: String): Boolean {
-    val file = try {
-        VirtualFileManager.getInstance().findFileByNioPath(Path.of(configPath))
-            ?: throw InvalidConfigException(configPath, "file not found")
-    } catch (_: InvalidPathException) {
-        throw InvalidConfigException(configPath, "invalid path")
-    }
-
-    val contents = String(file.contentsToByteArray())
+fun isTargetSet(config: String?): Boolean {
     val gson = Gson()
 
-    try {
-        val parsed = gson.fromJson(contents, ConfigData::class.java)
-        return parsed?.target?.path != null
-    } catch (_: Exception) {
-    }
+    // `path` will be either a normal string, or the string `"null"` due to `toString`.
+    val path = gson.fromJson(config, Map::class.java).let { verified -> verified["path"].toString() }
 
-    try {
-        val parsed = gson.fromJson(contents, ConfigDataSimple::class.java)
-        return parsed?.target != null
-    } catch (_: Exception) {
-    }
-
-    throw InvalidConfigException(configPath, "invalid config")
+    // lol
+    return path != "null"
 }
 
 class InvalidProjectException(project: Project, reason: String) : MirrordError("${project.name} - $reason")

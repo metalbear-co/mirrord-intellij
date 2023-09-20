@@ -82,7 +82,7 @@ private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
-    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls") {
+    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls", null) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
             setText("mirrord is listing targets...")
 
@@ -131,7 +131,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext") {
+    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext", null) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -143,9 +143,11 @@ class MirrordApi(private val service: MirrordProjectService) {
                 val message = parser.parse(line, Message::class.java)
                 when {
                     message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
-                        val success = message.success ?: throw MirrordError("invalid message received from the mirrord binary")
+                        val success = message.success
+                            ?: throw MirrordError("invalid message received from the mirrord binary")
                         if (success) {
-                            val innerMessage = message.message ?: throw MirrordError("invalid message received from the mirrord binary")
+                            val innerMessage = message.message
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
@@ -174,6 +176,41 @@ class MirrordApi(private val service: MirrordProjectService) {
                 throw MirrordError("invalid output of the mirrord binary")
             }
         }
+    }
+
+    /**
+     * Interacts with the `mirrord verify-config [path]` cli command.
+     *
+     * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
+     * command.
+     */
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", "$path") {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
+            setText("mirrord is verifying the config options...")
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            }
+
+            val parser = SafeParser()
+            val bufferedReader = process.inputStream.reader().buffered()
+
+            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
+            return bufferedReader.readText()
+        }
+    }
+
+    /**
+     * Executes the `mirrord verify-config [path]` task.
+     *
+     * @return String containing a json with either a success + warnings, or the verified config errors.
+     */
+    fun verifyConfig(
+        cli: String,
+        configFilePath: String
+    ): String {
+        return MirrordVerifyConfigTask(cli, configFilePath).run(service.project)
     }
 
     /**
@@ -234,7 +271,7 @@ class MirrordApi(private val service: MirrordProjectService) {
 /**
  * A mirrord CLI invocation.
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: String) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: String?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -270,6 +307,10 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             output?.let {
                 addParameter("-o")
+                addParameter(it)
+            }
+
+            args?.let {
                 addParameter(it)
             }
 
@@ -315,7 +356,8 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 throw e.cause ?: e
             } catch (e: CancellationException) {
                 throw ProcessCanceledException(e)
-            } catch (_: TimeoutException) {}
+            } catch (_: TimeoutException) {
+            }
         }
     }
 
