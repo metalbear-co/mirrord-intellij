@@ -1,1 +1,0 @@
-Add support for TOML and YAML mirrord configuration files

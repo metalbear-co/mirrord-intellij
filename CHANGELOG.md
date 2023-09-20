@@ -8,6 +8,38 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.55.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.0) - 2023-09-20
+
+
+### Added
+
+- Use mirrord verify-config to validate a config file before proceeding with
+  mirrord execution.
+  [#99](https://github.com/metalbear-co/mirrord-intellij/issues/99)
+- Add a configuration setting to disable auto-update
+  [#140](https://github.com/metalbear-co/mirrord-intellij/issues/140)
+- Add support for TOML and YAML mirrord configuration files
+
+
+### Fixed
+
+- Fix setIndeterminate progress warning
+  [#135](https://github.com/metalbear-co/mirrord-intellij/issues/135)
+- Remove enable/disable menu items.
+  [#153](https://github.com/metalbear-co/mirrord-intellij/issues/153)
+- Fixed plugin dissappearing on update by making it require restart.
+- Remove leading space from non-RVM Ruby help message.
+
+
+### Internal
+
+- Run pluginVerifier for IDEA 222
+  [#132](https://github.com/metalbear-co/mirrord-intellij/issues/132)
+- Add lint to the CI aggregator
+- Create a reusable worflow for running e2e tests such that we maintain e2e in
+  one place and can run tests on mirrord's release branch.
+
+
 ## [3.54.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.3) - 2023-09-10
 
 
