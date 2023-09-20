@@ -1,6 +1,6 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <!--suppress PluginXmlCapitalization -->
-<idea-plugin>
+<idea-plugin require-restart="true">
     <id>com.metalbear.mirrord</id>
     <name>mirrord</name>
     <vendor email="hi@metalbear.co" url="https://metalbear.co/">MetalBear</vendor>
@@ -52,7 +52,7 @@
                     class="com.metalbear.mirrord.MirrordEnabler"
                     text="Enable/Disable mirrord"
                     description="Toggles the mirrord plugin"
-                    icon="MirrordIcons.mirrordIcon"/>
+                    icon="MirrordIcons.disabled"/>
             <action id="MirrordConfigDropDown"
                     class="com.metalbear.mirrord.MirrordDropDown"
                     text="mirrord"

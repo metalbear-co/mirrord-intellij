@@ -8,11 +8,18 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.project.Project
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 enum class MessageType {
     NewTask,
@@ -75,10 +82,38 @@ private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
-    private val logger = MirrordLogger.logger
+    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls", null) {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
+            setText("mirrord is listing targets...")
+
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            }
+
+            val data = process.inputStream.bufferedReader().readText()
+            MirrordLogger.logger.debug("parsing mirrord ls output: $data")
+
+            val pods = SafeParser()
+                .parse(data, Array<String>::class.java)
+                .toMutableList()
+
+            if (pods.isEmpty()) {
+                project.service<MirrordProjectService>().notifier.notifySimple(
+                    "No mirrord target available in the configured namespace. " +
+                        "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                    NotificationType.INFORMATION
+                )
+            }
+
+            return pods
+        }
+    }
 
     /**
      * Runs `mirrord ls` to get the list of available targets.
+     * Displays a modal progress dialog.
      *
      * @return list of pods
      */
@@ -87,58 +122,103 @@ class MirrordApi(private val service: MirrordProjectService) {
         configFile: String?,
         wslDistribution: WSLDistribution?
     ): List<String> {
-        logger.debug("listing pods")
-
-        val commandLine = GeneralCommandLine(cli, "ls", "-o", "json")
-        configFile?.let {
-            logger.debug("adding configFile to command line")
-            commandLine.addParameter("-f")
-            val formattedPath = wslDistribution?.getWslPath(it) ?: it
-            commandLine.addParameter(formattedPath)
+        val task = MirrordLsTask(cli).apply {
+            this.configFile = configFile
+            this.wslDistribution = wslDistribution
+            this.output = "json"
         }
 
-        wslDistribution?.let {
-            logger.debug("patching to use WSL")
-            val wslOptions = WSLCommandLineOptions()
-            wslOptions.isLaunchWithWslExe = true
-            it.patchCommandLine(commandLine, service.project, wslOptions)
-        }
-
-        logger.debug("creating command line and executing $commandLine")
-
-        val process = commandLine.toProcessBuilder()
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-
-        logger.debug("waiting for process to finish")
-        process.waitFor(60, TimeUnit.SECONDS)
-
-        logger.debug("process wait finished, reading output")
-
-        if (process.exitValue() != 0) {
-            val processStdError = process.errorStream.bufferedReader().readText()
-            throw MirrordError.fromStdErr(processStdError)
-        }
-
-        val data = process.inputStream.bufferedReader().readText()
-        logger.debug("parsing $data")
-
-        val pods = SafeParser()
-            .parse(data, Array<String>::class.java)
-            .toMutableList()
-
-        if (pods.isEmpty()) {
-            service.notifier.notifySimple(
-                "No mirrord target available in the configured namespace. " +
-                    "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                NotificationType.INFORMATION
-            )
-        }
-
-        return pods
+        return task.run(service.project)
     }
 
+    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext", null) {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
+            val parser = SafeParser()
+            val bufferedReader = process.inputStream.reader().buffered()
+
+            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
+
+            setText("mirrord is starting...")
+            for (line in bufferedReader.lines()) {
+                val message = parser.parse(line, Message::class.java)
+                when {
+                    message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
+                        val success = message.success
+                            ?: throw MirrordError("invalid message received from the mirrord binary")
+                        if (success) {
+                            val innerMessage = message.message
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
+                            val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
+                            setText("mirrord is running")
+                            return executionInfo
+                        }
+                    }
+
+                    message.type == MessageType.Warning -> {
+                        message.message?.let { warningHandler.handle(it) }
+                    }
+
+                    else -> {
+                        var displayMessage = message.name
+                        message.message?.let {
+                            displayMessage += ": $it"
+                        }
+                        setText(displayMessage)
+                    }
+                }
+            }
+
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            } else {
+                throw MirrordError("invalid output of the mirrord binary")
+            }
+        }
+    }
+
+    /**
+     * Interacts with the `mirrord verify-config [path]` cli command.
+     *
+     * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
+     * command.
+     */
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", "$path") {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
+            setText("mirrord is verifying the config options...")
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            }
+
+            val parser = SafeParser()
+            val bufferedReader = process.inputStream.reader().buffered()
+
+            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
+            return bufferedReader.readText()
+        }
+    }
+
+    /**
+     * Executes the `mirrord verify-config [path]` task.
+     *
+     * @return String containing a json with either a success + warnings, or the verified config errors.
+     */
+    fun verifyConfig(
+        cli: String,
+        configFilePath: String
+    ): String {
+        return MirrordVerifyConfigTask(cli, configFilePath).run(service.project)
+    }
+
+    /**
+     * Runs `mirrord ext` command to get the environment.
+     * Displays a modal progress dialog.
+     *
+     * @return environment for the user's application
+     */
     fun exec(
         cli: String,
         target: String?,
@@ -148,110 +228,17 @@ class MirrordApi(private val service: MirrordProjectService) {
     ): MirrordExecution {
         bumpFeedbackCounter()
 
-        val commandLine = GeneralCommandLine(cli, "ext").apply {
-            target?.let {
-                addParameter("-t")
-                addParameter(it)
-            }
-
-            configFile?.let {
-                val formattedPath = wslDistribution?.getWslPath(it) ?: it
-                addParameter("-f")
-                addParameter(formattedPath)
-            }
-            executable?.let {
-                addParameter("-e")
-                addParameter(executable)
-            }
-
-            wslDistribution?.let {
-                val wslOptions = WSLCommandLineOptions().apply {
-                    isLaunchWithWslExe = true
-                }
-                it.patchCommandLine(this, service.project, wslOptions)
-            }
-
-            environment["MIRRORD_PROGRESS_MODE"] = "json"
+        val task = MirrordExtTask(cli).apply {
+            this.target = target
+            this.configFile = configFile
+            this.executable = executable
+            this.wslDistribution = wslDistribution
         }
 
-        logger.info("running mirrord with following command line: ${commandLine.commandLineString}")
+        val result = task.run(service.project)
+        service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
 
-        val process = commandLine.toProcessBuilder()
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-
-        val parser = SafeParser()
-        val bufferedReader = process.inputStream.reader().buffered()
-
-        val environment = CompletableFuture<MirrordExecution>()
-
-        val mirrordProgressTask = object : Task.Backgroundable(service.project, "mirrord", true) {
-            override fun run(indicator: ProgressIndicator) {
-                val warningHandler = MirrordWarningHandler(service)
-
-                indicator.text = "mirrord is starting..."
-                for (line in bufferedReader.lines()) {
-                    val message = parser.parse(line, Message::class.java)
-                    when {
-                        message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
-                            val success = message.success ?: throw MirrordError("invalid message received from the mirrord binary")
-                            if (success) {
-                                val innerMessage = message.message ?: throw MirrordError("invalid message received from the mirrord binary")
-                                val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
-                                indicator.text = "mirrord is running"
-                                environment.complete(executionInfo)
-                                return
-                            }
-                        }
-
-                        message.type == MessageType.Warning -> {
-                            message.message?.let { warningHandler.handle(it) }
-                        }
-
-                        else -> {
-                            var displayMessage = message.name
-                            message.message?.let {
-                                displayMessage += ": $it"
-                            }
-                            indicator.text = displayMessage
-                        }
-                    }
-                }
-                environment.cancel(true)
-            }
-
-            override fun onSuccess() {
-                if (!environment.isCancelled) {
-                    service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
-                }
-            }
-
-            override fun onCancel() {
-                process.destroy()
-                service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
-            }
-
-            /**
-             * Prevents IntelliJ from showing error notification
-             */
-            override fun onThrowable(error: Throwable) {}
-        }
-
-        ProgressManager.getInstance().run(mirrordProgressTask)
-
-        try {
-            return environment.get(30, TimeUnit.SECONDS)
-        } catch (e: Throwable) {
-            logger.debug("failed to fetch the env", e)
-
-            val processStdError = process.errorStream.reader().readText()
-            if (processStdError.startsWith("Error: ")) {
-                throw MirrordError.fromStdErr(processStdError)
-            }
-
-            throw MirrordError("failed to fetch the env", e)
-        }
+        return result
     }
 
     /**
@@ -278,6 +265,172 @@ class MirrordApi(private val service: MirrordProjectService) {
             .withLink("Feedback", FEEDBACK_URL)
             .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
             .fire()
+    }
+}
+
+/**
+ * A mirrord CLI invocation.
+ */
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: String?) {
+    var target: String? = null
+    var configFile: String? = null
+    var executable: String? = null
+    var wslDistribution: WSLDistribution? = null
+    var output: String? = null
+
+    /**
+     * Returns command line for execution.
+     */
+    private fun prepareCommandLine(project: Project): GeneralCommandLine {
+        return GeneralCommandLine(cli, command).apply {
+            target?.let {
+                addParameter("-t")
+                addParameter(it)
+            }
+
+            configFile?.let {
+                val formattedPath = wslDistribution?.getWslPath(it) ?: it
+                addParameter("-f")
+                addParameter(formattedPath)
+            }
+            executable?.let {
+                addParameter("-e")
+                addParameter(it)
+            }
+
+            wslDistribution?.let {
+                val wslOptions = WSLCommandLineOptions().apply {
+                    isLaunchWithWslExe = true
+                }
+                it.patchCommandLine(this, project, wslOptions)
+            }
+
+            output?.let {
+                addParameter("-o")
+                addParameter(it)
+            }
+
+            args?.let {
+                addParameter(it)
+            }
+
+            environment["MIRRORD_PROGRESS_MODE"] = "json"
+        }
+    }
+
+    /**
+     * Processes the output of the mirrord process. If the user cancels the computation, process is destroyed.
+     * @param setText used to present info about the computation state to the user
+     */
+    protected abstract fun compute(project: Project, process: Process, setText: (String) -> Unit): T
+
+    /**
+     * Computes the result of this invocation in a background thread. Periodically checks if the user has canceled.
+     * The extra background thread is here to make the `Cancel` button responsive
+     * (inner computation blocks on reading mirrord process output).
+     *
+     * @throws ProcessCanceledException if the user has canceled
+     */
+    private fun computeWithResponsiveCancel(project: Project, process: Process, indicator: ProgressIndicator): T {
+        val result = CompletableFuture<T>()
+
+        // There is a version of this method that takes a `Callable<T>`, but its implementation is broken.
+        // Therefore, we use this one and `CompletableFuture<T>`.
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val computationResult = compute(project, process) { text -> indicator.text = text }
+                result.complete(computationResult)
+            } catch (e: Throwable) {
+                if (!indicator.isCanceled) {
+                    result.completeExceptionally(e)
+                }
+            }
+        }
+
+        while (true) {
+            indicator.checkCanceled()
+
+            try {
+                return result.get(200, TimeUnit.MILLISECONDS)
+            } catch (e: ExecutionException) {
+                throw e.cause ?: e
+            } catch (e: CancellationException) {
+                throw ProcessCanceledException(e)
+            } catch (_: TimeoutException) {
+            }
+        }
+    }
+
+    /**
+     * Computes the result of this invocation with a progress UI:
+     * * If called from the event dispatch thread, displays a modal dialog
+     * * If called from a background thread, displays a progress indicator
+     * The user can cancel the computation.
+     *
+     * @throws ProcessCanceledException if the user has canceled
+     */
+    fun run(project: Project): T {
+        val commandLine = prepareCommandLine(project)
+        MirrordLogger.logger.info("running mirrord task with following command line: ${commandLine.commandLineString}")
+
+        val process = commandLine
+            .toProcessBuilder()
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        return if (ApplicationManager.getApplication().isDispatchThread) {
+            // Modal dialog with progress is very visible and can be canceled by the user,
+            // so we don't use any timeout here.
+            ProgressManager.getInstance().run(object : Task.WithResult<T, Exception>(project, "mirrord", true) {
+                override fun compute(indicator: ProgressIndicator): T {
+                    return computeWithResponsiveCancel(project, process, indicator)
+                }
+
+                override fun onCancel() {
+                    MirrordLogger.logger.info("mirrord task `${commandLine.commandLineString}` was cancelled")
+                    process.destroy()
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString}` failed", error)
+                    process.destroy()
+                }
+            })
+        } else {
+            val env = CompletableFuture<T>()
+
+            ProgressManager.getInstance().run(object : Task.Backgroundable(project, "mirrord", true) {
+                override fun run(indicator: ProgressIndicator) {
+                    val res = computeWithResponsiveCancel(project, process, indicator)
+                    env.complete(res)
+                }
+
+                override fun onCancel() {
+                    MirrordLogger.logger.info("mirrord task `${commandLine.commandLineString}` was cancelled")
+                    process.destroy()
+                    env.cancel(true)
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString}` failed", error)
+                    process.destroy()
+                    env.completeExceptionally(error)
+                }
+            })
+
+            try {
+                env.get(2, TimeUnit.MINUTES)
+            } catch (e: ExecutionException) {
+                throw e.cause ?: e
+            } catch (e: CancellationException) {
+                throw ProcessCanceledException(e)
+            } catch (e: TimeoutException) {
+                process.destroy()
+                MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString} timed out", e)
+                throw MirrordError("mirrord process timed out")
+            }
+        }
     }
 }
 

@@ -8,6 +8,107 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.54.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.3) - 2023-09-10
+
+
+### Changed
+
+- Aborting the run when running on macOS with a non-RVM Ruby.
+- New enable/disable icons to make mirrord state more clear
+  [#100](https://github.com/metalbear-co/mirrord-intellij/issues/100)
+
+
+### Fixed
+
+- Fixed Ruby being patched always
+
+
+## [3.54.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.2) - 2023-09-06
+
+
+### Fixed
+
+- Add methods to ProcessListener to be backward compatible
+  [#129](https://github.com/metalbear-co/mirrord-intellij/issues/129)
+- The plugin now works on RubyMine on macOS when using an RVM ruby binary as
+  interpreter.
+  [#134](https://github.com/metalbear-co/mirrord-intellij/issues/134)
+
+
+## [3.54.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.1) - 2023-09-01
+
+
+### Fixed
+
+- mirrord environment variables are no longer persisted in Gradle run
+  configurations.
+  [#122](https://github.com/metalbear-co/mirrord-intellij/issues/122)
+- Fixed a bug with handling `mirrord ext` errors.
+
+
+## [3.54.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.54.0) - 2023-08-31
+
+
+### Added
+
+- A modal progress indicator is now shown when the plugin runs `mirrord ls` and
+  `mirrord ext` commands.
+  The dialog allows the user to cancel execution.
+
+  Execution with mirrord is cancelled when the user cancels target selection.
+  [#109](https://github.com/metalbear-co/mirrord-intellij/issues/109)
+
+
+### Changed
+
+- Support running mirrord with no configuration file
+
+
+### Fixed
+
+- Fixed showing the usage banner multiple times when more than one project is
+  opened at the same time.
+  [#114](https://github.com/metalbear-co/mirrord-intellij/issues/114)
+- Fixed a bug where Node run configuration extension was called for NPM run
+  configurations.
+
+  Fixed a bug with mirrord environment variables being persisted in the Node
+  run configuration.
+
+
+### Internal
+
+- Run plugin verifier for latest releases by relying on `listProductsReleases`
+  which finds the releases after build `232.*`, this is used by the
+  pluginVerifier to run the tests on these releases.
+  [#91](https://github.com/metalbear-co/mirrord-intellij/issues/91)
+- Disable telemetry in CI
+- Fix changelog
+
+
+## [3.53.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.53.0) - 2023-08-24
+
+
+### Added
+
+- mirrord dropdown now displays relative config paths.
+  [#89](https://github.com/metalbear-co/mirrord-intellij/issues/89)
+
+
+### Changed
+
+- Change default generated config to not include accept_invalid_certificate
+  setting
+- Update contributing.md
+
+
+### Fixed
+
+- Fixed a bug where the IDE was freezing after `mirrord ext` timeout. Increased
+  `mirrord ext` timeout to 2 minutes.
+  [#93](https://github.com/metalbear-co/mirrord-intellij/issues/93)
+
+
 ## [3.52.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.52.1) - 2023-08-22
 
 

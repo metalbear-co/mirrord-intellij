@@ -20,7 +20,13 @@ When mirrord is enabled, whenever you run or debug your project, it'll run in th
 The dropdown menu next to the icon provides shortcuts for working with mirrord configuration files.
 """
 
+private const val SHOW_AGAIN_AFTER_MS: Long = 30 * 60 * 1000
+
 class MirrordUsageBanner : StartupActivity, StartupActivity.DumbAware {
+    /**
+     * Timestamp in milliseconds.
+     */
+    private var lastShownAt: Long? = null
 
     class BannerDialog : DialogWrapper(true) {
         init {
@@ -68,6 +74,14 @@ class MirrordUsageBanner : StartupActivity, StartupActivity.DumbAware {
     }
 
     override fun runActivity(project: Project) {
+        val now = System.currentTimeMillis()
+        lastShownAt?.let {
+            if (now <= it + SHOW_AGAIN_AFTER_MS) {
+                return
+            }
+        }
+        lastShownAt = now
+
         if (!MirrordSettingsState.instance.mirrordState.showUsageBanner) {
             return
         }

@@ -1,5 +1,6 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
+import org.jetbrains.intellij.tasks.ListProductsReleasesTask
 import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
@@ -226,8 +227,14 @@ tasks {
         channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
     }
 
+    listProductsReleases {
+        val ides = System.getenv("IDE")
+        types.set(ides?.split(',') ?: listOf("IU", "RD", "PY"))
+        sinceBuild.set(if (types.get() == listOf("IU")) "222.*" else "232.*")
+        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
+    }
+
     runPluginVerifier {
-        ideVersions.set(listOf("IU-232.5150.116", "IU-222.4554.10"))
         failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
     }
 

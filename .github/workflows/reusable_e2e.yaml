@@ -1,0 +1,124 @@
+# This is a reusable workflow that can be run based on `mirrord_release_branch` boolean input
+# in the `mirrord` or `mirrord-intellij` repository and hence is maintained in a single place.
+# The difference in the workflow when `mirrord_release_branch` is set is as follows:
+# - we checkout into the latest released tag of `mirrord-intellij` from the perspective of binary
+# that has to be released on `mirrord` side. if not set, we checkout into the current branch.
+# - we rely on downloading the mirrord binary from `mirrord-artifacts` using `actions/download-artifact`
+# and adding it to the path. if not set, the latest version is downloaded.
+
+name: reusable_e2e
+on:
+  workflow_call:
+    inputs:
+      mirrord_release_branch:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  intellij-e2e:
+    runs-on: ubuntu-latest
+    env:
+      CI_BUILD_PLUGIN: "true"
+    steps:
+      - name: Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+      - name: Print Public IP
+        run: |
+          echo ${{ steps.ip.outputs.ipv4 }}
+          echo ${{ steps.ip.outputs.ipv6 }}
+
+      - name: Remove unnecessary files
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      - name: checkout repository
+        if: ${{ !inputs.mirrord_release_branch }}
+        uses: actions/checkout@v3
+
+        # mirrord_release_branch boolean when set, means we are on a release branch
+        # and hence we need to checkout into the last released tag of mirrord-intellij
+      - name: checkout into mirrord-intellij if mirrord_release_branch
+        if: ${{ inputs.mirrord_release_branch }}
+        uses: actions/checkout@v3
+        with:
+          repository: "metalbear-co/mirrord-intellij"
+
+      - name: checkout into the last released tag if mirrord_release_branch
+        if: ${{ inputs.mirrord_release_branch }}
+        run: |
+          git fetch --all --tags
+          git checkout tags/$(grep 'pluginVersion =' gradle.properties | cut -d '=' -f 2 | xargs)
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - uses: abatilo/actions-poetry@v2
+
+        # we are on a release branch, so we need to download the mirrord binary from
+        # mirrord-artifacts and add it to the path
+      - name: download mirrord binary
+        if: ${{ inputs.mirrord_release_branch }}
+        uses: actions/download-artifact@v3
+        with:
+          name: mirrord-artifacts
+      - name: add downloaded mirrord to path
+        if: ${{ inputs.mirrord_release_branch }}
+        run: |
+          chmod u+x mirrord
+          echo "${GITHUB_WORKSPACE}" >> "$GITHUB_PATH"
+
+      - name: get the latest mirrord binary
+        if: ${{ !inputs.mirrord_release_branch }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash
+
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          container-runtime: docker
+      - run: |
+          kubectl apply -f sample/kubernetes/app.yaml
+          echo "POD_TO_SELECT=$(kubectl get pods -o=name | head -n 1)" >> "$GITHUB_ENV"
+          kubectl wait --for=condition=ready --timeout=30s $(kubectl get pods -o=name | head -n 1)
+          KUBE_SERVICE=$(minikube service list --output=json | jq -r '.[] | select(.Name == "py-serv") | .URLs[0]')
+          echo "$KUBE_SERVICE"
+          echo "KUBE_SERVICE=$KUBE_SERVICE" >> "$GITHUB_ENV"
+
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build plugin
+        run: |
+          ./gradlew buildPlugin
+
+      - name: Run intellij e2e in headless state
+        uses: coactions/setup-xvfb@v1
+        env:
+          POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
+          KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
+        with:
+          run: |
+            ./gradlew test
+
+      - name: Save the failure video
+        if: ${{ failure() }}
+        run: |
+          mv video build/reports
+      - name: Save fails report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: mirrord-plugin-fail-report
+          path: |
+            build/reports
