@@ -2,18 +2,28 @@ package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
+import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
+import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
+
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
         return true
     }
@@ -48,8 +58,9 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 this.executable = cmdLine.exePath
             }
             configFromEnv = currentEnv[CONFIG_ENV_NAME]
-        }.start()?.let { (env, patched) ->
-            for (entry in env.entries.iterator()) {
+        }.start()?.let { (mirrordEnv, patched) ->
+            runningProcessEnvs[configuration.project] = mirrordEnv.keys
+            mirrordEnv.entries.forEach {entry ->
                 currentEnv[entry.key] = entry.value
                 cmdLine.environment[entry.key] = entry.value
             }
@@ -70,12 +81,30 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                     val e = MirrordError(
                         "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
                         "Support for other Rubies is tracked on " +
-                            "https://github.com/metalbear-co/mirrord-intellij/issues/134."
+                                "https://github.com/metalbear-co/mirrord-intellij/issues/134."
                     )
                     e.showHelp(configuration.project)
                     throw e
                 }
             }
         }
+    }
+
+    override fun attachToProcess(
+        configuration: AbstractRubyRunConfiguration<*>,
+        handler: ProcessHandler,
+        runnerSettings: RunnerSettings?
+    ) {
+        val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
+
+        handler.addProcessListener(object : ProcessListener {
+            override fun processTerminated(event: ProcessEvent) {
+                configuration.envs.keys.removeAll(envsToRemove)
+            }
+
+            override fun startNotified(event: ProcessEvent) {}
+
+            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
+        })
     }
 }

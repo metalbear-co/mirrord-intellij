@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.idea
 
 import com.intellij.execution.RunConfigurationExtension
