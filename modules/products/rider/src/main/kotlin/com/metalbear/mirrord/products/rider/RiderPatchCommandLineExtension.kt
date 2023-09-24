@@ -44,7 +44,6 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             commandLine.withEnvironment(mirrordEnv)
         }
 
-
         workerRunInfo?.addProcessListener(object : ProcessListener {
             override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
             }
@@ -61,7 +60,6 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         })
     }
-
 
     override fun patchDebugCommandLine(
         lifetime: Lifetime,

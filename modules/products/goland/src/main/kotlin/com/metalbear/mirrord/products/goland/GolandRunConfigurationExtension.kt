@@ -12,6 +12,7 @@ import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.TargetedCommandLineBuilder
+import com.intellij.execution.target.value.TargetValue
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
 
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, TargetValue<String>>>()
 
     override fun isApplicableFor(configuration: GoRunConfigurationBase<*>): Boolean {
         return true
@@ -62,23 +63,23 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 this.wsl = wsl
                 configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
-
-
                 val project = configuration.getProject()
                 // the environment field is inaccessible in the commandline
                 // we need to use reflection to access it
                 try {
-                    runningProcessEnvs[project] =
-                        cmdLine::class.java.getDeclaredField("environment").apply {
-                            isAccessible = true
-                        }.get(cmdLine) as Map<String, String>
+                    val currentEnv = cmdLine::class.java.getDeclaredField("environment").apply {
+                        isAccessible = true
+                    }.get(cmdLine) as Map<String, TargetValue<String>>
+
+                    val currentClonedEnv = currentEnv.toMap()
+                    runningProcessEnvs[project] = currentClonedEnv
                 } catch (e: Exception) {
                     project
                         .service<MirrordProjectService>()
                         .notifier
                         .notification(
                             "An exception occurred while saving the current environment variables' state" +
-                                    "mirrord's custom environment variables might not be cleared.",
+                                "mirrord's custom environment variables might not be cleared.",
                             NotificationType.WARNING
                         )
                 }
@@ -139,8 +140,25 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
 
         handler.addProcessListener(object : ProcessListener {
             override fun processTerminated(event: ProcessEvent) {
+                val project = configuration.getProject()
                 configuration.getCustomEnvironment().apply {
                     clear()
+                    val envsToRestore = try {
+                        // a scenario that could possibly happen if we donot block
+                        // process is stopped -> envs are restored after -> but you started a new session
+                        // bad state??
+                        envsToRestore.mapValues { (_, value) -> value.targetValue.blockingGet(5) }
+                    } catch (e: Exception) {
+                        project
+                            .service<MirrordProjectService>()
+                            .notifier
+                            .notification(
+                                "An exception occurred while restoring the previous environment variables' state" +
+                                    "mirrord's custom environment variables might not be cleared.",
+                                NotificationType.WARNING
+                            )
+                        return
+                    }
                     putAll(envsToRestore)
                 }
             }

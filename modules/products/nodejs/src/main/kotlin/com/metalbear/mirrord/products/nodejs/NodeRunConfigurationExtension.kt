@@ -85,17 +85,17 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
     ) {
         val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
 
-            handler.addProcessListener(object : ProcessListener {
-                override fun processTerminated(event: ProcessEvent) {
-                    configuration.envData.envs.apply {
-                        clear()
-                        putAll(envsToRestore)
-                    }
+        handler.addProcessListener(object : ProcessListener {
+            override fun processTerminated(event: ProcessEvent) {
+                configuration.envData.envs.apply {
+                    clear()
+                    putAll(envsToRestore)
                 }
+            }
 
-                override fun startNotified(event: ProcessEvent) {}
+            override fun startNotified(event: ProcessEvent) {}
 
-                override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
-            })
-        }
+            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
+        })
+    }
 }

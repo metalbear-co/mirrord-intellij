@@ -77,7 +77,6 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             configuration.settings.env = configuration.settings.env + mirrordEnv
         }
         MirrordLogger.logger.debug("setting env and finishing")
-
     }
 
     /**
