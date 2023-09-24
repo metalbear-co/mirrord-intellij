@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.goland
 
 import com.goide.execution.GoRunConfigurationBase
@@ -6,16 +8,25 @@ import com.goide.execution.extension.GoRunConfigurationExtension
 import com.goide.util.GoCommandLineParameter.PathParameter
 import com.goide.util.GoExecutor
 import com.intellij.execution.configurations.RunnerSettings
+import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
+
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: GoRunConfigurationBase<*>): Boolean {
         return true
@@ -51,7 +62,28 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 this.wsl = wsl
                 configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
-                for (entry in env.entries.iterator()) {
+
+
+                val project = configuration.getProject()
+                // the environment field is inaccessible in the commandline
+                // we need to use reflection to access it
+                try {
+                    runningProcessEnvs[project] =
+                        cmdLine::class.java.getDeclaredField("environment").apply {
+                            isAccessible = true
+                        }.get(cmdLine) as Map<String, String>
+                } catch (e: Exception) {
+                    project
+                        .service<MirrordProjectService>()
+                        .notifier
+                        .notification(
+                            "An exception occurred while saving the current environment variables' state" +
+                                    "mirrord's custom environment variables might not be cleared.",
+                            NotificationType.WARNING
+                        )
+                }
+
+                env.entries.forEach { entry ->
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
                 cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
@@ -98,7 +130,28 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
     }
 
-    private fun getCustomDelvePath(): String {
-        return MirrordPathManager.getBinary("dlv", false)!!
+    override fun attachToProcess(
+        configuration: GoRunConfigurationBase<*>,
+        handler: ProcessHandler,
+        runnerSettings: RunnerSettings?
+    ) {
+        val envsToRestore = runningProcessEnvs.remove(configuration.getProject()) ?: return
+
+        handler.addProcessListener(object : ProcessListener {
+            override fun processTerminated(event: ProcessEvent) {
+                configuration.getCustomEnvironment().apply {
+                    clear()
+                    putAll(envsToRestore)
+                }
+            }
+
+            override fun startNotified(event: ProcessEvent) {}
+
+            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
+        })
     }
+}
+
+private fun getCustomDelvePath(): String {
+    return MirrordPathManager.getBinary("dlv", false)!!
 }

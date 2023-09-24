@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
@@ -8,7 +10,6 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
-import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
@@ -22,7 +23,7 @@ import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
         return true
@@ -50,8 +51,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             else -> null
         }
 
-        val currentEnv = configuration.envs
-
+        val currentEnv = cmdLine.environment
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
             if (isMac) {
@@ -59,11 +59,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             }
             configFromEnv = currentEnv[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, patched) ->
-            runningProcessEnvs[configuration.project] = mirrordEnv.keys
-            mirrordEnv.entries.forEach {entry ->
-                currentEnv[entry.key] = entry.value
-                cmdLine.environment[entry.key] = entry.value
-            }
+
+            runningProcessEnvs[configuration.project] = currentEnv
+            cmdLine.withEnvironment(mirrordEnv)
+
             if (isMac && patched !== null) {
                 cmdLine.exePath = patched
             }
@@ -95,11 +94,11 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         handler: ProcessHandler,
         runnerSettings: RunnerSettings?
     ) {
-        val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
+        val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
 
         handler.addProcessListener(object : ProcessListener {
             override fun processTerminated(event: ProcessEvent) {
-                configuration.envs.keys.removeAll(envsToRemove)
+                configuration.envs = envsToRestore
             }
 
             override fun startNotified(event: ProcessEvent) {}

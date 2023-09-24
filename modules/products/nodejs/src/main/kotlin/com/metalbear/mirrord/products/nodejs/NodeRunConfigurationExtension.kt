@@ -24,7 +24,7 @@ import javax.swing.JPanel
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun <P : AbstractNodeTargetRunProfile> createEditor(configuration: P): SettingsEditor<P> {
         return object : SettingsEditor<P>() {
@@ -48,7 +48,7 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
                     is WslTargetEnvironmentRequest -> request.configuration.distribution
                     else -> null
                 }
-                val mirrordEnv = service.execManager.wrapper("nodejs").apply {
+                service.execManager.wrapper("nodejs").apply {
                     this.wsl = wsl
                     // following try-catch is to maintain backward compatibility with older versions of webstorm
                     configFromEnv = try {
@@ -59,7 +59,12 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
                     }
                 }.start()?.let { (mirrordEnv, _) ->
 
-                    runningProcessEnvs[configuration.project] = mirrordEnv.keys
+                    runningProcessEnvs[configuration.project] = try {
+                        targetRun.envData.envs
+                    } catch (e: NoSuchMethodError) {
+                        val config = configuration as NodeJsRunConfiguration
+                        config.envs
+                    }
 
                     mirrordEnv.forEach { (key, value) ->
                         targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
@@ -78,11 +83,14 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
         handler: ProcessHandler,
         runnerSettings: RunnerSettings?
     ) {
-        val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
+        val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
 
             handler.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {
-                    configuration.envData.envs.keys.removeAll(envsToRemove)
+                    configuration.envData.envs.apply {
+                        clear()
+                        putAll(envsToRestore)
+                    }
                 }
 
                 override fun startNotified(event: ProcessEvent) {}

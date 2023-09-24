@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     private fun patchCommandLine(commandLine: GeneralCommandLine, workerRunInfo: WorkerRunInfo?, project: Project) {
         val service = project.service<MirrordProjectService>()
@@ -40,11 +40,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             this.wsl = wsl
             configFromEnv = commandLine.environment[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, _) ->
-            runningProcessEnvs[project] = mirrordEnv.keys
-            mirrordEnv.entries.forEach { entry ->
-                commandLine.withEnvironment(entry.key, entry.value)
-            }
+            runningProcessEnvs[project] = commandLine.environment
+            commandLine.withEnvironment(mirrordEnv)
         }
+
 
         workerRunInfo?.addProcessListener(object : ProcessListener {
             override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
@@ -54,8 +53,11 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
 
             override fun processTerminated(event: ProcessEvent) {
-                val envsToRemove = runningProcessEnvs.remove(project) ?: return
-                commandLine.environment.keys.removeAll(envsToRemove)
+                val envsToRestore = runningProcessEnvs.remove(project) ?: return
+                commandLine.apply {
+                    environment.clear()
+                    withEnvironment(envsToRestore)
+                }
             }
         })
     }

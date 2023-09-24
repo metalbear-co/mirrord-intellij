@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.pycharm
 
 import com.intellij.execution.configurations.GeneralCommandLine
@@ -18,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
 
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean {
         return true
@@ -50,10 +52,8 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
             this.wsl = wsl
             configFromEnv = currentEnv[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, _) ->
-            runningProcessEnvs[configuration.project] = mirrordEnv.keys
-            mirrordEnv.entries.forEach {entry ->
-                currentEnv[entry.key] = entry.value
-            }
+            runningProcessEnvs[configuration.project] = currentEnv
+            cmdLine.withEnvironment(mirrordEnv)
         }
 
         currentEnv["MIRRORD_DETECT_DEBUGGER_PORT"] = "pydevd"
@@ -64,11 +64,11 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
         handler: ProcessHandler,
         runnerSettings: RunnerSettings?
     ) {
-        val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
+        val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
 
         handler.addProcessListener(object : ProcessListener {
             override fun processTerminated(event: ProcessEvent) {
-                configuration.envs.keys.removeAll(envsToRemove)
+                configuration.envs = envsToRestore
             }
 
             override fun startNotified(event: ProcessEvent) {}
