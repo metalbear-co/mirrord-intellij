@@ -40,7 +40,9 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             this.wsl = wsl
             configFromEnv = commandLine.environment[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, _) ->
-            runningProcessEnvs[project] = commandLine.environment
+            // for anyone wondering why call `toMap()` here:
+            // for objects (in java), assignments always hold references, but we need a cloned value here
+            runningProcessEnvs[project] = commandLine.environment.toMap()
             commandLine.withEnvironment(mirrordEnv)
         }
 

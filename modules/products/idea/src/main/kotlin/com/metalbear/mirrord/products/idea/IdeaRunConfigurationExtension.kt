@@ -69,7 +69,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
         params.env = params.env + mirrordEnv
-        runningProcessEnvs[configuration.project] = params.env
+        runningProcessEnvs[configuration.project] = params.env.toMap()
 
         // Gradle support (and external system configuration)
         if (configuration is ExternalSystemRunConfiguration) {

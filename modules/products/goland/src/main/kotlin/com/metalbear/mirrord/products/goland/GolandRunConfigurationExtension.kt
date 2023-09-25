@@ -20,6 +20,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
@@ -82,6 +83,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                                 "mirrord's custom environment variables might not be cleared.",
                             NotificationType.WARNING
                         )
+                    MirrordLogger.logger.error(e)
                 }
 
                 env.entries.forEach { entry ->
@@ -157,6 +159,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                                     "mirrord's custom environment variables might not be cleared.",
                                 NotificationType.WARNING
                             )
+                        MirrordLogger.logger.error(e)
                         return
                     }
                     putAll(envsToRestore)

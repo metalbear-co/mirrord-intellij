@@ -52,6 +52,7 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
             this.wsl = wsl
             configFromEnv = currentEnv[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, _) ->
+            val currentEnv = cmdLine.environment.toMap()
             runningProcessEnvs[configuration.project] = currentEnv
             cmdLine.withEnvironment(mirrordEnv)
         }

@@ -51,7 +51,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             else -> null
         }
 
-        val currentEnv = cmdLine.environment
+        val currentEnv = cmdLine.environment.toMap()
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
             if (isMac) {

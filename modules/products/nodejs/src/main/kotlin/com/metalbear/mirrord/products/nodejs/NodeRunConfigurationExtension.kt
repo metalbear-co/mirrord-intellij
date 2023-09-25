@@ -48,23 +48,20 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
                     is WslTargetEnvironmentRequest -> request.configuration.distribution
                     else -> null
                 }
+
+                // following try-catch is to maintain backward compatibility with older versions of webstorm
+                val currentEnv = try {
+                    targetRun.envData.envs
+                } catch (e: NoSuchMethodError) {
+                    val config = configuration as NodeJsRunConfiguration
+                    config.envs
+                }
                 service.execManager.wrapper("nodejs").apply {
                     this.wsl = wsl
-                    // following try-catch is to maintain backward compatibility with older versions of webstorm
-                    configFromEnv = try {
-                        targetRun.envData.envs[CONFIG_ENV_NAME]
-                    } catch (e: NoSuchMethodError) {
-                        val config = configuration as NodeJsRunConfiguration
-                        config.envs[CONFIG_ENV_NAME]
-                    }
+                    configFromEnv = currentEnv[CONFIG_ENV_NAME]
                 }.start()?.let { (mirrordEnv, _) ->
 
-                    runningProcessEnvs[configuration.project] = try {
-                        targetRun.envData.envs
-                    } catch (e: NoSuchMethodError) {
-                        val config = configuration as NodeJsRunConfiguration
-                        config.envs
-                    }
+                    runningProcessEnvs[configuration.project] = currentEnv.toMap()
 
                     mirrordEnv.forEach { (key, value) ->
                         targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
