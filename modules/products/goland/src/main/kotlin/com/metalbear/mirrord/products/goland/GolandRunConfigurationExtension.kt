@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 package com.metalbear.mirrord.products.goland
 
 import com.goide.execution.GoRunConfigurationBase
@@ -8,27 +6,16 @@ import com.goide.execution.extension.GoRunConfigurationExtension
 import com.goide.util.GoCommandLineParameter.PathParameter
 import com.goide.util.GoExecutor
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.TargetedCommandLineBuilder
-import com.intellij.execution.target.value.TargetValue
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
-import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
-import java.util.concurrent.ConcurrentHashMap
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
-
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, TargetValue<String>>>()
 
     override fun isApplicableFor(configuration: GoRunConfigurationBase<*>): Boolean {
         return true
@@ -64,29 +51,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 this.wsl = wsl
                 configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
-                val project = configuration.getProject()
-                // the environment field is inaccessible in the commandline
-                // we need to use reflection to access it
-                try {
-                    val currentEnv = cmdLine::class.java.getDeclaredField("environment").apply {
-                        isAccessible = true
-                    }.get(cmdLine) as Map<String, TargetValue<String>>
-
-                    val currentClonedEnv = currentEnv.toMap()
-                    runningProcessEnvs[project] = currentClonedEnv
-                } catch (e: Exception) {
-                    project
-                        .service<MirrordProjectService>()
-                        .notifier
-                        .notification(
-                            "An exception occurred while saving the current environment variables' state" +
-                                "mirrord's custom environment variables might not be cleared.",
-                            NotificationType.WARNING
-                        )
-                    MirrordLogger.logger.error(e)
-                }
-
-                env.entries.forEach { entry ->
+                for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
                 cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
@@ -133,46 +98,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
     }
 
-    override fun attachToProcess(
-        configuration: GoRunConfigurationBase<*>,
-        handler: ProcessHandler,
-        runnerSettings: RunnerSettings?
-    ) {
-        val envsToRestore = runningProcessEnvs.remove(configuration.getProject()) ?: return
-
-        handler.addProcessListener(object : ProcessListener {
-            override fun processTerminated(event: ProcessEvent) {
-                val project = configuration.getProject()
-                configuration.getCustomEnvironment().apply {
-                    clear()
-                    val envsToRestore = try {
-                        // a scenario that could possibly happen if we donot block
-                        // process is stopped -> envs are restored after -> but you started a new session
-                        // bad state??
-                        envsToRestore.mapValues { (_, value) -> value.targetValue.blockingGet(5) }
-                    } catch (e: Exception) {
-                        project
-                            .service<MirrordProjectService>()
-                            .notifier
-                            .notification(
-                                "An exception occurred while restoring the previous environment variables' state" +
-                                    "mirrord's custom environment variables might not be cleared.",
-                                NotificationType.WARNING
-                            )
-                        MirrordLogger.logger.error(e)
-                        return
-                    }
-                    putAll(envsToRestore)
-                }
-            }
-
-            override fun startNotified(event: ProcessEvent) {}
-
-            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
-        })
+    private fun getCustomDelvePath(): String {
+        return MirrordPathManager.getBinary("dlv", false)!!
     }
-}
-
-private fun getCustomDelvePath(): String {
-    return MirrordPathManager.getBinary("dlv", false)!!
 }

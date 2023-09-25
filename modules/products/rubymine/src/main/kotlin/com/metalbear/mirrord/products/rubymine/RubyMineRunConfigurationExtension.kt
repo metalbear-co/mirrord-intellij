@@ -61,6 +61,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }.start()?.let { (mirrordEnv, patched) ->
 
             runningProcessEnvs[configuration.project] = currentEnv
+            configuration.envs.putAll(mirrordEnv)
             cmdLine.withEnvironment(mirrordEnv)
 
             if (isMac && patched !== null) {

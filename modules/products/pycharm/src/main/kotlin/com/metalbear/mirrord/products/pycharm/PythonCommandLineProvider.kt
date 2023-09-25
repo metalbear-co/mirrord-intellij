@@ -13,6 +13,10 @@ import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvide
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 
+// Note on how environment variables are cleared in this case:
+// On testing I (Mehul) found that the environment variables are always overridden
+// So if I start with state X, then add mirrordEnv(Y = X + Y), on a new run I will always start
+// with X. (X here is completely unrelated to the environment variables set by the user)
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     override fun extendTargetEnvironment(
         project: Project,
@@ -38,9 +42,8 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 for (entry in env.entries.iterator()) {
                     pythonExecution.addEnvironmentVariable(entry.key, entry.value)
                 }
+                pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
             }
-
-            pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
         }
     }
 }
