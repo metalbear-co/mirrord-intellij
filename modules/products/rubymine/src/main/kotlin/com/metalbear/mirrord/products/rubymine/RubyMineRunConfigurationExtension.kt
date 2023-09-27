@@ -49,7 +49,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
-            configFromEnv = currentEnv[CONFIG_ENV_NAME]
+            configFromEnv = configuration.envs[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, patched) ->
             // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)
