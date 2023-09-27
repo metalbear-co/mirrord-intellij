@@ -73,7 +73,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
         // Gradle support (and external system configuration)
         if (configuration is ExternalSystemRunConfiguration) {
-            runningProcessEnvs[configuration.project] = configuration.settings.env
+            runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
             configuration.settings.env = configuration.settings.env + mirrordEnv
         }
         MirrordLogger.logger.debug("setting env and finishing")
