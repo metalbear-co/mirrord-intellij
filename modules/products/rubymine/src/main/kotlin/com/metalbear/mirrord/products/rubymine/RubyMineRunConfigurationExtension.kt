@@ -7,19 +7,15 @@ import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
-
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
         return true
@@ -55,8 +51,6 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             }
             configFromEnv = currentEnv[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, patched) ->
-
-            runningProcessEnvs[configuration.project] = currentEnv
             // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)
 
