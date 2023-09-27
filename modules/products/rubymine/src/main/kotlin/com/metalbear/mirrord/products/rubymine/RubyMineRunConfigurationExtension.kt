@@ -4,14 +4,10 @@ package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordError
@@ -51,7 +47,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             else -> null
         }
 
-        val currentEnv = cmdLine.environment.toMap()
+        val currentEnv = cmdLine.environment
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
             if (isMac) {
@@ -61,7 +57,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }.start()?.let { (mirrordEnv, patched) ->
 
             runningProcessEnvs[configuration.project] = currentEnv
-            configuration.envs.putAll(mirrordEnv)
+            // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)
 
             if (isMac && patched !== null) {
@@ -88,23 +84,5 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 }
             }
         }
-    }
-
-    override fun attachToProcess(
-        configuration: AbstractRubyRunConfiguration<*>,
-        handler: ProcessHandler,
-        runnerSettings: RunnerSettings?
-    ) {
-        val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
-
-        handler.addProcessListener(object : ProcessListener {
-            override fun processTerminated(event: ProcessEvent) {
-                configuration.envs = envsToRestore
-            }
-
-            override fun startNotified(event: ProcessEvent) {}
-
-            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
-        })
     }
 }
