@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
@@ -14,6 +16,7 @@ import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExt
 import kotlin.io.path.*
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
+
     override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
         return true
     }
@@ -40,19 +43,17 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             else -> null
         }
 
-        val currentEnv = configuration.envs
-
+        val currentEnv = cmdLine.environment
         service.execManager.wrapper("rubymine").apply {
             this.wsl = wsl
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
-            configFromEnv = currentEnv[CONFIG_ENV_NAME]
-        }.start()?.let { (env, patched) ->
-            for (entry in env.entries.iterator()) {
-                currentEnv[entry.key] = entry.value
-                cmdLine.environment[entry.key] = entry.value
-            }
+            configFromEnv = configuration.envs[CONFIG_ENV_NAME]
+        }.start()?.let { (mirrordEnv, patched) ->
+            // this is the env the Ruby app and the layer see, at least with RVM.
+            cmdLine.withEnvironment(mirrordEnv)
+
             if (isMac && patched !== null) {
                 cmdLine.exePath = patched
             }

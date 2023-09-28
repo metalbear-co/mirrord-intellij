@@ -36,9 +36,8 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 for (entry in env.entries.iterator()) {
                     pythonExecution.addEnvironmentVariable(entry.key, entry.value)
                 }
+                pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
             }
-
-            pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
         }
     }
 }

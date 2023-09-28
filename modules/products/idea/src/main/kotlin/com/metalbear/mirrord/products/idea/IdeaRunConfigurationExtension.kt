@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.idea
 
 import com.intellij.execution.RunConfigurationExtension
@@ -20,7 +22,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * mirrord env set in ExternalRunConfigurations. Used for cleanup the configuration after the execution has ended.
      */
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Set<String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
         val applicable = !configuration.name.startsWith("Build ")
@@ -67,14 +69,14 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
         params.env = params.env + mirrordEnv
+        runningProcessEnvs[configuration.project] = params.env.toMap()
 
         // Gradle support (and external system configuration)
         if (configuration is ExternalSystemRunConfiguration) {
+            runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
             configuration.settings.env = configuration.settings.env + mirrordEnv
         }
         MirrordLogger.logger.debug("setting env and finishing")
-
-        runningProcessEnvs[configuration.project] = mirrordEnv.keys
     }
 
     /**
@@ -86,11 +88,14 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?
     ) {
         if (configuration is ExternalSystemRunConfiguration) {
-            val envsToRemove = runningProcessEnvs.remove(configuration.project) ?: return
+            val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
 
             handler.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {
-                    configuration.settings.env.minusAssign(envsToRemove)
+                    configuration.settings.env.apply {
+                        clear()
+                        putAll(envsToRestore)
+                    }
                 }
 
                 override fun startNotified(event: ProcessEvent) {}
