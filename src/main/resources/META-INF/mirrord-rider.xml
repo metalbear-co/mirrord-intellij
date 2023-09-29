@@ -1,5 +1,6 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
         <rider.patchCommandLine implementation="com.metalbear.mirrord.products.rider.RiderPatchCommandLineExtension" />
+        <rider.configurationLaunchSettingsExtension implementation="com.metalbear.mirrord.products.rider.RiderLaunchSettingsExtension" />
     </extensions>
 </idea-plugin>

@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package com.metalbear.mirrord.products.rider
 
 import com.intellij.execution.RunManager
@@ -30,7 +32,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
         service.execManager.wrapper("rider").apply {
             this.wsl = wsl
-            configFromEnv = commandLine.environment[CONFIG_ENV_NAME]
+            configFromEnv =
+                commandLine.environment[CONFIG_ENV_NAME] ?: RiderLaunchSettingsExtension.configFromEnvs.remove(project)
         }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)
