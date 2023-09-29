@@ -9,6 +9,11 @@ import com.jetbrains.rider.run.configurations.launchSettings.LaunchSettingsJson
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import java.util.concurrent.ConcurrentHashMap
 
+// Need this extension since setting MIRRORD_CONFIG_FILE in the project configuration
+// is not visible to our current methods of getting the env.
+// Both `canExecute` and `executor` have access to the project's environment variables
+// and `canExecute` is called before `executor`, so just choosing `executor` at random
+// to get the environment variables.
 class RiderLaunchSettingsExtension : RiderConfigurationLaunchSettingsExtension {
 
     companion object {
@@ -28,11 +33,8 @@ class RiderLaunchSettingsExtension : RiderConfigurationLaunchSettingsExtension {
         environment: ExecutionEnvironment,
         profile: LaunchSettingsJson.Profile
     ): LaunchSettingsJson.Profile {
-        val configFromEnv = profile.environmentVariables?.get(CONFIG_ENV_NAME)
-        configFromEnvs.apply {
-            if (configFromEnv != null) {
-                put(project, configFromEnv)
-            }
+        profile.environmentVariables?.get(CONFIG_ENV_NAME).apply {
+            this?.let { configFromEnvs[project] = it }
         }
         return profile
     }
