@@ -184,7 +184,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", mapOf("--ide" to "", "--path" to "$path")) {
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", "--path", "$path")) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -273,7 +273,7 @@ class MirrordApi(private val service: MirrordProjectService) {
  *
  * @param args: An extra list of arguments (used by `verify-config`).
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: Map<String, String>?) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -312,12 +312,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 addParameter(it)
             }
 
-            args?.let { argsMap ->
-                argsMap.forEach {
-                    addParameter(it.key)
-                    addParameter(it.value)
-                }
-            }
+            args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
         }
