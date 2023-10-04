@@ -184,7 +184,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", "--path", "$path")) {
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", "--path", path)) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
