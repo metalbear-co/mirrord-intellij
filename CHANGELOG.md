@@ -8,6 +8,17 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.55.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.1) - 2023-10-04
+
+
+### Fixed
+
+- Clear environment variables when debug session ends
+  [#141](https://github.com/metalbear-co/mirrord-intellij/issues/141)
+- Fixed reading the config file env for Rider
+  [#165](https://github.com/metalbear-co/mirrord-intellij/issues/165)
+
+
 ## [3.55.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.0) - 2023-09-20
 
 
