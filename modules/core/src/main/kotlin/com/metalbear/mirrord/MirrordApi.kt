@@ -110,10 +110,10 @@ class MirrordApi(private val service: MirrordProjectService) {
                 when {
                     message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
                         val success = message.success
-                                ?: throw MirrordError("invalid message received from the mirrord binary")
+                            ?: throw MirrordError("invalid message received from the mirrord binary")
                         if (success) {
                             val innerMessage = message.message
-                                    ?: throw MirrordError("invalid message received from the mirrord binary")
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
@@ -282,7 +282,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             environment["MIRRORD_PROGRESS_MODE"] = "json"
 
             for (entry in environment.entries) {
-                MirrordLogger.logger.info("environment var ${entry}")
+                MirrordLogger.logger.info("environment var $entry")
             }
         }
     }

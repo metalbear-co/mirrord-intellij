@@ -54,10 +54,10 @@ class MirrordBinaryManager {
      *                    Should be false if wslDistribution is unknown
      */
     private class UpdateTask(
-            private val project: Project,
-            private val product: String?,
-            private val wslDistribution: WSLDistribution?,
-            private val checkInPath: Boolean
+        private val project: Project,
+        private val product: String?,
+        private val wslDistribution: WSLDistribution?,
+        private val checkInPath: Boolean
     ) : Task.Backgroundable(project, "mirrord", true), DumbAware {
         companion object State {
             /**
@@ -86,10 +86,10 @@ class MirrordBinaryManager {
                         userSelectedMirrordVersion
                     } else {
                         project
-                                .service<MirrordProjectService>()
-                                .notifier
-                                .notification("mirrord version format is invalid!", NotificationType.WARNING)
-                                .fire()
+                            .service<MirrordProjectService>()
+                            .notifier
+                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                            .fire()
                         return
                     }
                 }
@@ -112,8 +112,8 @@ class MirrordBinaryManager {
             }
 
             manager.latestSupportedVersion = version
-                    // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
-                    ?: manager.fetchLatestSupportedVersion(product, indicator)
+                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
+                ?: manager.fetchLatestSupportedVersion(product, indicator)
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
@@ -127,8 +127,8 @@ class MirrordBinaryManager {
             MirrordLogger.logger.debug("binary update task failed", error)
 
             project.service<MirrordProjectService>()
-                    .notifier
-                    .notifyRichError("failed to update the mirrord binary: ${error.message ?: error.toString()}")
+                .notifier
+                .notifyRichError("failed to update the mirrord binary: ${error.message ?: error.toString()}")
         }
 
         override fun onFinished() {
@@ -140,12 +140,12 @@ class MirrordBinaryManager {
         override fun onSuccess() {
             downloadingVersion?.let {
                 project
-                        .service<MirrordProjectService>()
-                        .notifier
-                        .notifySimple(
-                                "downloaded mirrord binary version $downloadingVersion",
-                                NotificationType.INFORMATION
-                        )
+                    .service<MirrordProjectService>()
+                    .notifier
+                    .notifySimple(
+                        "downloaded mirrord binary version $downloadingVersion",
+                        NotificationType.INFORMATION
+                    )
             }
         }
 
@@ -160,8 +160,8 @@ class MirrordBinaryManager {
 
     private fun fetchLatestSupportedVersion(product: String?, indicator: ProgressIndicator): String {
         val pluginVersion = if (
-                System.getenv("CI_BUILD_PLUGIN") == "true" ||
-                System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
+            System.getenv("CI_BUILD_PLUGIN") == "true" ||
+            System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
         ) {
             "test"
         } else {
@@ -171,18 +171,18 @@ class MirrordBinaryManager {
         indicator.text = "mirrord is checking the latest supported binary version..."
 
         val url = StringBuilder(VERSION_ENDPOINT)
-                .append("?source=3")
-                .append("&version=")
-                .append(URLEncoder.encode(pluginVersion, Charset.defaultCharset()))
-                .append("&platform=")
-                .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
-                .toString()
+            .append("?source=3")
+            .append("&version=")
+            .append(URLEncoder.encode(pluginVersion, Charset.defaultCharset()))
+            .append("&platform=")
+            .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
+            .toString()
 
         val client = HttpClient.newHttpClient()
         val builder = HttpRequest
-                .newBuilder(URI(url))
-                .timeout(Duration.ofSeconds(10L))
-                .GET()
+            .newBuilder(URI(url))
+            .timeout(Duration.ofSeconds(10L))
+            .GET()
 
         product?.let { builder.header("user-agent", it) }
 
@@ -334,18 +334,18 @@ class MirrordBinaryManager {
             } ?: "using a possibly outdated local installation with version ${it.version}"
 
             project
-                    .service<MirrordProjectService>()
-                    .notifier
-                    .notification(message, NotificationType.WARNING)
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
-                    .fire()
+                .service<MirrordProjectService>()
+                .notifier
+                .notification(message, NotificationType.WARNING)
+                .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
+                .fire()
 
             return it.command
         }
 
         throw MirrordError(
-                "no local installation of mirrord binary was found",
-                "mirrord binary will be downloaded in the background"
+            "no local installation of mirrord binary was found",
+            "mirrord binary will be downloaded in the background"
         )
     }
 }
