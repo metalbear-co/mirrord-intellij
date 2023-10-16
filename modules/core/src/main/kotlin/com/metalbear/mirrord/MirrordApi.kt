@@ -279,8 +279,6 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
 
-            // TODO(alex): This is the only env var we get!
-
             environment["MIRRORD_PROGRESS_MODE"] = "json"
 
             for (entry in environment.entries) {
