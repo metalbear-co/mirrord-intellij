@@ -74,7 +74,7 @@ jobs:
         if: ${{ inputs.mirrord_release_branch }}
         run: |
           chmod u+x mirrord
-          echo "${GITHUB_WORKSPACE}" >> "$GITHUB_PATH"
+          echo "${GITHUB_WORKSPACE}" >> $GITHUB_PATH
 
       - name: get the latest mirrord binary
         if: ${{ !inputs.mirrord_release_branch }}
@@ -112,7 +112,7 @@ jobs:
             ./gradlew test
 
       - name: Save the failure video
-        if: ${{ failure() }}
+        if: ${{ always() }}
         run: |
           mv video build/reports
       - name: Save fails report
