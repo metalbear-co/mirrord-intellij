@@ -76,7 +76,8 @@ class MirrordBinaryManager {
 
             val manager = service<MirrordBinaryManager>()
 
-            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+//            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+            val autoUpdate = false
             val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
 
             val version = when {
@@ -285,7 +286,8 @@ class MirrordBinaryManager {
             MirrordLogger.logger.debug("failed to find mirrord in path", e)
         }
 
-        return null
+        MirrordLogger.logger.debug("no mirrord found on path")
+        return MirrordBinary("/home/meowjesty/dev/metalbear/mirrord/target/debug/mirrord")
     }
 
     /**

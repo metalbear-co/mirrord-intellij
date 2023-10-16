@@ -2,24 +2,39 @@
 
 package com.metalbear.mirrord
 
+import com.google.common.util.concurrent.ExecutionList
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.intellij.conversion.WorkspaceSettings
+import com.intellij.execution.CommonProgramRunConfigurationParameters
+import com.intellij.execution.ExecutionListener
+import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.runners.ExecutionEnvironmentProvider
+import com.intellij.execution.target.createEnvironmentRequest
+import com.intellij.execution.target.getEffectiveTargetName
+import com.intellij.execution.target.value.getTargetEnvironmentValueForLocalPath
+import com.intellij.execution.target.value.targetPath
+import com.intellij.execution.util.EnvVariablesTable
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
+import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.externalSystem.model.task.event.ExternalSystemStartEventImpl
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import com.intellij.util.EnvironmentUtil
+import com.intellij.workspaceModel.ide.WorkspaceModel
+import java.nio.file.Paths
+import java.util.concurrent.*
 
 enum class MessageType {
     NewTask,
@@ -29,26 +44,26 @@ enum class MessageType {
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
 data class Message(
-    val type: MessageType,
-    val name: String,
-    val parent: String?,
-    val success: Boolean?,
-    val message: String?
+        val type: MessageType,
+        val name: String,
+        val parent: String?,
+        val success: Boolean?,
+        val message: String?
 )
 
 data class Error(
-    val message: String,
-    val severity: String,
-    val causes: List<String>,
-    val help: String,
-    val labels: List<String>,
-    val related: List<String>
+        val message: String,
+        val severity: String,
+        val causes: List<String>,
+        val help: String,
+        val labels: List<String>,
+        val related: List<String>
 )
 
 data class MirrordExecution(
-    val environment: MutableMap<String, String>,
-    @SerializedName("patched_path")
-    val patchedPath: String?
+        val environment: MutableMap<String, String>,
+        @SerializedName("patched_path")
+        val patchedPath: String?
 )
 
 /**
@@ -66,8 +81,8 @@ private class SafeParser {
         } catch (e: Throwable) {
             MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
             throw MirrordError(
-                "failed to parse a message from the mirrord binary, try updating to the latest version",
-                e
+                    "failed to parse a message from the mirrord binary, try updating to the latest version",
+                    e
             )
         }
     }
@@ -96,14 +111,14 @@ class MirrordApi(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("parsing mirrord ls output: $data")
 
             val pods = SafeParser()
-                .parse(data, Array<String>::class.java)
-                .toMutableList()
+                    .parse(data, Array<String>::class.java)
+                    .toMutableList()
 
             if (pods.isEmpty()) {
                 project.service<MirrordProjectService>().notifier.notifySimple(
-                    "No mirrord target available in the configured namespace. " +
-                        "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
-                    NotificationType.INFORMATION
+                        "No mirrord target available in the configured namespace. " +
+                                "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                        NotificationType.INFORMATION
                 )
             }
 
@@ -118,9 +133,9 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return list of pods
      */
     fun listPods(
-        cli: String,
-        configFile: String?,
-        wslDistribution: WSLDistribution?
+            cli: String,
+            configFile: String?,
+            wslDistribution: WSLDistribution?
     ): List<String> {
         val task = MirrordLsTask(cli).apply {
             this.configFile = configFile
@@ -144,10 +159,10 @@ class MirrordApi(private val service: MirrordProjectService) {
                 when {
                     message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
                         val success = message.success
-                            ?: throw MirrordError("invalid message received from the mirrord binary")
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
                         if (success) {
                             val innerMessage = message.message
-                                ?: throw MirrordError("invalid message received from the mirrord binary")
+                                    ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
@@ -184,7 +199,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", "--path", path)) {
+    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", path)) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -195,6 +210,8 @@ class MirrordApi(private val service: MirrordProjectService) {
 
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
+            val stderr = process.errorStream.reader().buffered()
+            MirrordLogger.logger.debug(stderr.readText())
 
             val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
             return bufferedReader.readText()
@@ -207,8 +224,8 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return String containing a json with either a success + warnings, or the verified config errors.
      */
     fun verifyConfig(
-        cli: String,
-        configFilePath: String
+            cli: String,
+            configFilePath: String
     ): String {
         return MirrordVerifyConfigTask(cli, configFilePath).run(service.project)
     }
@@ -220,11 +237,11 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return environment for the user's application
      */
     fun exec(
-        cli: String,
-        target: String?,
-        configFile: String?,
-        executable: String?,
-        wslDistribution: WSLDistribution?
+            cli: String,
+            target: String?,
+            configFile: String?,
+            executable: String?,
+            wslDistribution: WSLDistribution?
     ): MirrordExecution {
         bumpFeedbackCounter()
 
@@ -255,16 +272,16 @@ class MirrordApi(private val service: MirrordProjectService) {
         }
 
         service.notifier.notification(
-            "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
-            NotificationType.INFORMATION
+                "Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!",
+                NotificationType.INFORMATION
         )
-            .withLink(
-                "Review",
-                "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
-            )
-            .withLink("Feedback", FEEDBACK_URL)
-            .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
-            .fire()
+                .withLink(
+                        "Review",
+                        "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews"
+                )
+                .withLink("Feedback", FEEDBACK_URL)
+                .withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW)
+                .fire()
     }
 }
 
@@ -284,7 +301,70 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      * Returns command line for execution.
      */
     private fun prepareCommandLine(project: Project): GeneralCommandLine {
+//        ExecutionEnvironmentBuilder
+        // TODO(alex): There is some `TargetEnviromentFunction` that could link to the right thing?
+        // Looks like in the MirrordNpmExecutionListener.kt we receive this from intellij! (ExecutionEnvironment)
+//        EnvironmentUtil.loadEnvironment()
+//        val z = EnvironmentUtil.getEnvironmentMap()
+//        for (variable in z.entries) {
+//            MirrordLogger.logger.info("getEnvironmentMap ${variable.key}:${variable.value}!")
+//        }
+
+        // TODO(alex): With `project` we can get the `workspace.xml` which contains the run config. Remember to also
+        // include env vars coming from `System.env`.
+//        project.workspaceFile.also {
+//            val model = WorkspaceModel.getInstance(project)
+//            MirrordLogger.logger.info("there is a workspace file! ${it}")
+//            for (key in it?.get()!!.keys) {
+//                MirrordLogger.logger.info("WorkspaceFile key ${key}")
+//            } }
+
+//        val y = EnvVariablesTable()
+//        for (variable in y.environmentVariables) {
+//            MirrordLogger.logger.info("EnvVariablesTable ${variable.name}:${variable.value}!")
+//        }
+
+//        CommonProgramRunConfigurationParameters()
+
+//        val pathP = project.projectFile.let { it?.path } ?: project.workspaceFile.let { it?.path } ?: "foo"
+//        val x = getTargetEnvironmentValueForLocalPath(Paths.get(pathP)).let {
+//            MirrordLogger.logger.info("getTargetEnvironmentValuesForLocalPath ${it}!")
+//            it
+//        }
+
         return GeneralCommandLine(cli, command).apply {
+            try {
+                // TODO(alex): These vars from `System` do not contain the run config vars!
+//                System.getenv().also { it.forEach( { (key, value) -> MirrordLogger.logger.info("system env var ${key} = ${value}")}) }
+
+                // TODO(alex): These are the vars you're looking for!
+                // Now we need to check these (gotta find the right run config, as we have to match debug with
+                // user launching debug, and run with launching run), and the `System.env` as well.
+                // Think priority should be given to runConfig.
+                val runConfig = RunManager.getInstance(project).allConfigurationsList
+                for (c in runConfig) {
+                    MirrordLogger.logger.info("runConfig ${c}")
+
+                    if (c is CommonProgramRunConfigurationParameters) {
+                        MirrordLogger.logger.info("Its a CommonProgramRunConfigurationParameters that we wanted!")
+                        for (e in c.envs) {
+                            MirrordLogger.logger.info("hopefully env var ${e.key}:${e.value}")
+                            environment[e.key] = e.value
+                        }
+                    }
+                }
+
+                target = System.getenv("MIRRORD_IMPERSONATED_TARGET").let {
+                    environment["MIRRORD_IMPERSONATED_TARGET"] = it
+                    it
+                }
+                System.getenv("RUST_LOG").let { environment["RUST_LOG"] = it }
+                System.getenv("FAKE_VAR")?.let { environment["FAKE_VAR"] = it }
+            } catch (fail: Exception) {
+                MirrordLogger.logger.warn("Something went wrong when loading env vars ${fail}!")
+            }
+
+
             target?.let {
                 addParameter("-t")
                 addParameter(it)
@@ -314,7 +394,13 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
 
+            // TODO(alex): This is the only env var we get!
+
             environment["MIRRORD_PROGRESS_MODE"] = "json"
+
+            for (entry in environment.entries) {
+                MirrordLogger.logger.info("environment var ${entry}")
+            }
         }
     }
 
@@ -374,10 +460,10 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
         MirrordLogger.logger.info("running mirrord task with following command line: ${commandLine.commandLineString}")
 
         val process = commandLine
-            .toProcessBuilder()
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
+                .toProcessBuilder()
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .start()
 
         return if (ApplicationManager.getApplication().isDispatchThread) {
             // Modal dialog with progress is very visible and can be canceled by the user,
@@ -449,10 +535,10 @@ private class MirrordWarningHandler(private val service: MirrordProjectService) 
     }
 
     private val filters: List<WarningFilter> = listOf(
-        WarningFilter(
-            { message -> message.contains("Agent version") && message.contains("does not match the local mirrord version") },
-            MirrordSettingsState.NotificationId.AGENT_VERSION_MISMATCH
-        )
+            WarningFilter(
+                    { message -> message.contains("Agent version") && message.contains("does not match the local mirrord version") },
+                    MirrordSettingsState.NotificationId.AGENT_VERSION_MISMATCH
+            )
     )
 
     /**

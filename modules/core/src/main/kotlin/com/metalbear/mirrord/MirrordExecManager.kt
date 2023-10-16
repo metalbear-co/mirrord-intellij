@@ -106,7 +106,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
 
         MirrordLogger.logger.debug("version check trigger")
-        service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+        // service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
         val cli = cliPath(wslDistribution, product)
         val config = service.configApi.getConfigPath(mirrordConfigFromEnv)
