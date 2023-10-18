@@ -74,7 +74,7 @@ class MirrordApi(private val service: MirrordProjectService) {
             val pods = SafeParser().parse(data, Array<String>::class.java).toMutableList()
 
             if (pods.isEmpty()) {
-                project.service<MirrordProjectService>().notifier.notifySimple("No mirrord target available in the configured namespace. " + "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.", NotificationType.INFORMATION)
+                project.service<MirrordProjectService>().notifier.notifySimple("No mirrord target available in the configured namespace. You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.", NotificationType.INFORMATION)
             }
 
             return pods
