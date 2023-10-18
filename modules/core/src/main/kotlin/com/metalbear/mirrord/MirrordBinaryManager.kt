@@ -260,7 +260,7 @@ class MirrordBinaryManager {
     /**
      * @return executable found with `which mirrord`
      */
-    private fun findBinaryInPath(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary {
+    private fun findBinaryInPath(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
             val output = if (wslDistribution == null) {
                 val child = Runtime.getRuntime().exec(arrayOf("which", "mirrord"))
@@ -283,10 +283,8 @@ class MirrordBinaryManager {
             }
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in path", e)
+            return null
         }
-
-        MirrordLogger.logger.debug("no mirrord found on path")
-        return MirrordBinary("/home/meowjesty/dev/metalbear/mirrord/target/debug/mirrord")
     }
 
     /**
