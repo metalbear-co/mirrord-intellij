@@ -278,10 +278,10 @@ class MirrordBinaryManager {
             }
 
             val binary = MirrordBinary(output)
-            if (requiredVersion == null || requiredVersion == binary.version) {
-                return binary
+            return if (requiredVersion == null || requiredVersion == binary.version) {
+                binary
             } else {
-                return null
+                null
             }
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in path", e)
