@@ -9,7 +9,6 @@ import com.intellij.javascript.nodejs.execution.runConfiguration.NodeRunConfigur
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import javax.swing.JPanel
 
@@ -40,15 +39,14 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
                 // following try-catch is to maintain backward compatibility with older versions of webstorm
                 val extraEnvVars = try {
-                            targetRun.envData.envs
-                        } catch (e: NoSuchMethodError) {
-                            val config = configuration as NodeJsRunConfiguration
-                            config.envs
-                        }
+                    targetRun.envData.envs
+                } catch (e: NoSuchMethodError) {
+                    val config = configuration as NodeJsRunConfiguration
+                    config.envs
+                }
 
                 service.execManager.wrapper("nodejs", extraEnvVars).apply {
                     this.wsl = wsl
-
                 }.start()?.first?.forEach { (key, value) ->
                     targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
                 }

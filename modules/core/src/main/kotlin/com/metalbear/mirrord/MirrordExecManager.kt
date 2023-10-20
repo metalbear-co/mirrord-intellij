@@ -93,10 +93,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @throws ProcessCanceledException if the user cancelled
      */
     private fun start(
-            wslDistribution: WSLDistribution?,
-            executable: String?,
-            product: String,
-            projectEnvVars: Map<String, String>?
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        projectEnvVars: Map<String, String>?
     ): Pair<Map<String, String>, String?>? {
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")

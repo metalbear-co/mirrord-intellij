@@ -16,7 +16,6 @@ import com.jetbrains.rd.util.lifetime.Lifetime
 import com.jetbrains.rider.run.PatchCommandLineExtension
 import com.jetbrains.rider.run.WorkerRunInfo
 import com.jetbrains.rider.runtime.DotNetRuntime
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
