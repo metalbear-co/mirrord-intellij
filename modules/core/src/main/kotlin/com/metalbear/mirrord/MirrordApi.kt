@@ -58,7 +58,9 @@ private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService) {
-    private class MirrordLsTask(cli: String) : MirrordCliTask<List<String>>(cli, "ls", null) {
+    private val envFromRunSettings: Map<String, String>? = getEnvVarsFromActiveLaunchSettings(this.service.project)
+
+    private class MirrordLsTask(cli: String, envFromRunSettings: Map<String, String>?) : MirrordCliTask<List<String>>(cli, "ls", null, envFromRunSettings) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
             setText("mirrord is listing targets...")
 
@@ -88,7 +90,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return list of pods
      */
     fun listPods(cli: String, configFile: String?, wslDistribution: WSLDistribution?): List<String> {
-        val task = MirrordLsTask(cli).apply {
+        val task = MirrordLsTask(cli, envFromRunSettings).apply {
             this.configFile = configFile
             this.wslDistribution = wslDistribution
             this.output = "json"
@@ -97,7 +99,7 @@ class MirrordApi(private val service: MirrordProjectService) {
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: String) : MirrordCliTask<MirrordExecution>(cli, "ext", null) {
+    private class MirrordExtTask(cli: String, envFromRunSettings: Map<String, String>?) : MirrordCliTask<MirrordExecution>(cli, "ext", null, envFromRunSettings) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -150,7 +152,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", path)) {
+    private class MirrordVerifyConfigTask(cli: String, path: String, envFromRunSettings: Map<String, String>?) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", path), envFromRunSettings) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -175,7 +177,7 @@ class MirrordApi(private val service: MirrordProjectService) {
      * @return String containing a json with either a success + warnings, or the verified config errors.
      */
     fun verifyConfig(cli: String, configFilePath: String): String {
-        return MirrordVerifyConfigTask(cli, configFilePath).run(service.project)
+        return MirrordVerifyConfigTask(cli, configFilePath, envFromRunSettings).run(service.project)
     }
 
     /**
@@ -187,7 +189,7 @@ class MirrordApi(private val service: MirrordProjectService) {
     fun exec(cli: String, target: String?, configFile: String?, executable: String?, wslDistribution: WSLDistribution?): MirrordExecution {
         bumpFeedbackCounter()
 
-        val task = MirrordExtTask(cli).apply {
+        val task = MirrordExtTask(cli, envFromRunSettings).apply {
             this.target = target
             this.configFile = configFile
             this.executable = executable
@@ -233,7 +235,7 @@ fun getEnvVarsFromActiveLaunchSettings(project: Project): Map<String, String>? {
  *
  * @param args: An extra list of arguments (used by `verify-config`).
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?, private val envFromRunSettings: Map<String, String>?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -246,8 +248,8 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
     private fun prepareCommandLine(project: Project): GeneralCommandLine {
         return GeneralCommandLine(cli, command).apply {
             // Merge our `environment` vars with what's set in the current launch run configuration.
-            getEnvVarsFromActiveLaunchSettings(project)?.let {
-                environment.putAll(it)
+            if (envFromRunSettings != null) {
+                environment.putAll(envFromRunSettings)
             }
 
             target?.let {
