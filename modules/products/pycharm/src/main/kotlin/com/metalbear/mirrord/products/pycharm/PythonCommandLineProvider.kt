@@ -29,9 +29,8 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 }
             }
 
-            service.execManager.wrapper("pycharm").apply {
+            service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
                 this.wsl = wsl
-                configFromEnv = runParams.getEnvs()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
                 for (entry in env.entries.iterator()) {
                     pythonExecution.addEnvironmentVariable(entry.key, entry.value)

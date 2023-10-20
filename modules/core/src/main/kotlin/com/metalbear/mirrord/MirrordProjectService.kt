@@ -17,7 +17,7 @@ class MirrordProjectService(val project: Project) : Disposable {
 
     val versionCheck: MirrordVersionCheck = MirrordVersionCheck(this)
 
-    val mirrordApi: MirrordApi = MirrordApi(this)
+    val mirrordApi: MirrordApi = MirrordApi(this, null)
 
     val notifier: MirrordNotifier = MirrordNotifier(this)
 

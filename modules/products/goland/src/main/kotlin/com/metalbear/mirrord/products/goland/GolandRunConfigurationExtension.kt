@@ -48,9 +48,8 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 }
             }
 
-            service.execManager.wrapper("goland").apply {
+            service.execManager.wrapper("goland", configuration.getCustomEnvironment()).apply {
                 this.wsl = wsl
-                configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
                 val withLaunchEnvVars = getEnvVarsFromActiveLaunchSettings(service.project)?.let { launchEnvVars ->
                     env + launchEnvVars

@@ -44,12 +44,11 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }
 
         val currentEnv = cmdLine.environment
-        service.execManager.wrapper("rubymine").apply {
+        service.execManager.wrapper("rubymine", configuration.envs).apply {
             this.wsl = wsl
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
-            configFromEnv = configuration.envs[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, patched) ->
             // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)

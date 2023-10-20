@@ -40,7 +40,7 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-            service.execManager.wrapper("JS").apply {
+            service.execManager.wrapper("JS", executionGuard.originEnv).apply {
                 wsl = wslDistribution
                 executable = executablePath
             }.start()?.let { (newEnv, patchedPath) ->

@@ -32,10 +32,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         }
 
-        service.execManager.wrapper("rider").apply {
+        service.execManager.wrapper("rider", commandLine.environment).apply {
             this.wsl = wsl
-            configFromEnv =
-                commandLine.environment[CONFIG_ENV_NAME] ?: RiderLaunchSettingsExtension.configFromEnvs.remove(project)
         }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)

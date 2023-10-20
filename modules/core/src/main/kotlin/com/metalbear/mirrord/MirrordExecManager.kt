@@ -93,10 +93,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @throws ProcessCanceledException if the user cancelled
      */
     private fun start(
-        wslDistribution: WSLDistribution?,
-        executable: String?,
-        product: String,
-        envFromRunSettings: Map<String, String>?
+            wslDistribution: WSLDistribution?,
+            executable: String?,
+            product: String,
+            projectEnvVars: Map<String, String>?
     ): Pair<Map<String, String>, String?>? {
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
@@ -112,7 +112,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         // TODO(alex) To avoid having this kind of code, we should merge system vars with launch vars
         // everywhere.
-        val mirrordConfigFile = envFromRunSettings?.get(CONFIG_ENV_NAME) ?: System.getenv()[CONFIG_ENV_NAME]
+        val mirrordConfigFile = projectEnvVars?.get(CONFIG_ENV_NAME) ?: System.getenv()[CONFIG_ENV_NAME]
         val cli = cliPath(wslDistribution, product)
         val config = service.configApi.getConfigPath(mirrordConfigFile)
 
@@ -166,22 +166,27 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * Helps to handle special cases and differences between the IDEs or language runners (like npm).
      */
-    class Wrapper(private val manager: MirrordExecManager, private val product: String) {
+    class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
+
         /**
-         * These are the env vars set in the launch project config.
+         * These are the env vars set in the launch project config, and those that are set in
+         * some other ways, such as a patched command line, or as arguments to some app.
          *
          * Initialized only once to avoid issues when the user could change the active mirrord
          * config mid-run, as we mix `MIRRORD_`-style env vars with the values in the `mirrord.json`
          * file.
          */
-        private val envFromRunSettings: Map<String, String>? = getEnvVarsFromActiveLaunchSettings(manager.service.project)
+        private val projectEnvVars: Map<String, String>? = run {
+            val envRunSettings = getEnvVarsFromActiveLaunchSettings(manager.service.project)
+            extraEnvVars?.plus(envRunSettings ?: emptyMap()) ?: envRunSettings
+        }
 
         var wsl: WSLDistribution? = null
         var executable: String? = null
 
         fun start(): Pair<Map<String, String>, String?>? {
             return try {
-                manager.start(wsl, executable, product, envFromRunSettings)
+                manager.start(wsl, executable, product, projectEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
@@ -202,9 +207,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @param product The IDE/language that we're wrapping mirrord execution around, some valid
      * values are: "rider", "JS", "nodejs" (there are many more).
      *
+     * @param extraEnvVars Environment variables that come from project/IDE special environment.
+     *
      * @return A `Wrapper` where you may call `start` to start running mirrord.
      */
-    fun wrapper(product: String): Wrapper {
-        return Wrapper(this, product)
+    fun wrapper(product: String, extraEnvVars: Map<String, String>?): Wrapper {
+        return Wrapper(this, product, extraEnvVars)
     }
 }
