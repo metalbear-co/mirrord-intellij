@@ -7,7 +7,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.util.alsoIfNull
 import java.nio.file.Path
 
 /**
@@ -94,10 +93,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @throws ProcessCanceledException if the user cancelled
      */
     private fun start(
-            wslDistribution: WSLDistribution?,
-            executable: String?,
-            product: String,
-            envFromRunSettings: Map<String, String>?
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        envFromRunSettings: Map<String, String>?
     ): Pair<Map<String, String>, String?>? {
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
@@ -195,7 +194,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 throw e
             }
         }
-
     }
 
     /**
