@@ -17,7 +17,7 @@ class QuarkusRunConfigurationExtension : RunConfigurationExtension() {
     private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
-        true
+        return true
     }
 
     override fun isEnabledFor(
