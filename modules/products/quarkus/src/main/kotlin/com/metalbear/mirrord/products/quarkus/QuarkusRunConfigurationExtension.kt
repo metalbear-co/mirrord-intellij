@@ -10,6 +10,7 @@ import com.intellij.execution.process.ProcessHandler
 import com.intellij.openapi.project.Project
 import java.util.concurrent.ConcurrentHashMap
 
+
 class QuarkusRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * mirrord env set in ExternalRunConfigurations. Used for cleanup the configuration after the execution has ended.
