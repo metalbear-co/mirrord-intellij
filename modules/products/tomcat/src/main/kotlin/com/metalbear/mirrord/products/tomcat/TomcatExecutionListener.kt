@@ -18,6 +18,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
 
+private fun getTomcatServerPort(): String {
+    return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
+}
+
 class TomcatExecutionListener : ExecutionListener {
     private val savedEnvs: ConcurrentHashMap<String, List<EnvironmentVariable>> = ConcurrentHashMap()
 
@@ -54,7 +58,7 @@ class TomcatExecutionListener : ExecutionListener {
                 }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty().toMutableMap()
 
                 // This should allow clean shutdown of the app even if `outgoing` feature is enabled.
-                mirrordEnv["MIRRORD_IGNORE_DEBUGGER_PORTS"] = DEFAULT_TOMCAT_SERVER_PORT
+                mirrordEnv["MIRRORD_IGNORE_DEBUGGER_PORTS"] = getTomcatServerPort()
 
                 savedEnvs[executorId] = envVars.toList()
                 envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
