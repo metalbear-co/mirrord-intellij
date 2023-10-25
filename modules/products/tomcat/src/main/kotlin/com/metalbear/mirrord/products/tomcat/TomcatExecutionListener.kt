@@ -64,8 +64,8 @@ class TomcatExecutionListener : ExecutionListener {
                 // We can't abort the execution here, so we let the app run without mirrord.
                 service.notifier.notifySimple(
                     "Cannot abort run due to platform limitations, running without mirrord",
-                    NotificationType.WARNING,
-                    )
+                    NotificationType.WARNING
+                )
             }
         }
 
