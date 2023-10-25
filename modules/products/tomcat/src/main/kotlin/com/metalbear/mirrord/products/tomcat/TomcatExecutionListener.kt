@@ -9,6 +9,7 @@ import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.util.EnvironmentVariable
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
@@ -35,7 +36,6 @@ class TomcatExecutionListener : ExecutionListener {
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         getConfig(env)?.let { config ->
             val envVars = config.envVariables
-            savedEnvs[executorId] = envVars.toList()
 
             val service = env.project.service<MirrordProjectService>()
 
@@ -45,14 +45,23 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
-            val mirrordEnv = service.execManager.wrapper("idea").apply {
+            try {
+                val mirrordEnv = service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
-            envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
-
-            config.setEnvironmentVariables(envVars)
+                savedEnvs[executorId] = envVars.toList()
+                envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
+                config.setEnvironmentVariables(envVars)
+            } catch (_: Throwable) {
+                // Error notifications were already fired.
+                // We can't abort the execution here, so we let the app run without mirrord.
+                service.notifier.notifySimple(
+                    "Cannot abort run due to platform limitations, running without mirrord",
+                    NotificationType.WARNING,
+                    )
+            }
         }
 
         super.processStartScheduled(executorId, env)
