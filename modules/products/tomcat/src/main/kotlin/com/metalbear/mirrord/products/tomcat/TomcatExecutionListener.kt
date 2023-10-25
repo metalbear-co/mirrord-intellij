@@ -16,6 +16,8 @@ import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import java.util.concurrent.ConcurrentHashMap
 
+private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
+
 class TomcatExecutionListener : ExecutionListener {
     private val savedEnvs: ConcurrentHashMap<String, List<EnvironmentVariable>> = ConcurrentHashMap()
 
@@ -49,7 +51,10 @@ class TomcatExecutionListener : ExecutionListener {
                 val mirrordEnv = service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
-                }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
+                }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty().toMutableMap()
+
+                // This should allow clean shutdown of the app even if `outgoing` feature is enabled.
+                mirrordEnv["MIRRORD_IGNORE_DEBUGGER_PORTS"] = DEFAULT_TOMCAT_SERVER_PORT
 
                 savedEnvs[executorId] = envVars.toList()
                 envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
