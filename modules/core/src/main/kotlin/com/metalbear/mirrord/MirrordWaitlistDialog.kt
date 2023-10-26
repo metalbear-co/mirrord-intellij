@@ -20,7 +20,7 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-private const val SIGNUP_ENDPOINT = "https://waitlist.metalbear.co/v1/waitlist"
+private const val SIGNUP_ENDPOINT = "https://waitlist.metalbear.co/v1/waitlist?source=intellij"
 
 /**
  * `java.net.http.HttpRequest.BodyPublishers` does not have a dedicated publisher for the multipart forms.
