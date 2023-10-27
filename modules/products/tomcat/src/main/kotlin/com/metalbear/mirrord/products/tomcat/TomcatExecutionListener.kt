@@ -69,6 +69,8 @@ class TomcatExecutionListener : ExecutionListener {
         } else {
             scriptInfo.SCRIPT
         }
+        // TODO: this would be a wrong split (and brake everything) if there is a space in the executable's path.
+        //  E.g "/path/to/Tomcat\ Server/bin/whatever.sh"
         val split = commandLine.split(" ", limit = 2)
         val command = split.first()
         val args = split.getOrNull(1)
