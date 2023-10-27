@@ -21,7 +21,6 @@ import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.idea.tomcat.server.TomcatPersistentData
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
-import java.util.regex.Pattern
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
 
@@ -29,7 +28,7 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
-data class SavedStartupScriptInfo (val useDefault: Boolean, val script: String?, val args: String?)
+data class SavedStartupScriptInfo(val useDefault: Boolean, val script: String?, val args: String?)
 
 data class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?)
 
@@ -52,7 +51,6 @@ class TomcatExecutionListener : ExecutionListener {
         }
     }
 
-
     /**
      * Returns a String with the path of the script that will be executed, based on the [scriptInfo].
      * If the info is not available, which by looking at [ScriptInfo] seems possible (though we don't know when), the
@@ -71,9 +69,9 @@ class TomcatExecutionListener : ExecutionListener {
         } else {
             scriptInfo.SCRIPT
         }
-        val split = commandLine.split(" ", limit = 2);
-        val command = split.first();
-        val args = split.getOrNull(1);
+        val split = commandLine.split(" ", limit = 2)
+        val command = split.first()
+        val args = split.getOrNull(1)
         return CommandLineWithArgs(command, args)
     }
 
@@ -89,8 +87,7 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
-
-            val startupInfo = config.startupInfo;
+            val startupInfo = config.startupInfo
             val (script, args) = getStartScript(startupInfo, env)
 
             try {
@@ -98,7 +95,7 @@ class TomcatExecutionListener : ExecutionListener {
                     this.wsl = wsl
                     this.executable = script
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
-                }.start()?.let {(env, patchedPath) ->
+                }.start()?.let { (env, patchedPath) ->
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
                     val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
@@ -116,16 +113,16 @@ class TomcatExecutionListener : ExecutionListener {
 
                     if (SystemInfo.isMac) {
                         patchedPath?.let {
-                            config.startupInfo.USE_DEFAULT = false;
-                            config.startupInfo.SCRIPT = it;
+                            config.startupInfo.USE_DEFAULT = false
+                            config.startupInfo.SCRIPT = it
                             args?.let {
-                                config.startupInfo.PROGRAM_PARAMETERS = args;
+                                config.startupInfo.PROGRAM_PARAMETERS = args
                             }
                         }
                     }
                 }
             } catch (e: Throwable) {
-                MirrordLogger.logger.debug("Running tomcat project failed: ", e);
+                MirrordLogger.logger.debug("Running tomcat project failed: ", e)
                 // Error notifications were already fired.
                 // We can't abort the execution here, so we let the app run without mirrord.
                 service.notifier.notifySimple(
