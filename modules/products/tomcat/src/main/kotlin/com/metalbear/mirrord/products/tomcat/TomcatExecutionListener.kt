@@ -21,6 +21,7 @@ import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.idea.tomcat.server.TomcatPersistentData
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import java.util.regex.Pattern
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
 
@@ -28,10 +29,11 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
-class SavedStartupScriptInfo (val useDefault: Boolean, val script: String?){}
+data class SavedStartupScriptInfo (val useDefault: Boolean, val script: String?, val args: String?)
 
-class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?) {
-}
+data class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?)
+
+data class CommandLineWithArgs(val command: String, val args: String?)
 
 class TomcatExecutionListener : ExecutionListener {
     private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
@@ -56,8 +58,8 @@ class TomcatExecutionListener : ExecutionListener {
      * If the info is not available, which by looking at [ScriptInfo] seems possible (though we don't know when), the
      * default script will be guessed based on the location of the tomcat installation, taken from [env].
      */
-    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): String {
-        return if (scriptInfo.USE_DEFAULT) {
+    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs {
+        val commandLine: String = if (scriptInfo.USE_DEFAULT) {
             scriptInfo.defaultScript.ifBlank {
                 // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
                 // based on the tomcat installation location.
@@ -65,10 +67,14 @@ class TomcatExecutionListener : ExecutionListener {
                     (((env.runProfile as CommonStrategy).applicationServer as ApplicationServerImpl).persistentData as TomcatPersistentData).HOME
                 val defaultScript = Paths.get(tomcatLocation, "bin/catalina.sh")
                 defaultScript.toString()
-            }.removeSuffix(" run")
+            }
         } else {
             scriptInfo.SCRIPT
         }
+        val split = commandLine.split(" ", limit = 2);
+        val command = split.first();
+        val args = split.getOrNull(1);
+        return CommandLineWithArgs(command, args)
     }
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
@@ -85,7 +91,7 @@ class TomcatExecutionListener : ExecutionListener {
 
 
             val startupInfo = config.startupInfo;
-            val script = getStartScript(startupInfo, env)
+            val (script, args) = getStartScript(startupInfo, env)
 
             try {
                 service.execManager.wrapper("idea").apply {
@@ -99,7 +105,7 @@ class TomcatExecutionListener : ExecutionListener {
 
                     // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
                     val savedScriptInfo = if (SystemInfo.isMac) {
-                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT)
+                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT, startupInfo.PROGRAM_PARAMETERS)
                     } else {
                         null
                     }
@@ -112,6 +118,9 @@ class TomcatExecutionListener : ExecutionListener {
                         patchedPath?.let {
                             config.startupInfo.USE_DEFAULT = false;
                             config.startupInfo.SCRIPT = it;
+                            args?.let {
+                                config.startupInfo.PROGRAM_PARAMETERS = args;
+                            }
                         }
                     }
                 }
@@ -134,7 +143,12 @@ class TomcatExecutionListener : ExecutionListener {
         if (SystemInfo.isMac) {
             saved.scriptInfo?.let {
                 config.startupInfo.USE_DEFAULT = it.useDefault
-                config.startupInfo.SCRIPT = it.script
+                it.script?.let { scriptPath ->
+                    config.startupInfo.SCRIPT = scriptPath
+                }
+                it.args?.let { args ->
+                    config.startupInfo.PROGRAM_PARAMETERS = args
+                }
             }
         }
     }
