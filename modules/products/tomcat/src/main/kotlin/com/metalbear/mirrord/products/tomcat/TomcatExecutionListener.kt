@@ -8,12 +8,18 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.util.EnvironmentVariable
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.javaee.appServers.integration.impl.ApplicationServerImpl
+import com.intellij.javaee.appServers.run.configuration.CommonStrategy
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
+import com.intellij.javaee.appServers.run.localRun.ScriptInfo
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
+import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import org.jetbrains.idea.tomcat.server.TomcatPersistentData
+import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
@@ -22,8 +28,13 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
+class SavedStartupScriptInfo (val useDefault: Boolean, val script: String?){}
+
+class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?) {
+}
+
 class TomcatExecutionListener : ExecutionListener {
-    private val savedEnvs: ConcurrentHashMap<String, List<EnvironmentVariable>> = ConcurrentHashMap()
+    private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
 
     private fun getConfig(env: ExecutionEnvironment): RunnerSpecificLocalConfigurationBit? {
         if (!env.toString().startsWith("Tomcat")) {
@@ -39,6 +50,27 @@ class TomcatExecutionListener : ExecutionListener {
         }
     }
 
+
+    /**
+     * Returns a String with the path of the script that will be executed, based on the [scriptInfo].
+     * If the info is not available, which by looking at [ScriptInfo] seems possible (though we don't know when), the
+     * default script will be guessed based on the location of the tomcat installation, taken from [env].
+     */
+    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): String {
+        return if (scriptInfo.USE_DEFAULT) {
+            scriptInfo.defaultScript.ifBlank {
+                // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
+                // based on the tomcat installation location.
+                val tomcatLocation =
+                    (((env.runProfile as CommonStrategy).applicationServer as ApplicationServerImpl).persistentData as TomcatPersistentData).HOME
+                val defaultScript = Paths.get(tomcatLocation, "bin/catalina.sh")
+                defaultScript.toString()
+            }.removeSuffix(" run")
+        } else {
+            scriptInfo.SCRIPT
+        }
+    }
+
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         getConfig(env)?.let { config ->
             val envVars = config.envVariables
@@ -51,17 +83,37 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
+
+            val startupInfo = config.startupInfo;
+            val script = getStartScript(startupInfo, env)
+
             try {
                 service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
+                    this.executable = script
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
-                }.start()?.first?.let {
+                }.start()?.let {(env, patchedPath) ->
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
-                    val mirrordEnv = it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
-                    savedEnvs[executorId] = envVars.toList()
+                    val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
+
+                    // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
+                    val savedScriptInfo = if (SystemInfo.isMac) {
+                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT)
+                    } else {
+                        null
+                    }
+
+                    savedEnvs[executorId] = SavedConfigData(envVars.toList(), savedScriptInfo)
                     envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
                     config.setEnvironmentVariables(envVars)
+
+                    if (SystemInfo.isMac) {
+                        patchedPath?.let {
+                            config.startupInfo.USE_DEFAULT = false;
+                            config.startupInfo.SCRIPT = it;
+                        }
+                    }
                 }
             } catch (_: Throwable) {
                 // Error notifications were already fired.
@@ -76,21 +128,27 @@ class TomcatExecutionListener : ExecutionListener {
         super.processStartScheduled(executorId, env)
     }
 
-    private fun restoreEnv(executorId: String, config: RunnerSpecificLocalConfigurationBit) {
+    private fun restoreConfig(executorId: String, config: RunnerSpecificLocalConfigurationBit) {
         val saved = savedEnvs.remove(executorId) ?: return
-        config.setEnvironmentVariables(saved)
+        config.setEnvironmentVariables(saved.envVars)
+        if (SystemInfo.isMac) {
+            saved.scriptInfo?.let {
+                config.startupInfo.USE_DEFAULT = it.useDefault
+                config.startupInfo.SCRIPT = it.script
+            }
+        }
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
         getConfig(env)?.let {
-            restoreEnv(executorId, it)
+            restoreConfig(executorId, it)
         }
         super.processNotStarted(executorId, env)
     }
 
     override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
         getConfig(env)?.let {
-            restoreEnv(executorId, it)
+            restoreConfig(executorId, it)
         }
         super.processStarted(executorId, env, handler)
     }
