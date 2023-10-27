@@ -124,7 +124,8 @@ class TomcatExecutionListener : ExecutionListener {
                         }
                     }
                 }
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                MirrordLogger.logger.debug("Running tomcat project failed: ", e);
                 // Error notifications were already fired.
                 // We can't abort the execution here, so we let the app run without mirrord.
                 service.notifier.notifySimple(
