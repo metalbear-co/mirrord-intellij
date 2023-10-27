@@ -52,17 +52,17 @@ class TomcatExecutionListener : ExecutionListener {
             }
 
             try {
-                val mirrordEnv = service.execManager.wrapper("idea").apply {
+                service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
-                }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty().toMutableMap()
-
-                // This should allow clean shutdown of the app even if `outgoing` feature is enabled.
-                mirrordEnv["MIRRORD_IGNORE_DEBUGGER_PORTS"] = getTomcatServerPort()
-
-                savedEnvs[executorId] = envVars.toList()
-                envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
-                config.setEnvironmentVariables(envVars)
+                }.start()?.first?.let {
+                    // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
+                    // even if `outgoing` feature is enabled.
+                    val mirrordEnv = it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
+                    savedEnvs[executorId] = envVars.toList()
+                    envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
+                    config.setEnvironmentVariables(envVars)
+                }
             } catch (_: Throwable) {
                 // Error notifications were already fired.
                 // We can't abort the execution here, so we let the app run without mirrord.
