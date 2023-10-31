@@ -69,9 +69,9 @@ class TomcatExecutionListener : ExecutionListener {
         } else {
             scriptInfo.SCRIPT
         }
-        // TODO: this would be a wrong split (and brake everything) if there is a space in the executable's path.
-        //  E.g "/path/to/Tomcat\ Server/bin/whatever.sh"
-        val split = commandLine.split(" ", limit = 2)
+        // Split on the first space that is not preceded by a backslash.
+        // 4 backslashes in the string are 1 in the regex.
+        val split = commandLine.split("(?<!\\\\) ".toRegex(), limit = 2)
         val command = split.first()
         val args = split.getOrNull(1)
         return CommandLineWithArgs(command, args)
