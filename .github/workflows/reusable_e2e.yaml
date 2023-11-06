@@ -112,6 +112,7 @@ jobs:
             ./gradlew test
 
       - name: Save the failure video
+        continue-on-error: true
         if: ${{ always() }}
         run: |
           mv video build/reports
