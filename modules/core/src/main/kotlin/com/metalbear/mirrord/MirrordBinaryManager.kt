@@ -276,7 +276,11 @@ class MirrordBinaryManager {
             val binary = MirrordBinary(output)
 
             val isRequiredVersion = try {
-                Version.valueOf(requiredVersion).greaterThan(Version.valueOf(binary.version))
+                if (System.getenv("CI_BUILD_PLUGIN") == "true") {
+                    Version.valueOf(binary.version).greaterThanOrEqualTo(Version.valueOf(requiredVersion))
+                } else {
+                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                }
             } catch (e: Exception) {
                 false
             }
