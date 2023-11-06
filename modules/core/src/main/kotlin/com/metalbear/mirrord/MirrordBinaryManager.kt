@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.github.zafarkhaja.semver.Version
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.Service
@@ -35,6 +36,7 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
 class MirrordBinaryManager {
     @Volatile
     private var latestSupportedVersion: String? = null
+    private var downloadVersion: String? = null
 
     /**
      * Schedules the update task at project startup.
@@ -78,20 +80,22 @@ class MirrordBinaryManager {
 
             val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
             val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+            manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
 
             val version = when {
                 // auto update -> false -> use mirrordVersion if it's not empty
-                !autoUpdate && userSelectedMirrordVersion.isNotEmpty() -> {
-                    if (checkVersionFormat(userSelectedMirrordVersion)) {
-                        userSelectedMirrordVersion
-                    } else {
+                !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
+                    try {
+                        Version.valueOf(userSelectedMirrordVersion)
+                    } catch (e: Exception) {
                         project
                             .service<MirrordProjectService>()
                             .notifier
-                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                            .notification("mirrord version format is invalid! ${e.message}", NotificationType.WARNING)
                             .fire()
                         return
                     }
+                    userSelectedMirrordVersion
                 }
                 // auto update -> false -> mirrordVersion is empty -> needs check in the path
                 // if not in path -> fetch latest version
@@ -111,7 +115,7 @@ class MirrordBinaryManager {
                 return
             }
 
-            manager.latestSupportedVersion = version
+            manager.downloadVersion = version
                 // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
                 ?: manager.fetchLatestSupportedVersion(product, indicator)
 
@@ -147,14 +151,6 @@ class MirrordBinaryManager {
                         NotificationType.INFORMATION
                     )
             }
-        }
-
-        /**
-         * checks if the passed version string matches *.*.* format (numbers only)
-         * @param version version string to check
-         * */
-        fun checkVersionFormat(version: String): Boolean {
-            return version.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
         }
     }
 
@@ -192,7 +188,7 @@ class MirrordBinaryManager {
     }
 
     private fun updateBinary(indicator: ProgressIndicator) {
-        val version = latestSupportedVersion ?: return
+        val version = downloadVersion ?: return
 
         val url = if (SystemInfo.isMac) {
             "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
@@ -278,7 +274,14 @@ class MirrordBinaryManager {
             }
 
             val binary = MirrordBinary(output)
-            if (requiredVersion == null || requiredVersion == binary.version) {
+
+            val isRequiredVersion = try {
+                Version.valueOf(requiredVersion).greaterThan(Version.valueOf(binary.version))
+            } catch (e: Exception) {
+                false
+            }
+            // for release CI, the tag can be greater than the latest release
+            if (requiredVersion == null || isRequiredVersion) {
                 return binary
             }
         } catch (e: Exception) {
