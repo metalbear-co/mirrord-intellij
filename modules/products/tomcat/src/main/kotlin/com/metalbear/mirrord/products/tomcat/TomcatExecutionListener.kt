@@ -28,7 +28,7 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
-data class SavedStartupScriptInfo(val useDefault: Boolean, val script: String?, val args: String?)
+data class SavedStartupScriptInfo(val useDefault: Boolean, val script: String?, val args: String?, val vmArgs: String?)
 
 data class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?)
 
@@ -104,7 +104,7 @@ class TomcatExecutionListener : ExecutionListener {
 
                     // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
                     val savedScriptInfo = if (SystemInfo.isMac) {
-                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT, startupInfo.PROGRAM_PARAMETERS)
+                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT, startupInfo.PROGRAM_PARAMETERS, startupInfo.VM_PARAMETERS)
                     } else {
                         null
                     }
@@ -117,6 +117,8 @@ class TomcatExecutionListener : ExecutionListener {
                         patchedPath?.let {
                             config.startupInfo.USE_DEFAULT = false
                             config.startupInfo.SCRIPT = it
+                            config.startupInfo.VM_PARAMETERS = config.appendVMArguments(config.createJavaParameters())
+//                            config.startupInfo.VM_PARAMETERS = config.getEnvVarValues()
                             args?.let {
                                 config.startupInfo.PROGRAM_PARAMETERS = args
                             }
@@ -148,6 +150,9 @@ class TomcatExecutionListener : ExecutionListener {
                 }
                 it.args?.let { args ->
                     config.startupInfo.PROGRAM_PARAMETERS = args
+                }
+                it.vmArgs?.let { vmArgs ->
+                    config.startupInfo.VM_PARAMETERS = vmArgs
                 }
             }
         }
