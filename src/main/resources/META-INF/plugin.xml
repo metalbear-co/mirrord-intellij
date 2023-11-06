@@ -72,4 +72,5 @@
     <depends optional="true" config-file="mirrord-goland.xml">org.jetbrains.plugins.go</depends>
     <depends optional="true" config-file="mirrord-js.xml">NodeJS</depends>
     <depends optional="true" config-file="mirrord-rider.xml">com.intellij.modules.rider</depends>
+    <depends optional="true" config-file="mirrord-tomcat.xml">Tomcat</depends>
 </idea-plugin>
