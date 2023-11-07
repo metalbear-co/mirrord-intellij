@@ -102,7 +102,7 @@ class MirrordBinaryManager {
                 !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
                 // auto update -> true -> fetch latest version
-                else -> manager.fetchLatestSupportedVersion(product, indicator)
+                else -> manager.latestSupportedVersion
             }
 
             val local = if (checkInPath) {
@@ -116,8 +116,8 @@ class MirrordBinaryManager {
             }
 
             manager.downloadVersion = version
-                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
-                ?: manager.fetchLatestSupportedVersion(product, indicator)
+                    // auto update -> false -> mirrordVersion is empty -> no cli found locally -> latest version
+                ?: manager.latestSupportedVersion
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
@@ -283,6 +283,7 @@ class MirrordBinaryManager {
                     Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
                 }
             } catch (e: Exception) {
+                MirrordLogger.logger.debug("failed to parse version", e)
                 false
             }
             if (requiredVersion == null || isRequiredVersion) {
@@ -302,14 +303,19 @@ class MirrordBinaryManager {
         try {
             MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
                 val binary = MirrordBinary(it)
-                if (requiredVersion == null || requiredVersion == binary.version) {
+                val isRequiredVersion = try {
+                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                } catch (e: Exception) {
+                    MirrordLogger.logger.debug("failed to parse version", e)
+                    false
+                }
+                if (requiredVersion == null || isRequiredVersion) {
                     return binary
                 }
             }
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in plugin storage", e)
         }
-
         return null
     }
 
