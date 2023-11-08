@@ -57,8 +57,9 @@ class TomcatExecutionListener : ExecutionListener {
      * default script will be guessed based on the location of the tomcat installation, taken from [env].
      */
     private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs {
-        val commandLine: String = if (scriptInfo.USE_DEFAULT) {
-            scriptInfo.defaultScript.ifBlank {
+        return if (scriptInfo.USE_DEFAULT) {
+//            val defaultScript = scriptInfo.script;
+            val commandLine = scriptInfo.defaultScript.ifBlank {
                 // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
                 // based on the tomcat installation location.
                 val tomcatLocation =
@@ -66,15 +67,15 @@ class TomcatExecutionListener : ExecutionListener {
                 val defaultScript = Paths.get(tomcatLocation, "bin/catalina.sh")
                 defaultScript.toString()
             }
+            // Split on the first space that is not preceded by a backslash.
+            // 4 backslashes in the string are 1 in the regex.
+            val split = commandLine.split("(?<!\\\\) ".toRegex(), limit = 2)
+            val command = split.first()
+            val args = split.getOrNull(1)
+            CommandLineWithArgs(command, args)
         } else {
-            scriptInfo.SCRIPT
+            CommandLineWithArgs(scriptInfo.SCRIPT, scriptInfo.PROGRAM_PARAMETERS)
         }
-        // Split on the first space that is not preceded by a backslash.
-        // 4 backslashes in the string are 1 in the regex.
-        val split = commandLine.split("(?<!\\\\) ".toRegex(), limit = 2)
-        val command = split.first()
-        val args = split.getOrNull(1)
-        return CommandLineWithArgs(command, args)
     }
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
@@ -118,7 +119,6 @@ class TomcatExecutionListener : ExecutionListener {
                             config.startupInfo.USE_DEFAULT = false
                             config.startupInfo.SCRIPT = it
                             config.startupInfo.VM_PARAMETERS = config.appendVMArguments(config.createJavaParameters())
-//                            config.startupInfo.VM_PARAMETERS = config.getEnvVarValues()
                             args?.let {
                                 config.startupInfo.PROGRAM_PARAMETERS = args
                             }
