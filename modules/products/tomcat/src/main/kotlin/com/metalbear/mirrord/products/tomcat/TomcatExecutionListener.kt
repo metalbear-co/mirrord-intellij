@@ -11,6 +11,9 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javaee.appServers.integration.impl.ApplicationServerImpl
 import com.intellij.javaee.appServers.run.configuration.CommonStrategy
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
+import com.intellij.javaee.appServers.run.localRun.CommandLineExecutableObject
+import com.intellij.javaee.appServers.run.localRun.ExecutableObject
+import com.intellij.javaee.appServers.run.localRun.ScriptHelper
 import com.intellij.javaee.appServers.run.localRun.ScriptInfo
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
@@ -28,9 +31,51 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
-data class SavedStartupScriptInfo(val useDefault: Boolean, val script: String?, val args: String?, val vmArgs: String?)
+/**
+ * Extending the ScriptInfo class to replace the script info of the run with an object of this class so that we can
+ * override `getScript` in order to run a patched script instead of the original one on macOS if the original is SIP
+ * protected.
+ * @property params first element is script, then args, e.g.:
+ * ["/var/folders/4l/810mmn597cx7zy5w2bk11clh0000gn/T/mirrord-bin/opt/homebrew/Cellar/tomcat@8/8.5.95/libexec/bin/catalina.sh", "run"]
+ */
+class PatchedScriptInfo(
+    scriptsHelper: ScriptHelper?,
+    parent: CommonStrategy,
+    startupNotShutdown: Boolean,
+    private val params: Array<String>
+) :
+    ScriptInfo(scriptsHelper, parent, startupNotShutdown) {
 
-data class SavedConfigData(val envVars: List<EnvironmentVariable>, val scriptInfo: SavedStartupScriptInfo?)
+    /** Get the original script object, forcefully change the accessibility of the private parameters field, then write
+     * the patched parameters to that field, and return the changed script object.
+     */
+    override fun getScript(): ExecutableObject? {
+        val startupScript = super.getScript()
+        val cmdExecutableObject = startupScript as? CommandLineExecutableObject
+        val cmd = cmdExecutableObject ?: return startupScript
+        val myParamsField = CommandLineExecutableObject::class.java.getDeclaredField("myParameters")
+        myParamsField.isAccessible = true
+        myParamsField.set(cmd, params)
+        return startupScript
+    }
+}
+
+/**
+ * Create script object that will return a script object of SIP-patched script instead of the original.
+ */
+fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String?): PatchedScriptInfo {
+    val argList = args?.split("(?<!\\\\) ".toRegex()) ?: emptyList()
+    val params = listOf(script) + argList
+    val parentField = ScriptInfo::class.java.getDeclaredField("myParent")
+    val startupNotShutdownField = ScriptInfo::class.java.getDeclaredField("myStartupNotShutdown")
+    parentField.isAccessible = true
+    startupNotShutdownField.isAccessible = true
+    val parent = parentField.get(scriptInfo) as CommonStrategy
+    val startupNotShutdown = startupNotShutdownField.get(scriptInfo) as Boolean
+    return PatchedScriptInfo(scriptInfo.scriptHelper, parent, startupNotShutdown, params.toTypedArray())
+}
+
+data class SavedConfigData(val envVars: List<EnvironmentVariable>, val nonDefaultScript: String?)
 
 data class CommandLineWithArgs(val command: String, val args: String?)
 
@@ -104,23 +149,25 @@ class TomcatExecutionListener : ExecutionListener {
                     val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
 
                     // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
-                    val savedScriptInfo = if (SystemInfo.isMac) {
-                        SavedStartupScriptInfo(startupInfo.USE_DEFAULT, startupInfo.SCRIPT, startupInfo.PROGRAM_PARAMETERS, startupInfo.VM_PARAMETERS)
+                    val originalScript = if (SystemInfo.isMac && !startupInfo.USE_DEFAULT) {
+                        startupInfo.SCRIPT
                     } else {
                         null
                     }
 
-                    savedEnvs[executorId] = SavedConfigData(envVars.toList(), savedScriptInfo)
+                    savedEnvs[executorId] = SavedConfigData(envVars.toList(), originalScript)
                     envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
                     config.setEnvironmentVariables(envVars)
 
                     if (SystemInfo.isMac) {
                         patchedPath?.let {
-                            config.startupInfo.USE_DEFAULT = false
-                            config.startupInfo.SCRIPT = it
-                            config.startupInfo.VM_PARAMETERS = config.appendVMArguments(config.createJavaParameters())
-                            args?.let {
-                                config.startupInfo.PROGRAM_PARAMETERS = args
+                            if (config.startupInfo.USE_DEFAULT) {
+                                val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, args)
+                                val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
+                                startupInfoField.isAccessible = true
+                                startupInfoField.set(config, patchedStartupInfo)
+                            } else {
+                                config.startupInfo.SCRIPT = it
                             }
                         }
                     }
@@ -143,17 +190,8 @@ class TomcatExecutionListener : ExecutionListener {
         val saved = savedEnvs.remove(executorId) ?: return
         config.setEnvironmentVariables(saved.envVars)
         if (SystemInfo.isMac) {
-            saved.scriptInfo?.let {
-                config.startupInfo.USE_DEFAULT = it.useDefault
-                it.script?.let { scriptPath ->
-                    config.startupInfo.SCRIPT = scriptPath
-                }
-                it.args?.let { args ->
-                    config.startupInfo.PROGRAM_PARAMETERS = args
-                }
-                it.vmArgs?.let { vmArgs ->
-                    config.startupInfo.VM_PARAMETERS = vmArgs
-                }
+            saved.nonDefaultScript?.let {
+                config.startupInfo.SCRIPT = it
             }
         }
     }
