@@ -33,6 +33,7 @@ jobs:
           echo ${{ steps.ip.outputs.ipv6 }}
 
       - name: Remove unnecessary files
+        if: ${{ !matrix.os == 'windows-latest' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
