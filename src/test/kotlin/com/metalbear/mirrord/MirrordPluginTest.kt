@@ -26,6 +26,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration.ofMinutes
 import java.time.Duration.ofSeconds
+import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
@@ -41,10 +42,12 @@ internal class MirrordPluginTest {
         private var tmpDir: Path = Files.createTempDirectory("launcher")
         private lateinit var remoteRobot: RemoteRobot
         private var steps: CommonSteps? = null
+        private var isWsl = false
 
         @BeforeAll
         @JvmStatic
         fun startIdea() {
+            isWsl = System.getProperty("os.version").lowercase(Locale.getDefault()).contains("windows")
             val client = OkHttpClient()
             remoteRobot = RemoteRobot("http://localhost:8082", client)
             steps = CommonSteps(remoteRobot)
