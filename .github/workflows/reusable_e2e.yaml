@@ -17,7 +17,10 @@ on:
 
 jobs:
   intellij-e2e:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
     env:
       CI_BUILD_PLUGIN: "true"
     steps:
@@ -122,3 +125,5 @@ jobs:
           name: mirrord-plugin-fail-report
           path: |
             build/reports
+
+
