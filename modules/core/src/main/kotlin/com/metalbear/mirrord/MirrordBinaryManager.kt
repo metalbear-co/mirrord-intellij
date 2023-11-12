@@ -112,7 +112,7 @@ class MirrordBinaryManager {
             }
 
             manager.latestSupportedVersion = version
-                    // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
+                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
                 ?: manager.fetchLatestSupportedVersion(product, indicator)
 
             if (downloadInProgress.compareAndExchange(false, true)) {

@@ -102,7 +102,7 @@ class MirrordApi(private val service: MirrordProjectService) {
             if (pods.isEmpty()) {
                 project.service<MirrordProjectService>().notifier.notifySimple(
                     "No mirrord target available in the configured namespace. " +
-                            "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
+                        "You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.",
                     NotificationType.INFORMATION
                 )
             }
