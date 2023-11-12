@@ -17,10 +17,7 @@ on:
 
 jobs:
   intellij-e2e:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, windows-latest ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
       CI_BUILD_PLUGIN: "true"
     steps:
@@ -33,7 +30,6 @@ jobs:
           echo ${{ steps.ip.outputs.ipv6 }}
 
       - name: Remove unnecessary files
-        if: ${{ !matrix.os == 'windows-latest' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
@@ -126,5 +122,3 @@ jobs:
           name: mirrord-plugin-fail-report
           path: |
             build/reports
-
-
