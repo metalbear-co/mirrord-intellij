@@ -65,7 +65,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             else -> null
         }
 
-        val mirrordEnv = service.execManager.wrapper("idea", null).apply {
+        val extraEnv = params.env + (configuration as ExternalSystemRunConfiguration).settings.env
+        val mirrordEnv = service.execManager.wrapper("idea", extraEnv).apply {
             this.wsl = wsl
         }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
