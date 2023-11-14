@@ -14,6 +14,7 @@ import com.intellij.openapi.components.service
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.getEnvVarsFromActiveLaunchSettings
 import java.util.concurrent.ConcurrentHashMap
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
@@ -44,6 +45,7 @@ class TomcatExecutionListener : ExecutionListener {
             val envVars = config.envVariables
 
             val service = env.project.service<MirrordProjectService>()
+            env.project
 
             MirrordLogger.logger.debug("wsl check")
             val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
@@ -51,8 +53,9 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
+            val envVarsFromRunSettings = getEnvVarsFromActiveLaunchSettings(env.project)
             try {
-                service.execManager.wrapper("idea").apply {
+                service.execManager.wrapper("idea", envVarsFromRunSettings).apply {
                     this.wsl = wsl
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.first?.let {

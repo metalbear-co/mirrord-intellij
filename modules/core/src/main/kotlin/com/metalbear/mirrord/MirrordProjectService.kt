@@ -19,6 +19,10 @@ class MirrordProjectService(val project: Project) : Disposable {
 
     val mirrordApi: MirrordApi = MirrordApi(this, null)
 
+    fun mirrordApi(environment: Map<String, String>) : MirrordApi {
+        return MirrordApi(this, environment)
+    }
+
     val notifier: MirrordNotifier = MirrordNotifier(this)
 
     @Volatile
