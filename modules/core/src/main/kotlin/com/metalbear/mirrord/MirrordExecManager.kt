@@ -109,45 +109,43 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
         val cli = cliPath(wslDistribution, product)
-        val config = service.configApi.getConfigPath(mirrordConfigFromEnv)
-
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
-        var verifiedConfig: MirrordVerifiedConfig? = null
-        if (configPath != null) {
-            val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
-            val verified = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).also { verifiedConfig = it }
-            if (verified.isError()) {
-                throw InvalidConfigException(configPath, "validation failed for config")
+
+        val verifiedConfig = configPath?.let {
+            val verifiedConfigOutput =
+                service.mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+            MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                if (isError()) {
+                    throw InvalidConfigException(it, "Validation failed for config")
+                }
             }
         }
 
-        MirrordLogger.logger.debug("target selection")
+        MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
 
-        var target: String? = null
-        val isTargetSet = (config != null && isTargetSet(verifiedConfig?.config))
-        MirrordLogger.logger.debug("$verifiedConfig")
-
-        if (!isTargetSet) {
+        val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            target = chooseTarget(cli, wslDistribution, config)
-            if (target == MirrordExecDialog.targetlessTargetName) {
-                MirrordLogger.logger.info("No target specified - running targetless")
-                service.notifier.notification(
-                    "No target specified, mirrord running targetless.",
-                    NotificationType.INFORMATION
-                )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                    .fire()
-                target = null
+            chooseTarget(cli, wslDistribution, configPath).also {
+                if (it == MirrordExecDialog.targetlessTargetName) {
+                    MirrordLogger.logger.info("No target specified - running targetless")
+                    service.notifier.notification(
+                        "No target specified, mirrord running targetless.",
+                        NotificationType.INFORMATION
+                    )
+                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                        .fire()
+                }
             }
+        } else {
+            null
         }
 
         val executionInfo = service.mirrordApi.exec(
             cli,
             target,
-            config,
+            configPath,
             executable,
             wslDistribution
         )

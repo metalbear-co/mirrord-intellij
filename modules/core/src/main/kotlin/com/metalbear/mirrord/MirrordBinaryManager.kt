@@ -104,7 +104,7 @@ class MirrordBinaryManager {
             val local = if (checkInPath) {
                 manager.getLocalBinary(version, wslDistribution)
             } else {
-                manager.findBinaryInStorage(version)
+                manager.findBinaryInStorage(version, wslDistribution)
             }
 
             if (local != null) {
@@ -241,19 +241,24 @@ class MirrordBinaryManager {
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
     }
 
-    private class MirrordBinary(val command: String) {
+    private class MirrordBinary(val command: String, wslDistribution: WSLDistribution?) {
         val version: String
 
         init {
-            val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+            version = if (wslDistribution != null) {
+                val command = wslDistribution.getWslPath(command)
+                val output = wslDistribution.executeOnWsl(1000, command, "--version")
+                output.stdout.split(' ')[1].trim()
+            } else {
+                val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+                val result = child.waitFor()
+                if (result != 0) {
+                    MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
+                    throw RuntimeException("failed to get mirrord version")
+                }
 
-            val result = child.waitFor()
-            if (result != 0) {
-                MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
-                throw RuntimeException("failed to get mirrord version")
+                child.inputReader().readLine().split(' ')[1].trim()
             }
-
-            version = child.inputReader().readLine().split(' ')[1].trim()
         }
     }
 
@@ -277,7 +282,7 @@ class MirrordBinaryManager {
                 output.stdoutLines.first().trim()
             }
 
-            val binary = MirrordBinary(output)
+            val binary = MirrordBinary(output, wslDistribution)
             if (requiredVersion == null || requiredVersion == binary.version) {
                 return binary
             }
@@ -291,10 +296,10 @@ class MirrordBinaryManager {
     /**
      * @return executable found in plugin storage
      */
-    private fun findBinaryInStorage(requiredVersion: String?): MirrordBinary? {
+    private fun findBinaryInStorage(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
             MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
-                val binary = MirrordBinary(it)
+                val binary = MirrordBinary(it, wslDistribution)
                 if (requiredVersion == null || requiredVersion == binary.version) {
                     return binary
                 }
@@ -310,7 +315,7 @@ class MirrordBinaryManager {
      * @return the local installation of mirrord, either in `PATH` or in plugin storage
      */
     private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
-        return findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion)
+        return findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion, wslDistribution)
     }
 
     /**
