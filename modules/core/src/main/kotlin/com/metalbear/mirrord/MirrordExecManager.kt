@@ -181,6 +181,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             extraEnvVars?.plus(envRunSettings ?: emptyMap()) ?: envRunSettings
         }
 
+        //val extraEnv = params.env + (configuration as ExternalSystemRunConfiguration).settings.env
+
         var wsl: WSLDistribution? = null
         var executable: String? = null
 

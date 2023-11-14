@@ -11,7 +11,6 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.getEnvVarsFromActiveLaunchSettings
@@ -45,7 +44,6 @@ class TomcatExecutionListener : ExecutionListener {
             val envVars = config.envVariables
 
             val service = env.project.service<MirrordProjectService>()
-            env.project
 
             MirrordLogger.logger.debug("wsl check")
             val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
@@ -53,11 +51,11 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
-            val envVarsFromRunSettings = getEnvVarsFromActiveLaunchSettings(env.project)
             try {
-                service.execManager.wrapper("idea", envVarsFromRunSettings).apply {
+                val extraEnvVars = getEnvVarsFromActiveLaunchSettings(env.project)
+                service.execManager.wrapper("idea", extraEnvVars).apply {
                     this.wsl = wsl
-                    configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
+                    // configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.first?.let {
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
