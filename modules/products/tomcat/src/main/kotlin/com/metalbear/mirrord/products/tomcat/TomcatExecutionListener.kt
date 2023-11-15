@@ -50,12 +50,16 @@ class PatchedScriptInfo(
      * the patched parameters to that field, and return the changed script object.
      */
     override fun getScript(): ExecutableObject? {
+        MirrordLogger.logger.debug("~~~getScript override")
         val startupScript = super.getScript()
+        MirrordLogger.logger.info("~~~super.getScript: ${startupScript.toString()}")
+        MirrordLogger.logger.info("~~~setting params to: ${params.joinToString(" ")}")
         val cmdExecutableObject = startupScript as? CommandLineExecutableObject
         val cmd = cmdExecutableObject ?: return startupScript
         val myParamsField = CommandLineExecutableObject::class.java.getDeclaredField("myParameters")
         myParamsField.isAccessible = true
         myParamsField.set(cmd, params)
+        MirrordLogger.logger.info("~~~getScript after forced access")
         return startupScript
     }
 }
@@ -64,6 +68,9 @@ class PatchedScriptInfo(
  * Create script object that will return a script object of SIP-patched script instead of the original.
  */
 fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String?): PatchedScriptInfo {
+    MirrordLogger.logger.info("~~~patchedScriptFromScript")
+    MirrordLogger.logger.info("~~~script: $script")
+    MirrordLogger.logger.info("~~~args: $args")
     val argList = args?.split("(?<!\\\\) ".toRegex()) ?: emptyList()
     val params = listOf(script) + argList
     val parentField = ScriptInfo::class.java.getDeclaredField("myParent")
@@ -72,6 +79,7 @@ fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String
     startupNotShutdownField.isAccessible = true
     val parent = parentField.get(scriptInfo) as CommonStrategy
     val startupNotShutdown = startupNotShutdownField.get(scriptInfo) as Boolean
+    MirrordLogger.logger.info("~~~patchedScriptFromScript after forced accesses")
     return PatchedScriptInfo(scriptInfo.scriptHelper, parent, startupNotShutdown, params.toTypedArray())
 }
 
@@ -83,15 +91,20 @@ class TomcatExecutionListener : ExecutionListener {
     private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
 
     private fun getConfig(env: ExecutionEnvironment): RunnerSpecificLocalConfigurationBit? {
+        MirrordLogger.logger.info("~~~getConfig")
+        MirrordLogger.logger.info("~~~getConfig - env: $env")
         if (!env.toString().startsWith("Tomcat")) {
             return null
         }
 
         val settings = env.configurationSettings ?: return null
+        MirrordLogger.logger.info("~~~getConfig - settings: $settings")
 
         return if (settings is RunnerSpecificLocalConfigurationBit) {
+            MirrordLogger.logger.info("~~~getConfig - settings is RunnerSpecificLocalConfigurationBit")
             settings
         } else {
+            MirrordLogger.logger.info("~~~getConfig - settings is null")
             null
         }
     }
@@ -102,29 +115,40 @@ class TomcatExecutionListener : ExecutionListener {
      * default script will be guessed based on the location of the tomcat installation, taken from [env].
      */
     private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs {
+        MirrordLogger.logger.info("~~~getStartScript")
         return if (scriptInfo.USE_DEFAULT) {
+            MirrordLogger.logger.info("~~~using default")
 //            val defaultScript = scriptInfo.script;
             val commandLine = scriptInfo.defaultScript.ifBlank {
+                MirrordLogger.logger.info("~~~default script was blank")
                 // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
                 // based on the tomcat installation location.
                 val tomcatLocation =
                     (((env.runProfile as CommonStrategy).applicationServer as ApplicationServerImpl).persistentData as TomcatPersistentData).HOME
                 val defaultScript = Paths.get(tomcatLocation, "bin/catalina.sh")
+                MirrordLogger.logger.info("~~~returning default script calculated from tomcat home: $defaultScript")
                 defaultScript.toString()
             }
+            MirrordLogger.logger.info("~~~command line is: $commandLine")
             // Split on the first space that is not preceded by a backslash.
             // 4 backslashes in the string are 1 in the regex.
             val split = commandLine.split("(?<!\\\\) ".toRegex(), limit = 2)
             val command = split.first()
             val args = split.getOrNull(1)
+            MirrordLogger.logger.info("~~~command is: $command")
+            MirrordLogger.logger.info("~~~args are: $args")
             CommandLineWithArgs(command, args)
         } else {
+            MirrordLogger.logger.info("~~~not default!")
+            MirrordLogger.logger.info("~~~script is ${scriptInfo.SCRIPT}, params are ${scriptInfo.PROGRAM_PARAMETERS}")
             CommandLineWithArgs(scriptInfo.SCRIPT, scriptInfo.PROGRAM_PARAMETERS)
         }
     }
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
+        MirrordLogger.logger.info("~~~processStartScheduled")
         getConfig(env)?.let { config ->
+            MirrordLogger.logger.info("~~~processStartScheduled: $env")
             val envVars = config.envVariables
 
             val service = env.project.service<MirrordProjectService>()
@@ -139,17 +163,20 @@ class TomcatExecutionListener : ExecutionListener {
             val (script, args) = getStartScript(startupInfo, env)
 
             try {
+                MirrordLogger.logger.info("~~~try")
                 service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
                     this.executable = script
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.let { (env, patchedPath) ->
+                    MirrordLogger.logger.info("~~~start - env: $env, patchedPath: $patchedPath")
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
                     val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
 
                     // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
                     val originalScript = if (SystemInfo.isMac && !startupInfo.USE_DEFAULT) {
+                        MirrordLogger.logger.info("~~~not default, saving script")
                         startupInfo.SCRIPT
                     } else {
                         null
@@ -160,19 +187,25 @@ class TomcatExecutionListener : ExecutionListener {
                     config.setEnvironmentVariables(envVars)
 
                     if (SystemInfo.isMac) {
+                        MirrordLogger.logger.info("~~~isMac, patching.")
                         patchedPath?.let {
+                            MirrordLogger.logger.info("~~~patchedPath is not null: $it")
                             if (config.startupInfo.USE_DEFAULT) {
+                                MirrordLogger.logger.info("~~~using default - patching by replacing config.startupInfo")
                                 val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, args)
                                 val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
                                 startupInfoField.isAccessible = true
                                 startupInfoField.set(config, patchedStartupInfo)
+                                MirrordLogger.logger.info("~~~using default - patched by replacing config.startupInfo")
                             } else {
+                                MirrordLogger.logger.info("~~~NOT using default - patching by replacing config.startupInfo")
                                 config.startupInfo.SCRIPT = it
                             }
                         }
                     }
                 }
             } catch (e: Throwable) {
+                MirrordLogger.logger.info("~~~error thrown: ", e)
                 MirrordLogger.logger.debug("Running tomcat project failed: ", e)
                 // Error notifications were already fired.
                 // We can't abort the execution here, so we let the app run without mirrord.

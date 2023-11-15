@@ -96,7 +96,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         mirrordConfigFromEnv: String?
     ): Pair<Map<String, String>, String?>? {
+        MirrordLogger.logger.info("~~~MirrordExecManager.start")
         if (!service.enabled) {
+            MirrordLogger.logger.info("~~~MirrordExecManager.start: service not enabled, returning.")
             MirrordLogger.logger.debug("disabled, returning")
             return null
         }
@@ -105,28 +107,34 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             throw MirrordError("can't use on Windows without WSL")
         }
 
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: checking version.")
         MirrordLogger.logger.debug("version check trigger")
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
         val cli = cliPath(wslDistribution, product)
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: config path is $cli")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
                 service.mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+            MirrordLogger.logger.info("~~~MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
             MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                MirrordLogger.logger.info("~~~MirrordExecManager.start: MirrordVerifiedConfig: $it")
                 if (isError()) {
+                    MirrordLogger.logger.info("~~~MirrordExecManager.start: invalid config error")
                     throw InvalidConfigException(it, "Validation failed for config")
                 }
             }
         }
 
-        MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
+        MirrordLogger.logger.info("Verified Config: $verifiedConfig, Target selection.")
 
         val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
-            MirrordLogger.logger.debug("target not selected, showing dialog")
+            MirrordLogger.logger.info("target not selected, showing dialog")
             chooseTarget(cli, wslDistribution, configPath).also {
                 if (it == MirrordExecDialog.targetlessTargetName) {
                     MirrordLogger.logger.info("No target specified - running targetless")
@@ -141,6 +149,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         } else {
             null
         }
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: exec")
 
         val executionInfo = service.mirrordApi.exec(
             cli,
@@ -149,6 +158,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             executable,
             wslDistribution
         )
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: executionInfo: $executionInfo")
+        MirrordLogger.logger.info("~~~MirrordExecManager.start: patchedPath: ${executionInfo.patchedPath}")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
         return Pair(executionInfo.environment, executionInfo.patchedPath)
@@ -163,13 +174,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             return try {
                 manager.start(wsl, executable, product, configFromEnv)
             } catch (e: MirrordError) {
+                MirrordLogger.logger.info("~~~MirrordError: ", e)
                 e.showHelp(manager.service.project)
                 throw e
             } catch (e: ProcessCanceledException) {
+                MirrordLogger.logger.info("~~~ProcessCanceledException: ", e)
                 manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
                 throw e
             } catch (e: Throwable) {
+                MirrordLogger.logger.info("~~~Throwable: ", e)
                 val mirrordError = MirrordError(e.toString(), e)
+                MirrordLogger.logger.info("~~~MirrordError from Throwable: ", mirrordError)
                 mirrordError.showHelp(manager.service.project)
                 throw e
             }
