@@ -89,9 +89,6 @@ class TomcatExecutionListener : ExecutionListener {
 
     private fun getConfig(env: ExecutionEnvironment): RunnerSpecificLocalConfigurationBit? {
         MirrordLogger.logger.debug("getConfig - env: $env")
-        if (!env.toString().startsWith("Tomcat")) {
-            return null
-        }
 
         val settings = env.configurationSettings ?: return null
         MirrordLogger.logger.debug("getConfig - settings: $settings")
