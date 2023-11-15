@@ -105,7 +105,7 @@ class TomcatExecutionListener : ExecutionListener {
      * If the info is not available, which by looking at [ScriptInfo] seems possible (though we don't know when), the
      * default script will be guessed based on the location of the tomcat installation, taken from [env].
      */
-    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs {
+    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs? {
         MirrordLogger.logger.debug("getStartScript tomcat")
         return if (scriptInfo.USE_DEFAULT) {
             MirrordLogger.logger.debug("using default tomcat script")
@@ -115,8 +115,9 @@ class TomcatExecutionListener : ExecutionListener {
                 // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
                 // based on the tomcat installation location.
                 val tomcatLocation =
-                    (((env.runProfile as CommonStrategy).applicationServer as ApplicationServerImpl).persistentData as TomcatPersistentData).HOME
-                val defaultScript = Paths.get(tomcatLocation, "bin/catalina.sh")
+                    (((env.runProfile as? CommonStrategy)?.applicationServer as? ApplicationServerImpl)?.persistentData as? TomcatPersistentData)?.HOME
+                val tomcatHome = tomcatLocation ?: return null
+                val defaultScript = Paths.get(tomcatHome, "bin/catalina.sh")
                 MirrordLogger.logger.debug("returning default script calculated from tomcat home: $defaultScript")
                 defaultScript.toString()
             }
@@ -150,12 +151,24 @@ class TomcatExecutionListener : ExecutionListener {
             }
 
             val startupInfo = config.startupInfo
-            val (script, args) = getStartScript(startupInfo, env)
+            val scriptAndArgs = if (SystemInfo.isMac) {
+                val startScriptAndArgs = getStartScript(startupInfo, env)
+                if (startScriptAndArgs == null) {
+                    MirrordLogger.logger.info("could not get script from the configuration.")
+                    service.notifier.notifySimple(
+                        "Mirrord could not determine the script to be run. We cannot sidestep SIP and might not load into the process.",
+                        NotificationType.WARNING
+                    )
+                }
+                startScriptAndArgs
+            } else {
+                null
+            }
 
             try {
                 service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
-                    this.executable = script
+                    this.executable = scriptAndArgs?.command
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.let { (env, patchedPath) ->
                     MirrordLogger.logger.debug("got execution info for tomcat - env: $env, patchedPath: $patchedPath")
@@ -181,7 +194,7 @@ class TomcatExecutionListener : ExecutionListener {
                             MirrordLogger.logger.debug("patchedPath is not null: $it, meaning original was SIP")
                             if (config.startupInfo.USE_DEFAULT) {
                                 MirrordLogger.logger.debug("using default - handling SIP by replacing config.startupInfo")
-                                val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, args)
+                                val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
                                 val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
                                 startupInfoField.isAccessible = true
                                 startupInfoField.set(config, patchedStartupInfo)
