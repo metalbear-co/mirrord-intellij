@@ -8,12 +8,21 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.util.EnvironmentVariable
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.javaee.appServers.integration.impl.ApplicationServerImpl
+import com.intellij.javaee.appServers.run.configuration.CommonStrategy
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
+import com.intellij.javaee.appServers.run.localRun.CommandLineExecutableObject
+import com.intellij.javaee.appServers.run.localRun.ExecutableObject
+import com.intellij.javaee.appServers.run.localRun.ScriptHelper
+import com.intellij.javaee.appServers.run.localRun.ScriptInfo
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
+import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import org.jetbrains.idea.tomcat.server.TomcatPersistentData
+import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
@@ -22,15 +31,67 @@ private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
 
+/**
+ * Extending the ScriptInfo class to replace the script info of the run with an object of this class so that we can
+ * override `getScript` in order to run a patched script instead of the original one on macOS if the original is SIP
+ * protected.
+ * @property params first element is script, then args, e.g.:
+ * ["/var/folders/4l/810mmn597cx7zy5w2bk11clh0000gn/T/mirrord-bin/opt/homebrew/Cellar/tomcat@8/8.5.95/libexec/bin/catalina.sh", "run"]
+ */
+class PatchedScriptInfo(
+    scriptsHelper: ScriptHelper?,
+    parent: CommonStrategy,
+    startupNotShutdown: Boolean,
+    private val params: Array<String>
+) :
+    ScriptInfo(scriptsHelper, parent, startupNotShutdown) {
+
+    /** Get the original script object, forcefully change the accessibility of the private parameters field, then write
+     * the patched parameters to that field, and return the changed script object.
+     */
+    override fun getScript(): ExecutableObject? {
+        MirrordLogger.logger.debug("getScript override")
+        val startupScript = super.getScript()
+        MirrordLogger.logger.debug("setting params to: ${params.joinToString(" ")}")
+        val cmdExecutableObject = startupScript as? CommandLineExecutableObject
+        val cmd = cmdExecutableObject ?: return startupScript
+        val myParamsField = CommandLineExecutableObject::class.java.getDeclaredField("myParameters")
+        myParamsField.isAccessible = true
+        myParamsField.set(cmd, params)
+        MirrordLogger.logger.debug("getScript survived forced access")
+        return startupScript
+    }
+}
+
+/**
+ * Create script object that will return a script object of SIP-patched script instead of the original.
+ */
+fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String?): PatchedScriptInfo {
+    MirrordLogger.logger.debug("patchedScriptFromScript - script: $script, args: $args")
+    val argList = args?.split("(?<!\\\\) ".toRegex()) ?: emptyList()
+    val params = listOf(script) + argList
+    val parentField = ScriptInfo::class.java.getDeclaredField("myParent")
+    val startupNotShutdownField = ScriptInfo::class.java.getDeclaredField("myStartupNotShutdown")
+    parentField.isAccessible = true
+    startupNotShutdownField.isAccessible = true
+    val parent = parentField.get(scriptInfo) as CommonStrategy
+    val startupNotShutdown = startupNotShutdownField.get(scriptInfo) as Boolean
+    MirrordLogger.logger.debug("patchedScriptFromScript survived forced accesses")
+    return PatchedScriptInfo(scriptInfo.scriptHelper, parent, startupNotShutdown, params.toTypedArray())
+}
+
+data class SavedConfigData(val envVars: List<EnvironmentVariable>, val nonDefaultScript: String?)
+
+data class CommandLineWithArgs(val command: String, val args: String?)
+
 class TomcatExecutionListener : ExecutionListener {
-    private val savedEnvs: ConcurrentHashMap<String, List<EnvironmentVariable>> = ConcurrentHashMap()
+    private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
 
     private fun getConfig(env: ExecutionEnvironment): RunnerSpecificLocalConfigurationBit? {
-        if (!env.toString().startsWith("Tomcat")) {
-            return null
-        }
+        MirrordLogger.logger.debug("getConfig - env: $env")
 
         val settings = env.configurationSettings ?: return null
+        MirrordLogger.logger.debug("getConfig - settings: $settings")
 
         return if (settings is RunnerSpecificLocalConfigurationBit) {
             settings
@@ -39,8 +100,46 @@ class TomcatExecutionListener : ExecutionListener {
         }
     }
 
+    /**
+     * Returns a String with the path of the script that will be executed, based on the [scriptInfo].
+     * If the info is not available, which by looking at [ScriptInfo] seems possible (though we don't know when), the
+     * default script will be guessed based on the location of the tomcat installation, taken from [env].
+     */
+    private fun getStartScript(scriptInfo: ScriptInfo, env: ExecutionEnvironment): CommandLineWithArgs? {
+        MirrordLogger.logger.debug("getStartScript tomcat")
+        return if (scriptInfo.USE_DEFAULT) {
+            MirrordLogger.logger.debug("using default tomcat script")
+//            val defaultScript = scriptInfo.script;
+            val commandLine = scriptInfo.defaultScript.ifBlank {
+                MirrordLogger.logger.debug("default script was blank")
+                // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
+                // based on the tomcat installation location.
+                val tomcatLocation =
+                    (((env.runProfile as? CommonStrategy)?.applicationServer as? ApplicationServerImpl)?.persistentData as? TomcatPersistentData)?.HOME
+                val tomcatHome = tomcatLocation ?: return null
+                val defaultScript = Paths.get(tomcatHome, "bin/catalina.sh")
+                MirrordLogger.logger.debug("returning default script calculated from tomcat home: $defaultScript")
+                defaultScript.toString()
+            }
+            MirrordLogger.logger.debug("command line is: $commandLine")
+            // Split on the first space that is not preceded by a backslash.
+            // 4 backslashes in the string are 1 in the regex.
+            val split = commandLine.split("(?<!\\\\) ".toRegex(), limit = 2)
+            val command = split.first()
+            val args = split.getOrNull(1)
+            MirrordLogger.logger.debug("command is: $command, args are: $args")
+            CommandLineWithArgs(command, args)
+        } else {
+            MirrordLogger.logger.debug("tomcat set to NOT use default!")
+            MirrordLogger.logger.debug("non-default script is ${scriptInfo.SCRIPT}, params are ${scriptInfo.PROGRAM_PARAMETERS}")
+            CommandLineWithArgs(scriptInfo.SCRIPT, scriptInfo.PROGRAM_PARAMETERS)
+        }
+    }
+
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
+        MirrordLogger.logger.debug("processStartScheduled tomcat")
         getConfig(env)?.let { config ->
+            MirrordLogger.logger.debug("processStartScheduled: got tomcat config")
             val envVars = config.envVariables
 
             val service = env.project.service<MirrordProjectService>()
@@ -51,19 +150,63 @@ class TomcatExecutionListener : ExecutionListener {
                 else -> null
             }
 
+            val startupInfo = config.startupInfo
+            val scriptAndArgs = if (SystemInfo.isMac) {
+                val startScriptAndArgs = getStartScript(startupInfo, env)
+                if (startScriptAndArgs == null) {
+                    MirrordLogger.logger.info("could not get script from the configuration.")
+                    service.notifier.notifySimple(
+                        "Mirrord could not determine the script to be run. We cannot sidestep SIP and might not load into the process.",
+                        NotificationType.WARNING
+                    )
+                }
+                startScriptAndArgs
+            } else {
+                null
+            }
+
             try {
                 service.execManager.wrapper("idea").apply {
                     this.wsl = wsl
+                    this.executable = scriptAndArgs?.command
                     configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
-                }.start()?.first?.let {
+                }.start()?.let { (env, patchedPath) ->
+                    MirrordLogger.logger.debug("got execution info for tomcat - env: $env, patchedPath: $patchedPath")
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
-                    val mirrordEnv = it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
-                    savedEnvs[executorId] = envVars.toList()
+                    val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
+
+                    // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
+                    val originalScript = if (SystemInfo.isMac && !startupInfo.USE_DEFAULT) {
+                        MirrordLogger.logger.debug("config uses non-default tomcat script. Saving path to restore later")
+                        startupInfo.SCRIPT
+                    } else {
+                        null
+                    }
+
+                    savedEnvs[executorId] = SavedConfigData(envVars.toList(), originalScript)
                     envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
                     config.setEnvironmentVariables(envVars)
+
+                    if (SystemInfo.isMac) {
+                        MirrordLogger.logger.debug("isMac, patching SIP.")
+                        patchedPath?.let {
+                            MirrordLogger.logger.debug("patchedPath is not null: $it, meaning original was SIP")
+                            if (config.startupInfo.USE_DEFAULT) {
+                                MirrordLogger.logger.debug("using default - handling SIP by replacing config.startupInfo")
+                                val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
+                                val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
+                                startupInfoField.isAccessible = true
+                                startupInfoField.set(config, patchedStartupInfo)
+                            } else {
+                                MirrordLogger.logger.debug("NOT using default - patching by changing the non-default script")
+                                config.startupInfo.SCRIPT = it
+                            }
+                        }
+                    }
                 }
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                MirrordLogger.logger.debug("Running tomcat project failed: ", e)
                 // Error notifications were already fired.
                 // We can't abort the execution here, so we let the app run without mirrord.
                 service.notifier.notifySimple(
@@ -76,21 +219,26 @@ class TomcatExecutionListener : ExecutionListener {
         super.processStartScheduled(executorId, env)
     }
 
-    private fun restoreEnv(executorId: String, config: RunnerSpecificLocalConfigurationBit) {
+    private fun restoreConfig(executorId: String, config: RunnerSpecificLocalConfigurationBit) {
         val saved = savedEnvs.remove(executorId) ?: return
-        config.setEnvironmentVariables(saved)
+        config.setEnvironmentVariables(saved.envVars)
+        if (SystemInfo.isMac) {
+            saved.nonDefaultScript?.let {
+                config.startupInfo.SCRIPT = it
+            }
+        }
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
         getConfig(env)?.let {
-            restoreEnv(executorId, it)
+            restoreConfig(executorId, it)
         }
         super.processNotStarted(executorId, env)
     }
 
     override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
         getConfig(env)?.let {
-            restoreEnv(executorId, it)
+            restoreConfig(executorId, it)
         }
         super.processStarted(executorId, env, handler)
     }

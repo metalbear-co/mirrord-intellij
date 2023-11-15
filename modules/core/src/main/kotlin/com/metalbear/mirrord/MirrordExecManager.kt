@@ -96,6 +96,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         mirrordConfigFromEnv: String?
     ): Pair<Map<String, String>, String?>? {
+        MirrordLogger.logger.debug("MirrordExecManager.start")
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
@@ -109,15 +110,20 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
         val cli = cliPath(wslDistribution, product)
+        MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
+        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $cli")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
                 service.mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+            MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
             MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
                 if (isError()) {
+                    MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
                     throw InvalidConfigException(it, "Validation failed for config")
                 }
             }
@@ -149,6 +155,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             executable,
             wslDistribution
         )
+        MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
         return Pair(executionInfo.environment, executionInfo.patchedPath)
