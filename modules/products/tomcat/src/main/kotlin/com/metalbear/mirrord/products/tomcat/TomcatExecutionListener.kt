@@ -80,7 +80,7 @@ fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String
     return PatchedScriptInfo(scriptInfo.scriptHelper, parent, startupNotShutdown, params.toTypedArray())
 }
 
-data class SavedConfigData(val envVars: List<EnvironmentVariable>, val nonDefaultScript: String?)
+data class SavedConfigData(val envVars: List<EnvironmentVariable>, var scriptInfo: ScriptInfo?)
 
 data class CommandLineWithArgs(val command: String, val args: String?)
 
@@ -176,15 +176,7 @@ class TomcatExecutionListener : ExecutionListener {
                     // even if `outgoing` feature is enabled.
                     val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
 
-                    // If we're on macOS we're going to SIP-patch the script and change info, so save script info.
-                    val originalScript = if (SystemInfo.isMac && !startupInfo.USE_DEFAULT) {
-                        MirrordLogger.logger.debug("config uses non-default tomcat script. Saving path to restore later")
-                        startupInfo.SCRIPT
-                    } else {
-                        null
-                    }
-
-                    savedEnvs[executorId] = SavedConfigData(envVars.toList(), originalScript)
+                    val savedData = SavedConfigData(envVars.toList(), null)
                     envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
                     config.setEnvironmentVariables(envVars)
 
@@ -192,6 +184,7 @@ class TomcatExecutionListener : ExecutionListener {
                         MirrordLogger.logger.debug("isMac, patching SIP.")
                         patchedPath?.let {
                             MirrordLogger.logger.debug("patchedPath is not null: $it, meaning original was SIP")
+                            savedData.scriptInfo = startupInfo
                             if (config.startupInfo.USE_DEFAULT) {
                                 MirrordLogger.logger.debug("using default - handling SIP by replacing config.startupInfo")
                                 val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
@@ -204,6 +197,7 @@ class TomcatExecutionListener : ExecutionListener {
                             }
                         }
                     }
+                    savedEnvs[executorId] = savedData
                 }
             } catch (e: Throwable) {
                 MirrordLogger.logger.debug("Running tomcat project failed: ", e)
@@ -223,8 +217,10 @@ class TomcatExecutionListener : ExecutionListener {
         val saved = savedEnvs.remove(executorId) ?: return
         config.setEnvironmentVariables(saved.envVars)
         if (SystemInfo.isMac) {
-            saved.nonDefaultScript?.let {
-                config.startupInfo.SCRIPT = it
+            saved.scriptInfo?.let {
+                val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
+                startupInfoField.isAccessible = true
+                startupInfoField.set(config, it)
             }
         }
     }
