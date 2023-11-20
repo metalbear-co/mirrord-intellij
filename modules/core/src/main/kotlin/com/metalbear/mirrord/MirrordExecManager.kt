@@ -96,6 +96,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         mirrordConfigFromEnv: String?
     ): Pair<Map<String, String>, String?>? {
+        MirrordLogger.logger.debug("MirrordExecManager.start")
         if (!service.enabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
@@ -109,48 +110,52 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
         val cli = cliPath(wslDistribution, product)
-        val config = service.configApi.getConfigPath(mirrordConfigFromEnv)
-
+        MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
-        var verifiedConfig: MirrordVerifiedConfig? = null
-        if (configPath != null) {
-            val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
-            val verified = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).also { verifiedConfig = it }
-            if (verified.isError()) {
-                throw InvalidConfigException(configPath, "validation failed for config")
+        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $cli")
+
+        val verifiedConfig = configPath?.let {
+            val verifiedConfigOutput =
+                service.mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+            MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
+            MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
+                if (isError()) {
+                    MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
+                    throw InvalidConfigException(it, "Validation failed for config")
+                }
             }
         }
 
-        MirrordLogger.logger.debug("target selection")
+        MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
 
-        var target: String? = null
-        val isTargetSet = (config != null && isTargetSet(verifiedConfig?.config))
-        MirrordLogger.logger.debug("$verifiedConfig")
-
-        if (!isTargetSet) {
+        val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            target = chooseTarget(cli, wslDistribution, config)
-            if (target == MirrordExecDialog.targetlessTargetName) {
-                MirrordLogger.logger.info("No target specified - running targetless")
-                service.notifier.notification(
-                    "No target specified, mirrord running targetless.",
-                    NotificationType.INFORMATION
-                )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                    .fire()
-                target = null
+            chooseTarget(cli, wslDistribution, configPath).also {
+                if (it == MirrordExecDialog.targetlessTargetName) {
+                    MirrordLogger.logger.info("No target specified - running targetless")
+                    service.notifier.notification(
+                        "No target specified, mirrord running targetless.",
+                        NotificationType.INFORMATION
+                    )
+                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                        .fire()
+                }
             }
+        } else {
+            null
         }
 
         val executionInfo = service.mirrordApi.exec(
             cli,
             target,
-            config,
+            configPath,
             executable,
             wslDistribution
         )
+        MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
         return Pair(executionInfo.environment, executionInfo.patchedPath)
