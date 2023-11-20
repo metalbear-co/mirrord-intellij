@@ -91,7 +91,7 @@ class MirrordBinaryManager {
                         project
                             .service<MirrordProjectService>()
                             .notifier
-                            .notification("mirrord version format is invalid! ${e.message}", NotificationType.WARNING)
+                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
                             .fire()
                         return
                     }
