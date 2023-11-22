@@ -174,9 +174,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * Helps to handle special cases and differences between the IDEs or language runners (like npm).
      */
     class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
-
-        //val extraEnv = params.env + (configuration as ExternalSystemRunConfiguration).settings.env
-
         var wsl: WSLDistribution? = null
         var executable: String? = null
 

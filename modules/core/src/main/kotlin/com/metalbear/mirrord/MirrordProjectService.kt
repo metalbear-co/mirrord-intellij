@@ -17,7 +17,7 @@ class MirrordProjectService(val project: Project) : Disposable {
 
     val versionCheck: MirrordVersionCheck = MirrordVersionCheck(this)
 
-    fun mirrordApi(environment: Map<String, String>?) : MirrordApi {
+    fun mirrordApi(environment: Map<String, String>?): MirrordApi {
         return MirrordApi(this, environment)
     }
 
