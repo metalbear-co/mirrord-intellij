@@ -24,11 +24,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     private fun chooseTarget(
         cli: String,
         wslDistribution: WSLDistribution?,
-        config: String?
+        config: String?,
+        mirrordApi: MirrordApi
     ): String {
         MirrordLogger.logger.debug("choose target called")
 
-        val pods = service.mirrordApi.listPods(
+        val pods = mirrordApi.listPods(
             cli,
             config,
             wslDistribution
@@ -110,9 +111,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("version check trigger")
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
-        // TODO(alex) To avoid having this kind of code, we should merge system vars with launch vars
-        // everywhere.
-        val mirrordConfigFile = projectEnvVars?.get(CONFIG_ENV_NAME) ?: System.getenv()[CONFIG_ENV_NAME]
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+
+        val mirrordConfigFile = projectEnvVars?.get(CONFIG_ENV_NAME)
         val cli = cliPath(wslDistribution, product)
         val config = service.configApi.getConfigPath(mirrordConfigFile)
 
@@ -121,7 +122,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val configPath = service.configApi.getConfigPath(mirrordConfigFile)
         var verifiedConfig: MirrordVerifiedConfig? = null
         if (configPath != null) {
-            val verifiedConfigOutput = service.mirrordApi.verifyConfig(cli, configPath)
+            val verifiedConfigOutput = mirrordApi.verifyConfig(cli, configPath)
             val verified = MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).also { verifiedConfig = it }
             if (verified.isError()) {
                 throw InvalidConfigException(configPath, "validation failed for config")
@@ -136,7 +137,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         if (!isTargetSet) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            target = chooseTarget(cli, wslDistribution, config)
+            target = chooseTarget(cli, wslDistribution, config, mirrordApi)
             if (target == MirrordExecDialog.targetlessTargetName) {
                 MirrordLogger.logger.info("No target specified - running targetless")
                 service.notifier.notification(
@@ -149,7 +150,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             }
         }
 
-        val executionInfo = service.mirrordApi.exec(
+        val executionInfo = mirrordApi.exec(
             cli,
             target,
             config,
@@ -168,19 +169,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      */
     class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
 
-        /**
-         * These are the env vars set in the launch project config, and those that are set in
-         * some other ways, such as a patched command line, or as arguments to some app.
-         *
-         * Initialized only once to avoid issues when the user could change the active mirrord
-         * config mid-run, as we mix `MIRRORD_`-style env vars with the values in the `mirrord.json`
-         * file.
-         */
-        private val projectEnvVars: Map<String, String>? = run {
-            val envRunSettings = getEnvVarsFromActiveLaunchSettings(manager.service.project)
-            extraEnvVars?.plus(envRunSettings ?: emptyMap()) ?: envRunSettings
-        }
-
         //val extraEnv = params.env + (configuration as ExternalSystemRunConfiguration).settings.env
 
         var wsl: WSLDistribution? = null
@@ -188,7 +176,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         fun start(): Pair<Map<String, String>, String?>? {
             return try {
-                manager.start(wsl, executable, product, projectEnvVars)
+                manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e

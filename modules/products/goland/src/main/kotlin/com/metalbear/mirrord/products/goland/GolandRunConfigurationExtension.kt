@@ -12,7 +12,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
-import com.metalbear.mirrord.getEnvVarsFromActiveLaunchSettings
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
@@ -50,11 +49,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             service.execManager.wrapper("goland", configuration.getCustomEnvironment()).apply {
                 this.wsl = wsl
             }.start()?.first?.let { env ->
-                val withLaunchEnvVars = getEnvVarsFromActiveLaunchSettings(service.project)?.let { launchEnvVars ->
-                    env + launchEnvVars
-                } ?: env
-
-                for (entry in withLaunchEnvVars.entries.iterator()) {
+                for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
                 cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")

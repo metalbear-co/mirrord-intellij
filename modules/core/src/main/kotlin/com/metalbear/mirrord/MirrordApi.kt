@@ -4,8 +4,6 @@ package com.metalbear.mirrord
 
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
-import com.intellij.execution.CommonProgramRunConfigurationParameters
-import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
@@ -215,17 +213,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
         service.notifier.notification("Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Feedback", FEEDBACK_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
     }
-}
-
-/**
- * Gets the env vars set by the user for the current run (there might be more than 1 run configuration).
- *
- * @param project: Contains the `selectedConfiguration`, which holds the active env vars.
- * @return A `Map` with the launch env vars, that can be put into the `environment` when running mirrord.
- */
-fun getEnvVarsFromActiveLaunchSettings(project: Project): Map<String, String>? {
-    val runConfig = RunManager.getInstance(project).selectedConfiguration?.configuration
-    return if (runConfig is CommonProgramRunConfigurationParameters) runConfig.envs else null
 }
 
 /**
