@@ -8,6 +8,30 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.0) - 2023-11-16
+
+
+### Added
+
+- Support for running tomcat projects on macOS (sidestepping SIP).
+  [#190](https://github.com/metalbear-co/mirrord-intellij/issues/190)
+- Added source identifier to waitlist register
+
+
+### Fixed
+
+- Fix broken wsl support
+  [#193](https://github.com/metalbear-co/mirrord-intellij/issues/193)
+- Tomcat support was only enabled when the configuration's name started with
+  "Tomcat".
+
+
+### Internal
+
+- `TomcatExecutionListener` does not save/restore environment when mirrord is
+  disabled. [#188](https://github.com/metalbear-co/mirrord-intellij/issues/188)
+
+
 ## [3.55.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.1) - 2023-10-25
 
 

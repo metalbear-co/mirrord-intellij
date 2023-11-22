@@ -157,7 +157,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                 throw MirrordError.fromStdErr(processStdError)
             }
 
-            val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
             val stderr = process.errorStream.reader().buffered()
             MirrordLogger.logger.debug(stderr.readText())
@@ -172,8 +171,15 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      *
      * @return String containing a json with either a success + warnings, or the verified config errors.
      */
-    fun verifyConfig(cli: String, configFilePath: String): String {
-        return MirrordVerifyConfigTask(cli, configFilePath, projectEnvVars).run(service.project)
+    fun verifyConfig(
+        cli: String,
+        configFilePath: String,
+        wslDistribution: WSLDistribution?
+    ): String {
+        val verifyConfigTask = MirrordVerifyConfigTask(cli, configFilePath, projectEnvVars).apply {
+            this.wslDistribution = wslDistribution
+        }
+        return verifyConfigTask.run(service.project)
     }
 
     /**
@@ -255,6 +261,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             wslDistribution?.let {
                 val wslOptions = WSLCommandLineOptions().apply {
                     isLaunchWithWslExe = true
+                    isExecuteCommandInShell = false
                 }
                 it.patchCommandLine(this, project, wslOptions)
             }

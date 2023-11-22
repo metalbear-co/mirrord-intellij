@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.github.zafarkhaja.semver.Version
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.Service
@@ -35,6 +36,7 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
 class MirrordBinaryManager {
     @Volatile
     private var latestSupportedVersion: String? = null
+    private var downloadVersion: String? = null
 
     /**
      * Schedules the update task at project startup.
@@ -78,13 +80,14 @@ class MirrordBinaryManager {
 
             val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
             val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+            manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
 
             val version = when {
                 // auto update -> false -> use mirrordVersion if it's not empty
-                !autoUpdate && userSelectedMirrordVersion.isNotEmpty() -> {
-                    if (checkVersionFormat(userSelectedMirrordVersion)) {
-                        userSelectedMirrordVersion
-                    } else {
+                !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
+                    try {
+                        Version.valueOf(userSelectedMirrordVersion)
+                    } catch (e: Exception) {
                         project
                             .service<MirrordProjectService>()
                             .notifier
@@ -92,28 +95,29 @@ class MirrordBinaryManager {
                             .fire()
                         return
                     }
+                    userSelectedMirrordVersion
                 }
                 // auto update -> false -> mirrordVersion is empty -> needs check in the path
                 // if not in path -> fetch latest version
                 !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
                 // auto update -> true -> fetch latest version
-                else -> manager.fetchLatestSupportedVersion(product, indicator)
+                else -> manager.latestSupportedVersion
             }
 
             val local = if (checkInPath) {
                 manager.getLocalBinary(version, wslDistribution)
             } else {
-                manager.findBinaryInStorage(version)
+                manager.findBinaryInStorage(version, wslDistribution)
             }
 
             if (local != null) {
                 return
             }
 
-            manager.latestSupportedVersion = version
-                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> fetch latest version
-                ?: manager.fetchLatestSupportedVersion(product, indicator)
+            manager.downloadVersion = version
+                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> latest version
+                ?: manager.latestSupportedVersion
 
             if (downloadInProgress.compareAndExchange(false, true)) {
                 return
@@ -147,14 +151,6 @@ class MirrordBinaryManager {
                         NotificationType.INFORMATION
                     )
             }
-        }
-
-        /**
-         * checks if the passed version string matches *.*.* format (numbers only)
-         * @param version version string to check
-         * */
-        fun checkVersionFormat(version: String): Boolean {
-            return version.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
         }
     }
 
@@ -192,7 +188,7 @@ class MirrordBinaryManager {
     }
 
     private fun updateBinary(indicator: ProgressIndicator) {
-        val version = latestSupportedVersion ?: return
+        val version = downloadVersion ?: return
 
         val url = if (SystemInfo.isMac) {
             "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
@@ -241,19 +237,24 @@ class MirrordBinaryManager {
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
     }
 
-    private class MirrordBinary(val command: String) {
+    private class MirrordBinary(val command: String, wslDistribution: WSLDistribution?) {
         val version: String
 
         init {
-            val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+            version = if (wslDistribution != null) {
+                val command = wslDistribution.getWslPath(command)
+                val output = wslDistribution.executeOnWsl(1000, command, "--version")
+                output.stdout.split(' ')[1].trim()
+            } else {
+                val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+                val result = child.waitFor()
+                if (result != 0) {
+                    MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
+                    throw RuntimeException("failed to get mirrord version")
+                }
 
-            val result = child.waitFor()
-            if (result != 0) {
-                MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
-                throw RuntimeException("failed to get mirrord version")
+                child.inputReader().readLine().split(' ')[1].trim()
             }
-
-            version = child.inputReader().readLine().split(' ')[1].trim()
         }
     }
 
@@ -277,33 +278,47 @@ class MirrordBinaryManager {
                 output.stdoutLines.first().trim()
             }
 
-            val binary = MirrordBinary(output)
-            return if (requiredVersion == null || requiredVersion == binary.version) {
-                binary
-            } else {
-                null
+            val binary = MirrordBinary(output, wslDistribution)
+            val isRequiredVersion = try {
+                // for release CI, the tag can be greater than the latest release
+                if (System.getenv("CI_BUILD_PLUGIN") == "true") {
+                    Version.valueOf(binary.version).greaterThanOrEqualTo(Version.valueOf(requiredVersion))
+                } else {
+                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                }
+            } catch (e: Exception) {
+                MirrordLogger.logger.debug("failed to parse version", e)
+                false
+            }
+            if (requiredVersion == null || isRequiredVersion) {
+                return binary
             }
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in path", e)
-            return null
         }
+        return null
     }
 
     /**
      * @return executable found in plugin storage
      */
-    private fun findBinaryInStorage(requiredVersion: String?): MirrordBinary? {
+    private fun findBinaryInStorage(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
             MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
-                val binary = MirrordBinary(it)
-                if (requiredVersion == null || requiredVersion == binary.version) {
+                val binary = MirrordBinary(it, wslDistribution)
+                val isRequiredVersion = try {
+                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                } catch (e: Exception) {
+                    MirrordLogger.logger.debug("failed to parse version", e)
+                    false
+                }
+                if (requiredVersion == null || isRequiredVersion) {
                     return binary
                 }
             }
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in plugin storage", e)
         }
-
         return null
     }
 
@@ -311,7 +326,7 @@ class MirrordBinaryManager {
      * @return the local installation of mirrord, either in `PATH` or in plugin storage
      */
     private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
-        return findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion)
+        return findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion, wslDistribution)
     }
 
     /**
