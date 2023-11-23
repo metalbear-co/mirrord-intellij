@@ -7,6 +7,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.util.alsoIfNull
 import java.nio.file.Path
 
 /**
@@ -133,8 +134,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            chooseTarget(cli, wslDistribution, configPath).also {
-                if (it == MirrordExecDialog.targetlessTargetName) {
+            chooseTarget(cli, wslDistribution, configPath)
+                .takeUnless { it == MirrordExecDialog.targetlessTargetName }
+                .alsoIfNull {
                     MirrordLogger.logger.info("No target specified - running targetless")
                     service.notifier.notification(
                         "No target specified, mirrord running targetless.",
@@ -143,7 +145,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                         .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
                         .fire()
                 }
-            }
         } else {
             null
         }
