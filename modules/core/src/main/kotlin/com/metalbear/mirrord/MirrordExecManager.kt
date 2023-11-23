@@ -114,7 +114,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
         val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
-        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $cli")
+        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
@@ -131,7 +131,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
 
-        val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
+        val targetSet = verifiedConfig?.let { isTargetSet(it.config) } ?: false
+        val target = if (!targetSet) {
+            // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
             chooseTarget(cli, wslDistribution, configPath).also {
                 if (it == MirrordExecDialog.targetlessTargetName) {

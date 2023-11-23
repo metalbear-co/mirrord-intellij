@@ -30,6 +30,7 @@ class InvalidConfigException(path: String, reason: String) : MirrordError("faile
  * @throws InvalidConfigException if config cannot be found or parsed.
  */
 fun isTargetSet(config: String?): Boolean {
+    config ?: return false
     val gson = Gson()
 
     // `path` will be either a normal string, or the string `"null"` due to `toString`.
