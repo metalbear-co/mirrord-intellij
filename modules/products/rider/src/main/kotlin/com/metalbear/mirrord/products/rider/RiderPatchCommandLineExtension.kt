@@ -16,7 +16,6 @@ import com.jetbrains.rd.util.lifetime.Lifetime
 import com.jetbrains.rider.run.PatchCommandLineExtension
 import com.jetbrains.rider.run.WorkerRunInfo
 import com.jetbrains.rider.runtime.DotNetRuntime
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
@@ -32,10 +31,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             }
         }
 
-        service.execManager.wrapper("rider").apply {
+        service.execManager.wrapper("rider", commandLine.environment).apply {
             this.wsl = wsl
-            configFromEnv =
-                commandLine.environment[CONFIG_ENV_NAME] ?: RiderLaunchSettingsExtension.configFromEnvs.remove(project)
         }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)

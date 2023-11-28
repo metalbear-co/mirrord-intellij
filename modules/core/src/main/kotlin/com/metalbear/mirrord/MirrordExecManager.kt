@@ -16,7 +16,8 @@ import java.nio.file.Path
  * if it did, it will do nothing
  */
 class MirrordExecManager(private val service: MirrordProjectService) {
-    /** Attempts to show the target selection dialog and allow user to select the mirrord target.
+    /**
+     * Attempts to show the target selection dialog and allow user to select the mirrord target.
      *
      * @return target chosen by the user (or special constant for targetless mode)
      * @throws ProcessCanceledException if the dialog cannot be displayed
@@ -24,11 +25,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     private fun chooseTarget(
         cli: String,
         wslDistribution: WSLDistribution?,
-        config: String?
+        config: String?,
+        mirrordApi: MirrordApi
     ): String {
         MirrordLogger.logger.debug("choose target called")
 
-        val pods = service.mirrordApi.listPods(
+        val pods = mirrordApi.listPods(
             cli,
             config,
             wslDistribution
@@ -87,6 +89,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
+     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
      * @return extra environment variables to set for the executed process and path to the patched executable.
      * null if mirrord service is disabled
      * @throws ProcessCanceledException if the user cancelled
@@ -95,7 +98,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         executable: String?,
         product: String,
-        mirrordConfigFromEnv: String?
+        projectEnvVars: Map<String, String>?
     ): Pair<Map<String, String>, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         if (!service.enabled) {
@@ -110,16 +113,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("version check trigger")
         service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
 
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+
+        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)
         val cli = cliPath(wslDistribution, product)
+
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
-        val configPath = service.configApi.getConfigPath(mirrordConfigFromEnv)
+
+        val configPath = service.configApi.getConfigPath(mirrordConfigPath)
         MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
-                service.mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+                mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
             MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
             MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
                 MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
@@ -136,7 +144,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val target = if (!targetSet) {
             // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            chooseTarget(cli, wslDistribution, configPath)
+
+            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
                 .takeUnless { it == MirrordExecDialog.targetlessTargetName }
                 .alsoIfNull {
                     MirrordLogger.logger.info("No target specified - running targetless")
@@ -151,7 +160,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             null
         }
 
-        val executionInfo = service.mirrordApi.exec(
+        val executionInfo = mirrordApi.exec(
             cli,
             target,
             configPath,
@@ -164,14 +173,18 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return Pair(executionInfo.environment, executionInfo.patchedPath)
     }
 
-    class Wrapper(private val manager: MirrordExecManager, private val product: String) {
+    /**
+     * Wrapper around `MirrordExecManager` that is called by each IDE, or language variant.
+     *
+     * Helps to handle special cases and differences between the IDEs or language runners (like npm).
+     */
+    class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
         var wsl: WSLDistribution? = null
         var executable: String? = null
-        var configFromEnv: String? = null
 
         fun start(): Pair<Map<String, String>, String?>? {
             return try {
-                manager.start(wsl, executable, product, configFromEnv)
+                manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
@@ -186,7 +199,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
     }
 
-    fun wrapper(product: String): Wrapper {
-        return Wrapper(this, product)
+    /**
+     * Gives the caller a handle to call `MirrordExecManager::start`, based on the `product`.
+     *
+     * @param product The IDE/language that we're wrapping mirrord execution around, some valid
+     * values are: "rider", "JS", "nodejs" (there are many more).
+     *
+     * @param extraEnvVars Environment variables that come from project/IDE special environment.
+     *
+     * @return A `Wrapper` where you may call `start` to start running mirrord.
+     */
+    fun wrapper(product: String, extraEnvVars: Map<String, String>?): Wrapper {
+        return Wrapper(this, product, extraEnvVars)
     }
 }

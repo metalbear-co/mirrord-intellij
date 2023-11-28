@@ -10,7 +10,6 @@ import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
@@ -47,9 +46,8 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 }
             }
 
-            service.execManager.wrapper("goland").apply {
+            service.execManager.wrapper("goland", configuration.getCustomEnvironment()).apply {
                 this.wsl = wsl
-                configFromEnv = configuration.getCustomEnvironment()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
                 for (entry in env.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)

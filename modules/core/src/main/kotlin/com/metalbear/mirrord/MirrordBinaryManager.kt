@@ -279,7 +279,6 @@ class MirrordBinaryManager {
             }
 
             val binary = MirrordBinary(output, wslDistribution)
-
             val isRequiredVersion = try {
                 // for release CI, the tag can be greater than the latest release
                 if (System.getenv("CI_BUILD_PLUGIN") == "true") {
@@ -297,7 +296,6 @@ class MirrordBinaryManager {
         } catch (e: Exception) {
             MirrordLogger.logger.debug("failed to find mirrord in path", e)
         }
-
         return null
     }
 

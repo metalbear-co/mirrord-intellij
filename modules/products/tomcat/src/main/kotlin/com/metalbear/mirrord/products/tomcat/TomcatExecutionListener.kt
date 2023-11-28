@@ -18,7 +18,6 @@ import com.intellij.javaee.appServers.run.localRun.ScriptInfo
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.idea.tomcat.server.TomcatPersistentData
@@ -109,7 +108,6 @@ class TomcatExecutionListener : ExecutionListener {
         MirrordLogger.logger.debug("getStartScript tomcat")
         return if (scriptInfo.USE_DEFAULT) {
             MirrordLogger.logger.debug("using default tomcat script")
-//            val defaultScript = scriptInfo.script;
             val commandLine = scriptInfo.defaultScript.ifBlank {
                 MirrordLogger.logger.debug("default script was blank")
                 // We return the default script if it's not blank. If it's blank we're guessing the path on our own,
@@ -141,6 +139,7 @@ class TomcatExecutionListener : ExecutionListener {
         getConfig(env)?.let { config ->
             MirrordLogger.logger.debug("processStartScheduled: got tomcat config")
             val envVars = config.envVariables
+            val envVarsMap = envVars.map { it.NAME to it.VALUE }.toMap()
 
             val service = env.project.service<MirrordProjectService>()
 
@@ -166,10 +165,9 @@ class TomcatExecutionListener : ExecutionListener {
             }
 
             try {
-                service.execManager.wrapper("idea").apply {
+                service.execManager.wrapper("idea", envVarsMap).apply {
                     this.wsl = wsl
                     this.executable = scriptAndArgs?.command
-                    configFromEnv = envVars.find { e -> e.name == CONFIG_ENV_NAME }?.VALUE
                 }.start()?.let { (env, patchedPath) ->
                     MirrordLogger.logger.debug("got execution info for tomcat - env: $env, patchedPath: $patchedPath")
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
