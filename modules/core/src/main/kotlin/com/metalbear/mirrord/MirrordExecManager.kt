@@ -7,6 +7,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.util.alsoIfNull
 import java.nio.file.Path
 
 /**
@@ -120,8 +121,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
+
         val configPath = service.configApi.getConfigPath(mirrordConfigPath)
-        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $cli")
+        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
@@ -138,10 +140,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
 
-        val target = if (configPath != null && !isTargetSet(verifiedConfig?.config)) {
+        val targetSet = verifiedConfig?.let { isTargetSet(it.config) } ?: false
+        val target = if (!targetSet) {
+            // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            chooseTarget(cli, wslDistribution, configPath, mirrordApi).also {
-                if (it == MirrordExecDialog.targetlessTargetName) {
+
+            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
+                .takeUnless { it == MirrordExecDialog.targetlessTargetName }
+                .alsoIfNull {
                     MirrordLogger.logger.info("No target specified - running targetless")
                     service.notifier.notification(
                         "No target specified, mirrord running targetless.",
@@ -150,7 +156,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                         .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
                         .fire()
                 }
-            }
         } else {
             null
         }
