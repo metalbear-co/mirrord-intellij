@@ -8,6 +8,29 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.1) - 2023-11-28
+
+
+### Fixed
+
+- Passes the launch env vars section to mirrord verify-config, and mirrord,
+  resolving config options that were set as env vars.
+  [#167](https://github.com/metalbear-co/mirrord-intellij/issues/167)
+- No target selection dialog was displayed when running without configuration.
+  [#198](https://github.com/metalbear-co/mirrord-intellij/issues/198)
+- Fixed a bug with selecting `targetless` option from the target selection
+  dialog.
+- SIP-patched script path was being used also when mirrord was disabled -
+  cosmetic effect only.
+
+
+### Internal
+
+- Always provide video for CI run
+- Remove quotes around GITHUB_PATH in e2e and add "CI_BUILD_PLUGIN" check to
+  e2e for releases
+
+
 ## [3.56.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.0) - 2023-11-16
 
 
