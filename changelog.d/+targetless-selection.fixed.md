@@ -1,1 +1,0 @@
-Fixed a bug with selecting `targetless` option from the target selection dialog.
