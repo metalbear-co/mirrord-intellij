@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import java.nio.charset.Charset
 
 /**
  * For detecting mirrord config specified in run configuration.
@@ -20,8 +21,7 @@ private const val DEFAULT_CONFIG =
         "fs": "read",
         "env": true
     }
-}
-"""
+}"""
 
 class InvalidConfigException(path: String, reason: String) : MirrordError("failed to process config $path - $reason")
 
@@ -134,6 +134,8 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
 
         return mirrordDir.createChildData(this, "mirrord.json")
+            .apply { bom = null }
+            .apply { charset = Charset.forName("UTF-8") }
             .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
     }
 }
