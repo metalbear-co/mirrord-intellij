@@ -8,6 +8,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.2) - 2023-12-01
+
+
+### Fixed
+
+- Change default configuration to explicitly avoid setting BOM, fixing
+  potential issue on some systems
+  [#204](https://github.com/metalbear-co/mirrord-intellij/issues/204)
+
+
 ## [3.56.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.1) - 2023-11-28
 
 
