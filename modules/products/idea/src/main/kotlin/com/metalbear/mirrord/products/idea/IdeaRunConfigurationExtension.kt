@@ -15,7 +15,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.metalbear.mirrord.*
+import com.metalbear.mirrord.CONFIG_ENV_NAME
+import com.metalbear.mirrord.MirrordLogger
+import com.metalbear.mirrord.MirrordProjectService
 import java.util.concurrent.ConcurrentHashMap
 
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
@@ -25,7 +27,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
-        val applicable = !configuration.name.startsWith("Build ")
+        val applicable = !configuration.name.startsWith("Build ") && !configuration.name.startsWith("Tomcat")
 
         if (!applicable) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -63,9 +65,15 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             else -> null
         }
 
-        val mirrordEnv = service.execManager.wrapper("idea").apply {
+        val extraEnv = if (configuration is ExternalSystemRunConfiguration) {
+            val extraEnv = params.env + configuration.settings.env
+            extraEnv
+        } else {
+            params.env
+        }
+
+        val mirrordEnv = service.execManager.wrapper("idea", extraEnv).apply {
             this.wsl = wsl
-            configFromEnv = getMirrordConfigPath(configuration, params)
         }.start()?.first?.let { it + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent")) }.orEmpty()
 
         params.env = params.env + mirrordEnv

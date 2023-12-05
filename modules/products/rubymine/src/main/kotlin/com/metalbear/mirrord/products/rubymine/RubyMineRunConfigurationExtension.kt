@@ -8,7 +8,6 @@ import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
@@ -44,12 +43,11 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
         }
 
         val currentEnv = cmdLine.environment
-        service.execManager.wrapper("rubymine").apply {
+        service.execManager.wrapper("rubymine", configuration.envs).apply {
             this.wsl = wsl
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
-            configFromEnv = configuration.envs[CONFIG_ENV_NAME]
         }.start()?.let { (mirrordEnv, patched) ->
             // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)

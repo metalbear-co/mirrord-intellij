@@ -7,7 +7,6 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
@@ -37,9 +36,8 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
 
         val currentEnv = cmdLine.environment
 
-        service.execManager.wrapper("pycharm").apply {
+        service.execManager.wrapper("pycharm", currentEnv).apply {
             this.wsl = wsl
-            configFromEnv = currentEnv[CONFIG_ENV_NAME]
         }.start()?.first?.let { env ->
             for (entry in env.entries.iterator()) {
                 currentEnv[entry.key] = entry.value

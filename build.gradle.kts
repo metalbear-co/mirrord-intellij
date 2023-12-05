@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":mirrord-products-goland"))
     implementation(project(":mirrord-products-nodejs"))
     implementation(project(":mirrord-products-rider"))
+    implementation(project(":mirrord-products-tomcat"))
     implementation(project(":mirrord-products-quarkus"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")

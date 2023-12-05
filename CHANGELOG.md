@@ -8,6 +8,91 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.2) - 2023-12-01
+
+
+### Fixed
+
+- Change default configuration to explicitly avoid setting BOM, fixing
+  potential issue on some systems
+  [#204](https://github.com/metalbear-co/mirrord-intellij/issues/204)
+
+
+## [3.56.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.1) - 2023-11-28
+
+
+### Fixed
+
+- Passes the launch env vars section to mirrord verify-config, and mirrord,
+  resolving config options that were set as env vars.
+  [#167](https://github.com/metalbear-co/mirrord-intellij/issues/167)
+- No target selection dialog was displayed when running without configuration.
+  [#198](https://github.com/metalbear-co/mirrord-intellij/issues/198)
+- Fixed a bug with selecting `targetless` option from the target selection
+  dialog.
+- SIP-patched script path was being used also when mirrord was disabled -
+  cosmetic effect only.
+
+
+### Internal
+
+- Always provide video for CI run
+- Remove quotes around GITHUB_PATH in e2e and add "CI_BUILD_PLUGIN" check to
+  e2e for releases
+
+
+## [3.56.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.0) - 2023-11-16
+
+
+### Added
+
+- Support for running tomcat projects on macOS (sidestepping SIP).
+  [#190](https://github.com/metalbear-co/mirrord-intellij/issues/190)
+- Added source identifier to waitlist register
+
+
+### Fixed
+
+- Fix broken wsl support
+  [#193](https://github.com/metalbear-co/mirrord-intellij/issues/193)
+- Tomcat support was only enabled when the configuration's name started with
+  "Tomcat".
+
+
+### Internal
+
+- `TomcatExecutionListener` does not save/restore environment when mirrord is
+  disabled. [#188](https://github.com/metalbear-co/mirrord-intellij/issues/188)
+
+
+## [3.55.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.1) - 2023-10-25
+
+
+### Changed
+
+- Changed command line interface for config verification, not using path as
+  keyword argument
+  [#173](https://github.com/metalbear-co/mirrord-intellij/issues/173)
+
+
+### Fixed
+
+- Clear environment variables when debug session ends
+  [#141](https://github.com/metalbear-co/mirrord-intellij/issues/141)
+- Fixed reading the config file env for Rider
+  [#165](https://github.com/metalbear-co/mirrord-intellij/issues/165)
+- Fixed Tomcat support.
+  [#183](https://github.com/metalbear-co/mirrord-intellij/issues/183)
+- Uses the `verify-config --ide` flag now to signal mirrord we're in an IDE
+  context.
+  [#1979](https://github.com/metalbear-co/mirrord-intellij/issues/1979)
+
+
+### Internal
+
+- Bumped Gradle version in `distributionUrl` property of Gradle Wrapper.
+
+
 ## [3.55.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.55.0) - 2023-09-20
 
 

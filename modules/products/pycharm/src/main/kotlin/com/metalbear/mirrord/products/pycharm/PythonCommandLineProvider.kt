@@ -8,7 +8,6 @@ import com.jetbrains.python.run.PythonExecution
 import com.jetbrains.python.run.PythonRunParams
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
@@ -29,9 +28,8 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 }
             }
 
-            service.execManager.wrapper("pycharm").apply {
+            service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
                 this.wsl = wsl
-                configFromEnv = runParams.getEnvs()[CONFIG_ENV_NAME]
             }.start()?.first?.let { env ->
                 for (entry in env.entries.iterator()) {
                     pythonExecution.addEnvironmentVariable(entry.key, entry.value)

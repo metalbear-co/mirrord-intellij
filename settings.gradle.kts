@@ -8,6 +8,7 @@ include(
     "modules/products/rubymine",
     "modules/products/nodejs",
     "modules/products/rider",
+    "modules/products/tomcat",
     "modules/products/quarkus"
 )
 

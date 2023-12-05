@@ -1,1 +1,0 @@
-Bumped Gradle version in `distributionUrl` property of Gradle Wrapper.
