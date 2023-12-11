@@ -55,14 +55,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             service
                 .notifier
                 .notification(
-                    "mirrord plugin was unable to display the target selection dialog. " +
-                        "You can set it manually in the configuration file $config.",
+                    "mirrord plugin was unable to display the target selection dialog. You can set it manually in the configuration file.",
                     NotificationType.WARNING
                 )
                 .apply {
                     val configFile = try {
-                        val path = Path.of(config)
-                        VirtualFileManager.getInstance().findFileByNioPath(path)
+                        config?.let { Path.of(it) }?.let { VirtualFileManager.getInstance().findFileByNioPath(it) }
                     } catch (e: Exception) {
                         MirrordLogger.logger.debug("failed to find config under path $config", e)
                         null
