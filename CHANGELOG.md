@@ -8,6 +8,19 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.3) - 2023-12-12
+
+
+### Fixed
+
+- Fixed warning notification when the plugin cannot display the target
+  selection popup.
+  [#211](https://github.com/metalbear-co/mirrord-intellij/issues/211)
+- Fixed spawning CLI tasks on a pooled thread under a read lock. Fixes issues
+  with IntelliJ UI freezing in some scenarios.
+  [#214](https://github.com/metalbear-co/mirrord-intellij/issues/214)
+
+
 ## [3.56.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.2) - 2023-12-01
 
 
