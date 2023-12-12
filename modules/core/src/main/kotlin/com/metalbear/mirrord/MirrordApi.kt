@@ -290,24 +290,24 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      *
      * @throws ProcessCanceledException if the user has canceled
      */
-    private fun computeWithResponsiveCancel(project: Project, process: Process, indicator: ProgressIndicator): T {
+    private fun computeWithResponsiveCancel(project: Project, process: Process, progress: ProgressChecker): T {
         val result = CompletableFuture<T>()
 
         // There is a version of this method that takes a `Callable<T>`, but its implementation is broken.
         // Therefore, we use this one and `CompletableFuture<T>`.
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val computationResult = compute(project, process) { text -> indicator.text = text }
+                val computationResult = compute(project, process) { text -> progress.setProgressMessage(text) }
                 result.complete(computationResult)
             } catch (e: Throwable) {
-                if (!indicator.isCanceled) {
+                if (!progress.isCanceled()) {
                     result.completeExceptionally(e)
                 }
             }
         }
 
         while (true) {
-            indicator.checkCanceled()
+            progress.checkCanceled()
 
             try {
                 return result.get(200, TimeUnit.MILLISECONDS)
@@ -339,7 +339,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             // so we don't use any timeout here.
             ProgressManager.getInstance().run(object : Task.WithResult<T, Exception>(project, "mirrord", true) {
                 override fun compute(indicator: ProgressIndicator): T {
-                    return computeWithResponsiveCancel(project, process, indicator)
+                    return computeWithResponsiveCancel(project, process, IndicatorProgressChecker(indicator))
                 }
 
                 override fun onCancel() {
@@ -352,12 +352,12 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                     process.destroy()
                 }
             })
-        } else {
+        } else if (!ApplicationManager.getApplication().isReadAccessAllowed) {
             val env = CompletableFuture<T>()
 
             ProgressManager.getInstance().run(object : Task.Backgroundable(project, "mirrord", true) {
                 override fun run(indicator: ProgressIndicator) {
-                    val res = computeWithResponsiveCancel(project, process, indicator)
+                    val res = computeWithResponsiveCancel(project, process, IndicatorProgressChecker(indicator))
                     env.complete(res)
                 }
 
@@ -385,7 +385,77 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString} timed out", e)
                 throw MirrordError("mirrord process timed out")
             }
+        } else {
+            // Not on the EDT thread and under a read lock.
+            // Cannot spawn a background task here, because it schedules start on the EDT thread
+            // (to update the UI with a progress indicator).
+            // EDT thread requires a write lock, so using a background task here would cause a deadlock.
+            try {
+                computeWithResponsiveCancel(project, process, TimeoutProgressChecker(2, TimeUnit.MINUTES))
+            } catch (e: ProcessCanceledException) {
+                // In this case, process is canceled only after a timeout.
+                process.destroy()
+                MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString} timed out", e)
+                throw MirrordError("mirrord process timed out")
+            }
         }
+    }
+}
+
+/**
+ * A handle for tasks that are spawned raw on a pooled thread.
+ */
+private interface ProgressChecker {
+    /**
+     * Whether this task has been canceled.
+     */
+    fun isCanceled(): Boolean
+
+    /**
+     * Sets a message about the current stage of the task.
+     * Most of the time this is displayed to the user.
+     */
+    fun setProgressMessage(text: String) {}
+
+    /**
+     * @throws ProcessCanceledException if this task has been canceled.
+     */
+    fun checkCanceled() {
+        if (isCanceled()) {
+            throw ProcessCanceledException()
+        }
+    }
+}
+
+/**
+ * Ignores progress messages and cancels the task after the given timeout.
+ */
+private class TimeoutProgressChecker(timeout: Long, timeUnit: TimeUnit) : ProgressChecker {
+    private val startedAt: Long = System.nanoTime()
+    private val limit: Long = timeUnit.toNanos(timeout)
+
+    override fun isCanceled(): Boolean {
+        val elapsed = System.nanoTime() - startedAt
+        return elapsed >= limit
+    }
+}
+
+/**
+ * Wraps a `ProgressIndicator`.
+ *
+ * @see ProgressIndicator
+ */
+private class IndicatorProgressChecker(private val indicator: ProgressIndicator) : ProgressChecker {
+    override fun isCanceled(): Boolean {
+        return indicator.isCanceled
+    }
+
+    override fun checkCanceled() {
+        indicator.checkCanceled()
+    }
+
+    override fun setProgressMessage(text: String) {
+        indicator.text = text
     }
 }
 
