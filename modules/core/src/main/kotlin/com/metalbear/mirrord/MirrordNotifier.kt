@@ -9,6 +9,8 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
+import java.nio.file.Path
 
 /**
  * Mirrord notification handler.
@@ -25,10 +27,25 @@ class MirrordNotifier(private val service: MirrordProjectService) {
     class MirrordNotification(private val inner: Notification, private val project: Project) {
         private var id: MirrordSettingsState.NotificationId? = null
 
+        /**
+         * Adds a new action to this notification.
+         * Exceptions thrown in the action are caught, converted to `MirrordError` and displayed to the user.
+         *
+         * @see MirrordError
+         *
+         * @param name name of the action, visible in the notification
+         * @param handler function to call when this action is dispatched
+         */
         fun withAction(name: String, handler: (e: AnActionEvent, notification: Notification) -> Unit): MirrordNotification {
             inner.addAction(object : NotificationAction(name) {
                 override fun actionPerformed(e: AnActionEvent, notification: Notification) {
-                    handler(e, notification)
+                    try {
+                        handler(e, notification)
+                    } catch (error: MirrordError) {
+                        error.showHelp(project)
+                    } catch (error: Throwable) {
+                        MirrordError(error.message ?: "An error occurred", error).showHelp(project)
+                    }
                 }
             })
 
@@ -36,35 +53,29 @@ class MirrordNotifier(private val service: MirrordProjectService) {
         }
 
         fun withOpenFile(file: VirtualFile): MirrordNotification {
-            inner.addAction(object : NotificationAction("Open") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
-                    FileEditorManager.getInstance(project).openFile(file, true)
-                }
-            })
+            return withAction("Open") { _, _ ->
+                FileEditorManager.getInstance(project).openFile(file, true)
+            }
+        }
 
-            return this
+        fun withOpenPath(rawPath: String): MirrordNotification {
+            return withAction("Open") { _, _ ->
+                val path = Path.of(rawPath)
+                val file = VirtualFileManager.getInstance().findFileByNioPath(path) ?: throw Exception("file $rawPath not found")
+                FileEditorManager.getInstance(project).openFile(file, true)
+            }
         }
 
         fun withDontShowAgain(id: MirrordSettingsState.NotificationId): MirrordNotification {
             this.id = id
-            inner.addAction(object : NotificationAction("Don't show again") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
-                    MirrordSettingsState.instance.mirrordState.disableNotification(id)
-                    notification.expire()
-                }
-            })
-
-            return this
+            return withAction("Don't show again") { _, n ->
+                MirrordSettingsState.instance.mirrordState.disableNotification(id)
+                n.expire()
+            }
         }
 
-        fun withLink(action: String, url: String): MirrordNotification {
-            inner.addAction(object : NotificationAction(action) {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
-                    BrowserUtil.browse(url)
-                }
-            })
-
-            return this
+        fun withLink(name: String, url: String): MirrordNotification {
+            return withAction(name) { _, _ -> BrowserUtil.browse(url) }
         }
 
         fun withCollapseDirection(direction: Notification.CollapseActionsDirection): MirrordNotification {
