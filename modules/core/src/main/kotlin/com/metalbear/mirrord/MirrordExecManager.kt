@@ -3,12 +3,12 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.alsoIfNull
-import java.nio.file.Path
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -59,15 +59,16 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     NotificationType.WARNING
                 )
                 .apply {
-                    val configFile = try {
-                        config?.let { Path.of(it) }?.let { VirtualFileManager.getInstance().findFileByNioPath(it) }
-                    } catch (e: Exception) {
-                        MirrordLogger.logger.debug("failed to find config under path $config", e)
-                        null
-                    }
-
-                    configFile?.let {
-                        withOpenFile(it)
+                    config.let {
+                        when {
+                            it != null -> withOpenPath(it)
+                            else -> withAction("Create") { _, _ ->
+                                WriteAction.run<InvalidProjectException> {
+                                    val newConfig = service.configApi.createDefaultConfig()
+                                    FileEditorManager.getInstance(service.project).openFile(newConfig, true)
+                                }
+                            }
+                        }
                     }
                 }
                 .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
