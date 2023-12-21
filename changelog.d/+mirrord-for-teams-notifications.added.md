@@ -1,0 +1,1 @@
+Added occasional notifications about mirrord for Teams.
