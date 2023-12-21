@@ -1,7 +1,10 @@
 package com.metalbear.mirrord
 
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.*
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.service
 
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
@@ -29,7 +32,8 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         POSSIBLY_OUTDATED_BINARY_USED("possibly outdated mirrord binary is used"),
         ACTIVE_CONFIG_MOVED("active mirrord config is moved"),
         AGENT_VERSION_MISMATCH("agent version does not match version of the local mirrord installation"),
-        PLUGIN_REVIEW("mirrord occasionally asks for plugin review")
+        PLUGIN_REVIEW("mirrord occasionally asks for plugin review"),
+        MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams")
     }
 
     class MirrordState {

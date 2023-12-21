@@ -159,6 +159,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             null
         }
 
+        service.runCounter.bump(target?.startsWith("deploy") ?: false)
+
         val executionInfo = mirrordApi.exec(
             cli,
             target,
