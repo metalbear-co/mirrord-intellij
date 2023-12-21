@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.4) - 2023-12-21
+
+
+### Changed
+
+- Replaced waitlist registration action with mirrord for Teams actions.
+  Added occasional notifications about mirrord for Teams.
+
+
 ## [3.56.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.3) - 2023-12-12
 
 
