@@ -13,10 +13,11 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.indexing.*
 import com.intellij.util.io.EnumeratorStringDescriptor
 import com.intellij.util.io.KeyDescriptor
-import java.util.Collections
+import java.util.*
 import javax.swing.JComponent
 
 const val FEEDBACK_URL = "https://mirrord.dev/feedback"
+const val MIRRORD_FOR_TEAMS_URL = "https://mirrord.dev/docs/teams/introduction/"
 
 fun VirtualFile.relativePath(project: Project): String {
     return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
@@ -105,10 +106,9 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class WaitlistSignupAction : AnAction("Join the waitlist") {
+    private class NavigateToMirrodForTeamsIntroAction : AnAction("Read more") {
         override fun actionPerformed(e: AnActionEvent) {
-            val project = e.project ?: return
-            MirrordWaitlistDialog(project).show()
+            BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
         }
     }
 
@@ -130,7 +130,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             add(SelectActiveConfigAction())
             add(SettingsAction())
             addSeparator("mirrord for Teams")
-            add(WaitlistSignupAction())
+            add(NavigateToMirrodForTeamsIntroAction())
             addSeparator("Feedback")
             add(FeedbackAction())
         }
