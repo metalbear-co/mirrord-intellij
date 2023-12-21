@@ -1,0 +1,1 @@
+Replaced waitlist registration action with mirrord for Teams actions.
