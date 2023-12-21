@@ -106,7 +106,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class NavigateToMirrodForTeamsIntroAction : AnAction("Read more") {
+    private class NavigateToMirrodForTeamsIntroAction : AnAction("Try it now") {
         override fun actionPerformed(e: AnActionEvent) {
             BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
         }
