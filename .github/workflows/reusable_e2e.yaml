@@ -93,11 +93,6 @@ jobs:
           echo "$KUBE_SERVICE"
           echo "KUBE_SERVICE=$KUBE_SERVICE" >> "$GITHUB_ENV"
 
-      - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: build plugin
         run: |
           ./gradlew buildPlugin

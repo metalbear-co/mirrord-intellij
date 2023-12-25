@@ -168,6 +168,7 @@ fun RemoteRobot.openFile(path: String) {
             importPackage(com.intellij.openapi.fileEditor)
             importPackage(com.intellij.openapi.vfs)
             importPackage(com.intellij.openapi.wm.impl)
+            importClass(com.intellij.openapi.application.ApplicationManager)
             
             const path = '$path'
             const frameHelper = ProjectFrameHelper.getFrameHelper(component)
@@ -175,12 +176,17 @@ fun RemoteRobot.openFile(path: String) {
                 const project = frameHelper.getProject()
                 const projectPath = project.getBasePath()
                 const file = LocalFileSystem.getInstance().findFileByPath(projectPath + '/' + path)
-                FileEditorManager.getInstance(project).openTextEditor(
-                    new OpenFileDescriptor(
-                        project,
-                        file
-                    ), true
-                )
+                const openFileFunction = new Runnable({
+                    run: function() {
+                        FileEditorManager.getInstance(project).openTextEditor(
+                            new OpenFileDescriptor(
+                                project,
+                                file
+                            ), true
+                        )
+                    }
+                })
+                ApplicationManager.getApplication().invokeLater(openFileFunction)
             }
         """,
         true
