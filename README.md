@@ -13,10 +13,11 @@ mirrord main repository can be found [here](https://github.com/metalbear-co/mirr
 
 <!-- Plugin description -->
 
-mirrord lets developers run local processes in the context of their cloud environment.
-It’s meant to provide the benefits of running your service on a cloud environment (e.g. staging) without actually
+mirrord lets developers [run local processes in the context of their cloud environment](https://mirrord.dev).
+It’s provides the benefits of running your service on a cloud environment (e.g. staging) without actually
 going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
 It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
+mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
 ## How To Use
 
