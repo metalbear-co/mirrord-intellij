@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.56.5](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.5) - 2024-01-05
+
+
+### Fixed
+
+- Fix plugin update check leading to failure
+  [#227](https://github.com/metalbear-co/mirrord-intellij/issues/227)
+
+
+### Internal
+
+- Fixed E2E test.
+- Make small changes to README
+
+
 ## [3.56.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.4) - 2023-12-21
 
 
