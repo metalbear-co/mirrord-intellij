@@ -110,7 +110,15 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
 
         MirrordLogger.logger.debug("version check trigger")
-        service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+        try {
+            service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+        } catch (e: Throwable) {
+            MirrordLogger.logger.debug("Failed checking plugin updates", e)
+            service.notifier.notifySimple(
+                "Couldn't check for plugin update",
+                NotificationType.WARNING
+            )
+        }
 
         val mirrordApi = service.mirrordApi(projectEnvVars)
 
