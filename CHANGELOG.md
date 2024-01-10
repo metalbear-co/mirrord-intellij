@@ -8,6 +8,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.57.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.57.0) - 2024-01-10
+
+
+### Added
+
+- Users can now specify MIRRORD_ACTIVE=1 in run configuration's environment
+  variable to explicitly enable mirrord regardless of the button status
+  [#231](https://github.com/metalbear-co/mirrord-intellij/issues/231)
+
+
 ## [3.56.5](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.5) - 2024-01-05
 
 
