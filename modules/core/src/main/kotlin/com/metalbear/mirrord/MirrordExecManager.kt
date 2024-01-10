@@ -100,7 +100,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         projectEnvVars: Map<String, String>?
     ): Pair<Map<String, String>, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
-        if (!service.enabled) {
+        val explicitlyEnabled = projectEnvVars?.any { (key, value) -> key == "MIRRORD_ACTIVE" && value == "1" } ?: false
+        if (!service.enabled && !explicitlyEnabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
         }
