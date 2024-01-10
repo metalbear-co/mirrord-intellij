@@ -16,8 +16,8 @@ import com.intellij.util.io.KeyDescriptor
 import java.util.*
 import javax.swing.JComponent
 
-const val FEEDBACK_URL = "https://mirrord.dev/feedback"
-const val MIRRORD_FOR_TEAMS_URL = "https://mirrord.dev/docs/teams/introduction/"
+const val DISCORD_URL = "https://discord.gg/metalbear"
+const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/"
 
 fun VirtualFile.relativePath(project: Project): String {
     return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
@@ -106,15 +106,15 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class NavigateToMirrodForTeamsIntroAction : AnAction("Try it now") {
+    private class NavigateToMirrodForTeamsIntroAction : AnAction("Try It Now") {
         override fun actionPerformed(e: AnActionEvent) {
             BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
         }
     }
 
-    private class FeedbackAction : AnAction("Give Feedback") {
+    private class DiscordAction : AnAction("Get Help on Discord") {
         override fun actionPerformed(e: AnActionEvent) {
-            BrowserUtil.browse(FEEDBACK_URL)
+            BrowserUtil.browse(DISCORD_URL)
         }
     }
 
@@ -131,8 +131,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             add(SettingsAction())
             addSeparator("mirrord for Teams")
             add(NavigateToMirrodForTeamsIntroAction())
-            addSeparator("Feedback")
-            add(FeedbackAction())
+            addSeparator("Help")
+            add(DiscordAction())
         }
     }
 
