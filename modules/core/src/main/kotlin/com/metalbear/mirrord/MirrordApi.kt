@@ -17,6 +17,8 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import java.util.concurrent.*
 
+const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
+
 enum class MessageType {
     NewTask, FinishedTask, Warning
 }
@@ -217,7 +219,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             return
         }
 
-        service.notifier.notification("Enjoying mirrord? Don't forget to leave a review! Also consider giving us some feedback, we'd highly appreciate it!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Feedback", FEEDBACK_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
+        service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
     }
 }
 
