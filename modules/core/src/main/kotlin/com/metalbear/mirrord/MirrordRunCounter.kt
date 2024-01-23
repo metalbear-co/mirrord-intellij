@@ -9,6 +9,7 @@ private const val COUNTER_KEY: String = "mirrordForTeamsCounter"
 
 private const val DEPLOYMENT_EXEC_MESSAGE: String = "When targeting multi-pod deployments, mirrord impersonates the first pod in the deployment. Support for multi-pod impersonation requires the mirrord operator, which is part of mirrord for Teams."
 private const val REGULAR_EXEC_MESSAGE: String = "For more features of mirrord, including multi-pod impersonation, check out mirrord for Teams."
+
 class MirrordRunCounter(private val service: MirrordProjectService) {
     private fun showNotification(message: String) {
         service.notifier.notification(message, NotificationType.INFORMATION).withLink("Try it now", MIRRORD_FOR_TEAMS_URL).withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_FOR_TEAMS).fire()

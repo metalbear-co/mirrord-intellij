@@ -25,7 +25,8 @@ fun VirtualFile.relativePath(project: Project): String {
 
 class MirrordDropDown : ComboBoxAction(), DumbAware {
 
-    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) : AnAction("Active Config: ${config.relativePath(project)}") {
+    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) :
+        AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             FileEditorManager.getInstance(service.project).openFile(config, true)
@@ -152,7 +153,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
 
         e.presentation.isVisible = true
         e.presentation.isEnabled = projectOpen
-        e.presentation.description = if (projectOpen) "Options for mirrord plugin" else "Plugin requires an open project"
+        e.presentation.description =
+            if (projectOpen) "Options for mirrord plugin" else "Plugin requires an open project"
 
         super.update(e)
     }
@@ -188,11 +190,7 @@ class MirrordConfigIndex : ScalarIndexExtension<String>() {
 
     override fun getInputFilter(): FileBasedIndex.InputFilter {
         return FileBasedIndex.InputFilter {
-            it.isInLocalFileSystem && !it.isDirectory && (
-                it.path.endsWith("mirrord.json") ||
-                    it.path.endsWith("mirrord.yaml") ||
-                    it.path.endsWith("mirrord.toml")
-                )
+            it.isInLocalFileSystem && !it.isDirectory && MirrordConfigAPI.isConfigFilePath(it)
         }
     }
 

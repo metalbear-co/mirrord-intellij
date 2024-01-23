@@ -73,4 +73,5 @@
     <depends optional="true" config-file="mirrord-js.xml">NodeJS</depends>
     <depends optional="true" config-file="mirrord-rider.xml">com.intellij.modules.rider</depends>
     <depends optional="true" config-file="mirrord-tomcat.xml">Tomcat</depends>
+    <depends optional="true" config-file="mirrord-schema.xml">com.intellij.modules.json</depends>
 </idea-plugin>
