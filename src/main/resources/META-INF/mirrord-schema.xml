@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="JavaScript.JsonSchema">
+        <ProviderFactory implementation="com.metalbear.mirrord.MirrordSchemaProviderFactory"/>
+    </extensions>
+</idea-plugin>
