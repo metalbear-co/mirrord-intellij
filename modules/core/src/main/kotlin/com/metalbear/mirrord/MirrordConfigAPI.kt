@@ -138,14 +138,13 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
             .apply { charset = Charset.forName("UTF-8") }
             .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
     }
-        companion object {
-            fun isConfigFilePath(file: VirtualFile): Boolean {
-                return file.path.contains("mirrord") && isValidConfigExt(file)
-            }
-
-            fun isValidConfigExt(file: VirtualFile): Boolean {
-                return file.name.endsWith(".json") || file.name.endsWith(".yaml") || file.name.endsWith(".toml")
-            }
-
+    companion object {
+        fun isConfigFilePath(file: VirtualFile): Boolean {
+            return file.path.contains("mirrord") && isValidConfigExt(file)
         }
+
+        fun isValidConfigExt(file: VirtualFile): Boolean {
+            return file.name.endsWith(".json") || file.name.endsWith(".yaml") || file.name.endsWith(".toml")
+        }
+    }
 }
