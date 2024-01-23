@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.58.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.58.0) - 2024-01-23
+
+
+### Added
+
+- Auto-detect mirrord JSON config files and set schema
+  [#46](https://github.com/metalbear-co/mirrord-intellij/issues/46)
+
+
+### Changed
+
+- Removed feedback form link, added discord link, updated mirrord for teams
+  link.
+
+
 ## [3.57.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.57.0) - 2024-01-10
 
 
