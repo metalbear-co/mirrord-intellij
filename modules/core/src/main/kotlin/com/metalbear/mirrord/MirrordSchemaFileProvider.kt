@@ -5,11 +5,11 @@ import com.jetbrains.jsonSchema.extension.SchemaType
 import com.jetbrains.jsonSchema.impl.JsonSchemaVersion
 import com.jetbrains.jsonSchema.remote.JsonFileResolver
 
-class MirrordSchemaFileProvider: JsonSchemaFileProvider {
+class MirrordSchemaFileProvider : JsonSchemaFileProvider {
 
-    override fun isAvailable(vfile: VirtualFile): Boolean {
-        val path = vfile.path
-        return path.contains("mirrord") && path.endsWith(".json")
+    override fun isAvailable(file: VirtualFile): Boolean {
+        val path = file.path
+        return MirrordConfigAPI.isConfigFilePath(file) && path.endsWith(".json")
     }
 
     override fun getName(): String {
@@ -17,7 +17,7 @@ class MirrordSchemaFileProvider: JsonSchemaFileProvider {
     }
 
     override fun getSchemaFile(): VirtualFile? {
-        return JsonFileResolver.urlToFile(this.remoteSource);
+        return JsonFileResolver.urlToFile(this.remoteSource)
     }
 
     override fun getSchemaType(): SchemaType {

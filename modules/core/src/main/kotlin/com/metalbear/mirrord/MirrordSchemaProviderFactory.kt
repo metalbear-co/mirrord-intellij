@@ -9,5 +9,4 @@ class MirrordSchemaProviderFactory : JsonSchemaProviderFactory, DumbAware {
     override fun getProviders(project: Project): List<JsonSchemaFileProvider> {
         return listOf(MirrordSchemaFileProvider())
     }
-
 }
