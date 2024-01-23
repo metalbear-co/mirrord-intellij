@@ -25,7 +25,7 @@ class MirrordSchemaFileProvider : JsonSchemaFileProvider {
     }
 
     override fun getRemoteSource(): String {
-        return "https://raw.githubusercontent.com/metalbear-co/mirrord/main/mirrord-schema.json"
+        return "https://raw.githubusercontent.com/metalbear-co/mirrord/latest/mirrord-schema.json"
     }
 
     override fun getSchemaVersion(): JsonSchemaVersion {
