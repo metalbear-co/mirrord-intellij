@@ -71,7 +71,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                         }
                     }
                 }
-                .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
+                .withLink("Config doc", "https://mirrord.dev/docs/reference/configuration/#root-target")
                 .fire()
 
             null
