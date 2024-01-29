@@ -28,7 +28,7 @@ mirrord's main repository can be found [here](https://github.com/metalbear-co/mi
 
 ## Settings
 
-mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/overview/configuration/).
+mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/reference/configuration/).
 This plugin supports configuration specified in `json` files.
 
 mirrord reads its configuration from the following locations:
@@ -62,7 +62,7 @@ You can use the `Settings` button in the dropdown menu to quickly edit detected 
 
 ## FAQ
 
-Our FAQ is available [here](https://mirrord.dev/docs/overview/faq/).
+Our FAQ is available [here](https://mirrord.dev/docs/faq/general).
 If you have a question that's not on there, feel free to ask in our [Discussions](https://github.com/metalbear-co/mirrord/discussions)
 or on [Discord](https://discord.gg/metalbear).
 
