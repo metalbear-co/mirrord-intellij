@@ -19,8 +19,13 @@ import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
 
+/**
+ * The message types we get from mirrord-cli.
+ *
+ * See `mirrord/progress/src/lib.rs` `ProgressMessage`.
+ */
 enum class MessageType {
-    NewTask, FinishedTask, Warning
+    NewTask, FinishedTask, Warning, Info
 }
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
@@ -118,6 +123,11 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             setText("mirrord is running")
                             return executionInfo
                         }
+                    }
+
+                    message.type == MessageType.Info -> {
+                        val service = project.service<MirrordProjectService>()
+                        message.message?.let { service.notifier.notifySimple(it, NotificationType.INFORMATION) }
                     }
 
                     message.type == MessageType.Warning -> {
