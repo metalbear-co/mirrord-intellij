@@ -123,7 +123,22 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val mirrordApi = service.mirrordApi(projectEnvVars)
 
-        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)
+        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
+            if (it.contains("\$ProjectPath\$")) {
+                val projectFile = service.configApi.getProjectDir()
+                projectFile.canonicalPath?.let { path ->
+                    it.replace("\$ProjectPath\$", path)
+                } ?: run {
+                    service.notifier.notifySimple(
+                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
+                        NotificationType.WARNING
+                    )
+                    it
+                }
+            } else {
+                it
+            }
+        }
         val cli = cliPath(wslDistribution, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
