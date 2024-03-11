@@ -130,7 +130,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     it.replace("\$ProjectPath\$", path)
                 } ?: run {
                     service.notifier.notifySimple(
-                        "ProjectPath macro used in mirrord config file but couldn't be evaluated",
+                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
                         NotificationType.WARNING
                     )
                     it
