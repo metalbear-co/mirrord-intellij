@@ -123,7 +123,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val mirrordApi = service.mirrordApi(projectEnvVars)
 
-
         val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
             if (it.contains("\$ProjectPath\$")) {
                 service.project.basePath?.let { projectPath ->
@@ -132,7 +131,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     service.notifier.notifySimple(
                         "ProjectPath macro used in mirrord config file but couldn't be evaluated",
                         NotificationType.WARNING
-                    );
+                    )
                     it
                 }
             } else {
