@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.59.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.59.0) - 2024-03-11
+
+
+### Added
+
+- Added support for using $ProjectPath$ macro in MIRRORD_CONFIG_FILE env
+  [#243](https://github.com/metalbear-co/mirrord-intellij/issues/243)
+- Notify user on license validity.
+  [#382](https://github.com/metalbear-co/mirrord-intellij/issues/382)
+
+
+### Internal
+
+- Update links to new docs
+
+
 ## [3.58.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.58.0) - 2024-01-23
 
 
