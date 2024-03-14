@@ -1,0 +1,1 @@
+Fix issue for some user that had timeout executing via WSL by increasing the timeout from 1s to 5s
