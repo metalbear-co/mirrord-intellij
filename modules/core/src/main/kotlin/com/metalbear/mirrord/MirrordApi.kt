@@ -15,6 +15,9 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
@@ -25,7 +28,7 @@ const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
  * See `mirrord/progress/src/lib.rs` `ProgressMessage`.
  */
 enum class MessageType {
-    NewTask, FinishedTask, Warning, Info
+    NewTask, FinishedTask, Warning, Info, InternalIde
 }
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
@@ -132,6 +135,24 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
                     message.type == MessageType.Warning -> {
                         message.message?.let { warningHandler.handle(it) }
+                    }
+
+                    message.type == MessageType.InternalIde -> {
+                        message.message?.let {
+                            val json = Json
+                            try {
+                                val parsed = json.parseToJsonElement(it)
+
+                                when {
+                                    parsed.jsonObject["operator"] == null -> {
+                                        val mirrordService = project.service<MirrordProjectService>()
+                                        mirrordService.runCounter.bump(this.target?.startsWith("deploy")
+                                                ?: false)
+                                    }
+                                }
+                            } catch (_: SerializationException) {}
+
+                        }
                     }
 
                     else -> {
