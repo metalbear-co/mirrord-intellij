@@ -15,9 +15,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
@@ -28,11 +25,36 @@ const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
  * See `mirrord/progress/src/lib.rs` `ProgressMessage`.
  */
 enum class MessageType {
-    NewTask, FinishedTask, Warning, Info, InternalIde
+    NewTask, FinishedTask, Warning, Info, IdeMessage
 }
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
 data class Message(val type: MessageType, val name: String, val parent: String?, val success: Boolean?, val message: String?)
+
+enum class NotificationLevel {
+    Info, Warning
+}
+
+sealed class IdeAction {
+    data class Link(val label: String, val link: String) : IdeAction()
+}
+
+data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<IdeAction>) {
+    fun handleIdeMessage(service: MirrordProjectService) {
+       val notification = when (level) {
+           NotificationLevel.Info -> service.notifier.notification(text, NotificationType.INFORMATION)
+           NotificationLevel.Warning -> service.notifier.notification(text, NotificationType.WARNING)
+       }
+
+        this.actions.forEach {
+            when (it) {
+                is IdeAction.Link -> { notification.withLink(it.label, it.link)}
+            }
+        }
+
+        notification.fire()
+    }
+}
 
 data class Error(val message: String, val severity: String, val causes: List<String>, val help: String, val labels: List<String>, val related: List<String>)
 
@@ -137,21 +159,10 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                         message.message?.let { warningHandler.handle(it) }
                     }
 
-                    message.type == MessageType.InternalIde -> {
-                        message.message?.let {
-                            val json = Json
-                            try {
-                                val parsed = json.parseToJsonElement(it)
-
-                                when {
-                                    parsed.jsonObject["operator"] == null -> {
-                                        val mirrordService = project.service<MirrordProjectService>()
-                                        mirrordService.runCounter.bump(this.target?.startsWith("deploy")
-                                                ?: false)
-                                    }
-                                }
-                            } catch (_: SerializationException) {}
-
+                    message.type == MessageType.IdeMessage -> {
+                        message.message?.let { parser.parse(it, IdeMessage::class.java) }.run {
+                            val service = project.service<MirrordProjectService>()
+                            this?.handleIdeMessage(service)
                         }
                     }
 
