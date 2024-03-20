@@ -3,6 +3,7 @@
 package com.metalbear.mirrord
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
@@ -29,7 +30,7 @@ enum class MessageType {
 }
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
-data class Message(val type: MessageType, val name: String, val parent: String?, val success: Boolean?, val message: String?)
+data class Message(val type: MessageType, val name: String, val parent: String?, val success: Boolean?, val message: Any?)
 
 enum class NotificationLevel {
     Info, Warning
@@ -39,7 +40,7 @@ sealed class IdeAction {
     data class Link(val label: String, val link: String) : IdeAction()
 }
 
-data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<IdeAction>) {
+data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<JsonObject>) {
     fun handleIdeMessage(service: MirrordProjectService) {
        val notification = when (level) {
            NotificationLevel.Info -> service.notifier.notification(text, NotificationType.INFORMATION)
@@ -47,8 +48,9 @@ data class IdeMessage(val id: String, val level: NotificationLevel, val text: St
        }
 
         this.actions.forEach {
-            when (it) {
-                is IdeAction.Link -> { notification.withLink(it.label, it.link)}
+            if (it["kind"].asString == "Link") {
+                 val action = Gson().fromJson(it, IdeAction.Link::class.java)
+                 notification.withLink(action.label, action.link)
             }
         }
 
@@ -73,7 +75,7 @@ private class SafeParser {
         return try {
             gson.fromJson(value, classOfT)
         } catch (e: Throwable) {
-            MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
+            MirrordLogger.logger.debug("failed to parse mirrord binary message $value", e)
             throw MirrordError("failed to parse a message from the mirrord binary, try updating to the latest version", e)
         }
     }
@@ -144,7 +146,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                         if (success) {
                             val innerMessage = message.message
                                 ?: throw MirrordError("invalid message received from the mirrord binary")
-                            val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
+                            val executionInfo = parser.parse(innerMessage as String, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
                         }
@@ -152,17 +154,18 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
                     message.type == MessageType.Info -> {
                         val service = project.service<MirrordProjectService>()
-                        message.message?.let { service.notifier.notifySimple(it, NotificationType.INFORMATION) }
+                        message.message?.let { service.notifier.notifySimple(it as String, NotificationType.INFORMATION) }
                     }
 
                     message.type == MessageType.Warning -> {
-                        message.message?.let { warningHandler.handle(it) }
+                        message.message?.let { warningHandler.handle(it as String) }
                     }
 
                     message.type == MessageType.IdeMessage -> {
-                        message.message?.let { parser.parse(it, IdeMessage::class.java) }.run {
+                        message.message?.run {
+                            val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
                             val service = project.service<MirrordProjectService>()
-                            this?.handleIdeMessage(service)
+                            ideMessage?.handleIdeMessage(service)
                         }
                     }
 
