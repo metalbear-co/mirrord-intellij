@@ -42,15 +42,15 @@ sealed class IdeAction {
 
 data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<JsonObject>) {
     fun handleIdeMessage(service: MirrordProjectService) {
-       val notification = when (level) {
-           NotificationLevel.Info -> service.notifier.notification(text, NotificationType.INFORMATION)
-           NotificationLevel.Warning -> service.notifier.notification(text, NotificationType.WARNING)
-       }
+        val notification = when (level) {
+            NotificationLevel.Info -> service.notifier.notification(text, NotificationType.INFORMATION)
+            NotificationLevel.Warning -> service.notifier.notification(text, NotificationType.WARNING)
+        }
 
         this.actions.forEach {
             if (it["kind"].asString == "Link") {
-                 val action = Gson().fromJson(it, IdeAction.Link::class.java)
-                 notification.withLink(action.label, action.link)
+                val action = Gson().fromJson(it, IdeAction.Link::class.java)
+                notification.withLink(action.label, action.link)
             }
         }
 
