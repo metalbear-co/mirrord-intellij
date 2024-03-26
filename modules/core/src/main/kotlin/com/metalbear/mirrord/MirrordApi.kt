@@ -3,6 +3,7 @@
 package com.metalbear.mirrord
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
@@ -25,11 +26,69 @@ const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
  * See `mirrord/progress/src/lib.rs` `ProgressMessage`.
  */
 enum class MessageType {
-    NewTask, FinishedTask, Warning, Info
+    NewTask, FinishedTask, Warning, Info, IdeMessage
 }
 
 // I don't know how to do tags like Rust so this format is for parsing both kind of messages ;_;
-data class Message(val type: MessageType, val name: String, val parent: String?, val success: Boolean?, val message: String?)
+data class Message(val type: MessageType, val name: String, val parent: String?, val success: Boolean?, val message: Any?)
+
+/**
+ * How the `IdeMessage` should be displayed (the level of the notification box).
+ */
+enum class NotificationLevel {
+    Info, Warning
+}
+
+/**
+ * Rust enum equivalent to the `IdeAction`.
+ *
+ * Converted from a `JsonObject` from `IdeMessage`.
+ */
+sealed class IdeAction {
+    /**
+     * A link action that appears in the notification, such as "Get help".
+     *
+     * @param label The text of the link: "Get help".
+     * @param link The Url.
+     */
+    data class Link(val label: String, val link: String) : IdeAction()
+}
+
+/**
+ * Message we get from mirrord in json format, when `MessageType` is `IdeMessage`.
+ *
+ * Holds not only the content text that is displayed in a notification box, but also actions/buttons.
+ *
+ * These types of messages are shown as notifications by `IdeMessage::handleMessage`.
+ *
+ * @param id Identifier for the message, so we can trigger "Don't show this again".
+ * @param level Type of notification box such as `info`, `warning`.
+ * @param text Main content of the notification.
+ * @param actions The actions/buttons that are shown in the notification box.
+ */
+data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<JsonObject>) {
+
+    /**
+     * Handles the `IdeMessage` that we received from mirrord.
+     *
+     * @param service Used to build the notification.
+     */
+    fun handleIdeMessage(service: MirrordProjectService) {
+        val notification = when (level) {
+            NotificationLevel.Info -> service.notifier.notification(text, NotificationType.INFORMATION)
+            NotificationLevel.Warning -> service.notifier.notification(text, NotificationType.WARNING)
+        }
+
+        this.actions.forEach {
+            if (it["kind"].asString == "Link") {
+                val action = Gson().fromJson(it, IdeAction.Link::class.java)
+                notification.withLink(action.label, action.link)
+            }
+        }
+
+        notification.fire()
+    }
+}
 
 data class Error(val message: String, val severity: String, val causes: List<String>, val help: String, val labels: List<String>, val related: List<String>)
 
@@ -48,7 +107,7 @@ private class SafeParser {
         return try {
             gson.fromJson(value, classOfT)
         } catch (e: Throwable) {
-            MirrordLogger.logger.debug("failed to parse mirrord binary message", e)
+            MirrordLogger.logger.debug("failed to parse mirrord binary message $value", e)
             throw MirrordError("failed to parse a message from the mirrord binary, try updating to the latest version", e)
         }
     }
@@ -119,7 +178,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                         if (success) {
                             val innerMessage = message.message
                                 ?: throw MirrordError("invalid message received from the mirrord binary")
-                            val executionInfo = parser.parse(innerMessage, MirrordExecution::class.java)
+                            val executionInfo = parser.parse(innerMessage as String, MirrordExecution::class.java)
                             setText("mirrord is running")
                             return executionInfo
                         }
@@ -127,11 +186,19 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
                     message.type == MessageType.Info -> {
                         val service = project.service<MirrordProjectService>()
-                        message.message?.let { service.notifier.notifySimple(it, NotificationType.INFORMATION) }
+                        message.message?.let { service.notifier.notifySimple(it as String, NotificationType.INFORMATION) }
                     }
 
                     message.type == MessageType.Warning -> {
-                        message.message?.let { warningHandler.handle(it) }
+                        message.message?.let { warningHandler.handle(it as String) }
+                    }
+
+                    message.type == MessageType.IdeMessage -> {
+                        message.message?.run {
+                            val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
+                            val service = project.service<MirrordProjectService>()
+                            ideMessage?.handleIdeMessage(service)
+                        }
                     }
 
                     else -> {
