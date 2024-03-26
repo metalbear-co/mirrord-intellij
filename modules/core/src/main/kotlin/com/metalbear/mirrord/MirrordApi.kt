@@ -36,7 +36,7 @@ data class Message(val type: MessageType, val name: String, val parent: String?,
  * How the `IdeMessage` should be displayed (the level of the notification box).
  */
 enum class NotificationLevel {
-    Info, Warnikg
+    Info, Warning
 }
 
 /**
