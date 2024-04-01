@@ -138,7 +138,7 @@ class TomcatExecutionListener : ExecutionListener {
         MirrordLogger.logger.debug("processStartScheduled tomcat")
         getConfig(env)?.let { config ->
             MirrordLogger.logger.debug("processStartScheduled: got tomcat config")
-            val envVars = config.envVariables
+            var envVars = config.envVariables
             val envVarsMap = envVars.map { it.NAME to it.VALUE }.toMap()
 
             val service = env.project.service<MirrordProjectService>()
@@ -168,19 +168,24 @@ class TomcatExecutionListener : ExecutionListener {
                 service.execManager.wrapper("idea", envVarsMap).apply {
                     this.wsl = wsl
                     this.executable = scriptAndArgs?.command
-                }.start()?.let { (env, patchedPath) ->
-                    MirrordLogger.logger.debug("got execution info for tomcat - env: $env, patchedPath: $patchedPath")
+                }.start()?.let { executionInfo ->
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                     // even if `outgoing` feature is enabled.
-                    val mirrordEnv = env + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
+                    val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
 
                     val savedData = SavedConfigData(envVars.toList(), null)
                     envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
+
+                    executionInfo.envToUnset?.let { envToUnset ->
+                        envVars = envVars.filter {
+                            envToUnset.contains(it.name)
+                        }
+                    }
                     config.setEnvironmentVariables(envVars)
 
                     if (SystemInfo.isMac) {
                         MirrordLogger.logger.debug("isMac, patching SIP.")
-                        patchedPath?.let {
+                        executionInfo.patchedPath?.let {
                             MirrordLogger.logger.debug("patchedPath is not null: $it, meaning original was SIP")
                             savedData.scriptInfo = startupInfo
                             if (config.startupInfo.USE_DEFAULT) {

@@ -47,8 +47,15 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
 
                 service.execManager.wrapper("nodejs", extraEnvVars).apply {
                     this.wsl = wsl
-                }.start()?.first?.forEach { (key, value) ->
-                    targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
+                }.start()?.let { executionInfo ->
+                    executionInfo.environment.forEach { (key, value) ->
+                        targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
+                    }
+                    executionInfo.envToUnset?.let { keys ->
+                        for (key in keys.iterator()) {
+                            targetRun.commandLineBuilder.removeEnvironmentVariable(key)
+                        }
+                    }
                 }
             }
         }

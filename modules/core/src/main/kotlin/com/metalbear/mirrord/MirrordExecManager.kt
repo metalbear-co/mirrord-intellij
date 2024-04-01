@@ -98,7 +98,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         executable: String?,
         product: String,
         projectEnvVars: Map<String, String>?
-    ): Pair<Map<String, String>, String?>? {
+    ): MirrordExecution? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val explicitlyEnabled = projectEnvVars?.any { (key, value) -> key == "MIRRORD_ACTIVE" && value == "1" } ?: false
         if (!service.enabled && !explicitlyEnabled) {
@@ -195,7 +195,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
-        return Pair(executionInfo.environment, executionInfo.patchedPath)
+        return executionInfo
     }
 
     /**
@@ -207,7 +207,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         var wsl: WSLDistribution? = null
         var executable: String? = null
 
-        fun start(): Pair<Map<String, String>, String?>? {
+        fun start(): MirrordExecution? {
             return try {
                 manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
