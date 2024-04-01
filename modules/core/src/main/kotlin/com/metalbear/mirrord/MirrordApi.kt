@@ -353,6 +353,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
+            environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
         }
     }
 
