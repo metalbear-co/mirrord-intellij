@@ -58,11 +58,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             // this is the env the Ruby app and the layer see, at least with RVM.
             cmdLine.withEnvironment(mirrordEnv)
 
-            if (isMac && executionInfo.patchedPath !== null) {
-                cmdLine.exePath = executionInfo.patchedPath
-            }
-
             if (isMac) {
+                executionInfo.patchedPath?.let {
+                    cmdLine.exePath = it
+                }
                 // TODO: would be nice to have a more robust RVM detection mechanism.
                 val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
                 if (isRvm) {
