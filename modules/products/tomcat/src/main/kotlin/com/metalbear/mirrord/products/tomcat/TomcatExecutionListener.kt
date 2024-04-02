@@ -178,7 +178,7 @@ class TomcatExecutionListener : ExecutionListener {
 
                     executionInfo.envToUnset?.let { envToUnset ->
                         envVars = envVars.filter {
-                            envToUnset.contains(it.name)
+                            !envToUnset.contains(it.name)
                         }
                     }
                     config.setEnvironmentVariables(envVars)

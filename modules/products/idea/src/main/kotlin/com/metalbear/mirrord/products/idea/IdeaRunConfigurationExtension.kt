@@ -78,7 +78,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"))
             params.env = params.env + mirrordEnv
             executionInfo.envToUnset?.let { keys ->
-                params.env = params.env.filterKeys { keys.contains(it) }
+                params.env = params.env.filterKeys { !keys.contains(it) }
             }
             runningProcessEnvs[configuration.project] = params.env.toMap()
 
@@ -87,7 +87,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
                 var env = configuration.settings.env + mirrordEnv
                 executionInfo.envToUnset?.let { keys ->
-                    env = env.filterKeys { keys.contains(it) }
+                    env = env.filterKeys { !keys.contains(it) }
                 }
                 configuration.settings.env = configuration.settings.env + mirrordEnv
             }

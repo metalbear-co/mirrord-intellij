@@ -47,7 +47,7 @@ class MirrordNpmExecutionListener : ExecutionListener {
                 var envs = (executionGuard.originEnv + executionInfo.environment)
 
                 executionInfo.envToUnset?.let { envToUnset ->
-                    envs = envs.filterKeys { envToUnset.contains(it) }
+                    envs = envs.filterKeys { !envToUnset.contains(it) }
                 }
                 runSettings.envs = envs
 
