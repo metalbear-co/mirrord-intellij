@@ -30,10 +30,15 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
 
             service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
                 this.wsl = wsl
-            }.start()?.first?.let { env ->
-                for (entry in env.entries.iterator()) {
+            }.start()?.let { executionInfo ->
+                for (entry in executionInfo.environment.entries.iterator()) {
                     pythonExecution.addEnvironmentVariable(entry.key, entry.value)
                 }
+
+                for (key in executionInfo.envToUnset.orEmpty()) {
+                    pythonExecution.envs.remove(key)
+                }
+
                 pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
             }
         }

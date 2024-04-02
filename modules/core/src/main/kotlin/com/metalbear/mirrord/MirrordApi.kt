@@ -92,7 +92,11 @@ data class IdeMessage(val id: String, val level: NotificationLevel, val text: St
 
 data class Error(val message: String, val severity: String, val causes: List<String>, val help: String, val labels: List<String>, val related: List<String>)
 
-data class MirrordExecution(val environment: MutableMap<String, String>, @SerializedName("patched_path") val patchedPath: String?)
+data class MirrordExecution(
+    val environment: MutableMap<String, String>,
+    @SerializedName("patched_path") val patchedPath: String?,
+    @SerializedName("env_to_unset") val envToUnset: List<String>?
+)
 
 /**
  * Wrapper around Gson for parsing messages from the mirrord binary.

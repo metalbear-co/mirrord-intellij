@@ -38,9 +38,14 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
 
         service.execManager.wrapper("pycharm", currentEnv).apply {
             this.wsl = wsl
-        }.start()?.first?.let { env ->
-            for (entry in env.entries.iterator()) {
+        }.start()?.let { executionInfo ->
+            for (entry in executionInfo.environment.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
+            }
+            executionInfo.envToUnset?.let { envToUnset ->
+                for (key in envToUnset.iterator()) {
+                    currentEnv.remove(key)
+                }
             }
         }
 
