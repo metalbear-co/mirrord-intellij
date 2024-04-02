@@ -12,7 +12,9 @@ import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
-import kotlin.io.path.*
+import kotlin.io.path.createTempFile
+import kotlin.io.path.pathString
+import kotlin.io.path.writeText
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
@@ -49,14 +51,12 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 this.executable = cmdLine.exePath
             }
         }.start()?.let { executionInfo ->
-            val mirrordEnv = executionInfo.environment
-            executionInfo.envToUnset?.let { envToUnset ->
-                for (key in envToUnset.iterator()) {
-                    mirrordEnv.remove(key)
-                }
-            }
             // this is the env the Ruby app and the layer see, at least with RVM.
-            cmdLine.withEnvironment(mirrordEnv)
+            cmdLine.withEnvironment(executionInfo.environment)
+
+            for (key in executionInfo.envToUnset.orEmpty()) {
+                cmdLine.environment.remove(key)
+            }
 
             if (isMac) {
                 executionInfo.patchedPath?.let {

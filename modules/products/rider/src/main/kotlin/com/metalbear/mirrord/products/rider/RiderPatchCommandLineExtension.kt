@@ -34,13 +34,12 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         service.execManager.wrapper("rider", commandLine.environment).apply {
             this.wsl = wsl
         }.start()?.let { executionInfo ->
-            executionInfo.envToUnset?.let { envToUnset ->
-                for (key in envToUnset.iterator()) {
-                    executionInfo.environment.remove(key)
-                }
-            }
             for (entry in executionInfo.environment.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)
+            }
+
+            for (key in executionInfo.envToUnset.orEmpty()) {
+                commandLine.environment.remove(key)
             }
         }
     }
