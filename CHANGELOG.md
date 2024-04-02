@@ -8,6 +8,26 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.60.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.0) - 2024-04-02
+
+
+### Added
+
+- Handle new mirrord -> IDE message type IdeMessage. Add passing env to enable
+  this. [#235](https://github.com/metalbear-co/mirrord-intellij/issues/235)
+
+
+### Fixed
+
+- Fix issue for some user that had timeout executing via WSL by increasing the
+  timeout from 1s to 5s
+
+
+### Internal
+
+- Fix e2e failing on release because image doesn't exist
+
+
 ## [3.59.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.59.0) - 2024-03-11
 
 
