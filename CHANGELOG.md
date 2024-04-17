@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.60.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.1) - 2024-04-17
+
+
+### Fixed
+
+- Fixed compatibility with Rider 2024.1
+  [#258](https://github.com/metalbear-co/mirrord-intellij/issues/258)
+
+
 ## [3.60.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.0) - 2024-04-02
 
 
