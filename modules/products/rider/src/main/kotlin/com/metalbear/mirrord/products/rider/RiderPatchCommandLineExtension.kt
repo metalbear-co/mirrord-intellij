@@ -54,6 +54,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         return resolvedPromise(workerRunInfo)
     }
 
+    /**
+     * This method is the one that overrides in newer Rider versions.
+     */
+    @Suppress("unused", "unused_parameter")
     fun patchDebugCommandLine(
         lifetime: Lifetime,
         workerRunInfo: WorkerRunInfo,
