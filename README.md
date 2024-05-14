@@ -13,10 +13,11 @@ mirrord main repository can be found [here](https://github.com/metalbear-co/mirr
 
 <!-- Plugin description -->
 
-mirrord lets developers run local processes in the context of their cloud environment.
-It’s meant to provide the benefits of running your service on a cloud environment (e.g. staging) without actually
+mirrord lets developers [run local processes in the context of their cloud environment](https://mirrord.dev).
+It’s provides the benefits of running your service on a cloud environment (e.g. staging) without actually
 going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
 It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
+mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
 ## How To Use
 
@@ -27,7 +28,7 @@ It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. Y
 
 ## Settings
 
-mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/overview/configuration/).
+mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/reference/configuration/).
 This plugin supports configuration specified in `json` files.
 
 mirrord reads its configuration from the following locations:
@@ -61,7 +62,7 @@ You can use the `Settings` button in the dropdown menu to quickly edit detected 
 
 ## FAQ
 
-Our FAQ is available [here](https://mirrord.dev/docs/overview/faq/).
+Our FAQ is available [here](https://mirrord.dev/docs/faq/general).
 If you have a question that's not on there, feel free to ask in our [Discussions](https://github.com/metalbear-co/mirrord/discussions)
 or on [Discord](https://discord.gg/metalbear).
 

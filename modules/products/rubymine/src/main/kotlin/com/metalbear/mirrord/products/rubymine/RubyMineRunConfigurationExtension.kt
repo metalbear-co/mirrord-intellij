@@ -12,7 +12,9 @@ import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
-import kotlin.io.path.*
+import kotlin.io.path.createTempFile
+import kotlin.io.path.pathString
+import kotlin.io.path.writeText
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
@@ -48,15 +50,18 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
-        }.start()?.let { (mirrordEnv, patched) ->
+        }.start()?.let { executionInfo ->
             // this is the env the Ruby app and the layer see, at least with RVM.
-            cmdLine.withEnvironment(mirrordEnv)
+            cmdLine.withEnvironment(executionInfo.environment)
 
-            if (isMac && patched !== null) {
-                cmdLine.exePath = patched
+            for (key in executionInfo.envToUnset.orEmpty()) {
+                cmdLine.environment.remove(key)
             }
 
             if (isMac) {
+                executionInfo.patchedPath?.let {
+                    cmdLine.exePath = it
+                }
                 // TODO: would be nice to have a more robust RVM detection mechanism.
                 val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
                 if (isRvm) {

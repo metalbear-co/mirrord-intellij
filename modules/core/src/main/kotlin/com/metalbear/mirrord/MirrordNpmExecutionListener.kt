@@ -43,10 +43,15 @@ class MirrordNpmExecutionListener : ExecutionListener {
             service.execManager.wrapper("JS", executionGuard.originEnv).apply {
                 wsl = wslDistribution
                 executable = executablePath
-            }.start()?.let { (newEnv, patchedPath) ->
-                runSettings.envs = executionGuard.originEnv + newEnv
+            }.start()?.let { executionInfo ->
+                var envs = (executionGuard.originEnv + executionInfo.environment)
 
-                patchedPath?.let {
+                executionInfo.envToUnset?.let { envToUnset ->
+                    envs = envs.filterKeys { !envToUnset.contains(it) }
+                }
+                runSettings.envs = envs
+
+                executionInfo.patchedPath?.let {
                     executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
                     runSettings.packageManagerPackagePath = it
                 }

@@ -243,7 +243,7 @@ class MirrordBinaryManager {
         init {
             version = if (wslDistribution != null) {
                 val command = wslDistribution.getWslPath(command)
-                val output = wslDistribution.executeOnWsl(1000, command, "--version")
+                val output = wslDistribution.executeOnWsl(5000, command, "--version")
                 output.stdout.split(' ')[1].trim()
             } else {
                 val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
@@ -271,7 +271,7 @@ class MirrordBinaryManager {
                 }
                 child.inputReader().readLine().trim()
             } else {
-                val output = wslDistribution.executeOnWsl(1000, "which", "mirrord")
+                val output = wslDistribution.executeOnWsl(5000, "which", "mirrord")
                 if (output.exitCode != 0) {
                     throw RuntimeException("`which` failed with code ${output.exitCode}")
                 }

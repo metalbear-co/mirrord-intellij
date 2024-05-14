@@ -93,10 +93,14 @@ jobs:
           echo "$KUBE_SERVICE"
           echo "KUBE_SERVICE=$KUBE_SERVICE" >> "$GITHUB_ENV"
 
-      - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v2
+      - name: download image
+        if: ${{ inputs.mirrord_release_branch }}
+        uses: actions/download-artifact@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: test
+          path: /tmp
+      - run: minikube image load /tmp/test.tar
+        if: ${{ inputs.mirrord_release_branch }}
 
       - name: build plugin
         run: |
@@ -104,6 +108,18 @@ jobs:
 
       - name: Run intellij e2e in headless state
         uses: coactions/setup-xvfb@v1
+        if: ${{ inputs.mirrord_release_branch }}
+        env:
+          POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
+          KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
+          MIRRORD_AGENT_IMAGE: "test"
+        with:
+          run: |
+            ./gradlew test
+
+      - name: Run intellij e2e in headless state
+        uses: coactions/setup-xvfb@v1
+        if: ${{ !inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}

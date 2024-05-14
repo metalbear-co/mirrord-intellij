@@ -7,18 +7,21 @@ import com.intellij.remoterobot.fixtures.GutterFixture
 import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
+import com.intellij.remoterobot.launcher.Os
 import com.intellij.remoterobot.steps.CommonSteps
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
 import com.intellij.remoterobot.utils.waitForIgnoringError
 import com.metalbear.mirrord.utils.*
 import okhttp3.OkHttpClient
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
 import java.awt.Point
-import java.awt.event.KeyEvent.*
 import java.io.File
 import java.net.URL
 import java.nio.file.Files
@@ -50,9 +53,30 @@ internal class MirrordPluginTest {
             steps = CommonSteps(remoteRobot)
             val ideDownloader = IdeDownloader(client)
             val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
+
             println("downloading IDE...")
+            val pathToIde = ideDownloader.downloadAndExtract(Ide.PYCHARM_COMMUNITY, tmpDir, Ide.BuildType.RELEASE)
+
+            // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
+            println("fixing vmoptions files...")
+            val ideBinDir = pathToIde.resolve(
+                when (Os.hostOS()) {
+                    Os.MAC -> "Contents/bin"
+                    else -> "bin"
+                }
+            )
+            Files
+                .list(ideBinDir)
+                .filter {
+                    val filename = it.fileName.toString()
+                    filename.endsWith(".vmoptions") && filename.contains("64") && filename != "pycharm64.vmoptions"
+                }
+                .forEach {
+                    println("Deleting problematic file $it")
+                    Files.delete(it)
+                }
             ideaProcess = IdeLauncher.launchIde(
-                ideDownloader.downloadAndExtract(Ide.PYCHARM_COMMUNITY, tmpDir, Ide.BuildType.RELEASE),
+                pathToIde,
                 mapOf(
                     "robot-server.port" to 8082,
                     "idea.trust.all.projects" to true,
