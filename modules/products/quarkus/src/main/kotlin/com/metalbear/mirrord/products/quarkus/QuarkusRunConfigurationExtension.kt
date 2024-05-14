@@ -9,7 +9,8 @@ import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.openapi.project.Project
 import java.util.concurrent.ConcurrentHashMap
-
+//import com.intellij.quarkus.run.QsTargetConfigurationExtension
+import com.intellij.quarkus.run.QsTargetConfigurationExtension
 
 class QuarkusRunConfigurationExtension : RunConfigurationExtension() {
     /**

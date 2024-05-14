@@ -17,8 +17,9 @@ tasks {
 
 intellij {
     type.set("IU")
-    version.set(properties("platformVersion"))
-    plugins.set(listOf("java", "gradle", "maven", "com.intellij.quarkus"))
+    //version.set(properties("platformVersion"))
+    version.set("2024.1")
+    plugins.set(listOf("java", "gradle", "maven", "com.intellij.quarkus:241.14494.158"))
 }
 
 dependencies {
