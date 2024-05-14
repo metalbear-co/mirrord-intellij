@@ -8,6 +8,114 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.60.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.1) - 2024-04-17
+
+
+### Fixed
+
+- Fixed compatibility with Rider 2024.1
+  [#258](https://github.com/metalbear-co/mirrord-intellij/issues/258)
+
+
+## [3.60.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.0) - 2024-04-02
+
+
+### Added
+
+- Handle new mirrord -> IDE message type IdeMessage. Add passing env to enable
+  this. [#235](https://github.com/metalbear-co/mirrord-intellij/issues/235)
+- support unset env feature
+
+
+### Fixed
+
+- Fix issue for some user that had timeout executing via WSL by increasing the
+  timeout from 1s to 5s
+
+
+### Internal
+
+- Fix e2e failing on release because image doesn't exist
+
+
+## [3.59.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.59.0) - 2024-03-11
+
+
+### Added
+
+- Added support for using $ProjectPath$ macro in MIRRORD_CONFIG_FILE env
+  [#243](https://github.com/metalbear-co/mirrord-intellij/issues/243)
+- Notify user on license validity.
+  [#382](https://github.com/metalbear-co/mirrord-intellij/issues/382)
+
+
+### Internal
+
+- Update links to new docs
+
+
+## [3.58.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.58.0) - 2024-01-23
+
+
+### Added
+
+- Auto-detect mirrord JSON config files and set schema
+  [#46](https://github.com/metalbear-co/mirrord-intellij/issues/46)
+
+
+### Changed
+
+- Removed feedback form link, added discord link, updated mirrord for teams
+  link.
+
+
+## [3.57.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.57.0) - 2024-01-10
+
+
+### Added
+
+- Users can now specify MIRRORD_ACTIVE=1 in run configuration's environment
+  variable to explicitly enable mirrord regardless of the button status
+  [#231](https://github.com/metalbear-co/mirrord-intellij/issues/231)
+
+
+## [3.56.5](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.5) - 2024-01-05
+
+
+### Fixed
+
+- Fix plugin update check leading to failure
+  [#227](https://github.com/metalbear-co/mirrord-intellij/issues/227)
+
+
+### Internal
+
+- Fixed E2E test.
+- Make small changes to README
+
+
+## [3.56.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.4) - 2023-12-21
+
+
+### Changed
+
+- Replaced waitlist registration action with mirrord for Teams actions.
+  Added occasional notifications about mirrord for Teams.
+
+
+## [3.56.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.3) - 2023-12-12
+
+
+### Fixed
+
+- Fixed warning notification when the plugin cannot display the target
+  selection popup.
+  [#211](https://github.com/metalbear-co/mirrord-intellij/issues/211)
+- Fixed spawning CLI tasks on a pooled thread under a read lock. Fixes issues
+  with IntelliJ UI freezing in some scenarios.
+  [#214](https://github.com/metalbear-co/mirrord-intellij/issues/214)
+
+
 ## [3.56.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.56.2) - 2023-12-01
 
 

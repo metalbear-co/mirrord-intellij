@@ -13,10 +13,11 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.indexing.*
 import com.intellij.util.io.EnumeratorStringDescriptor
 import com.intellij.util.io.KeyDescriptor
-import java.util.Collections
+import java.util.*
 import javax.swing.JComponent
 
-const val FEEDBACK_URL = "https://mirrord.dev/feedback"
+const val DISCORD_URL = "https://discord.gg/metalbear"
+const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/"
 
 fun VirtualFile.relativePath(project: Project): String {
     return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
@@ -24,7 +25,8 @@ fun VirtualFile.relativePath(project: Project): String {
 
 class MirrordDropDown : ComboBoxAction(), DumbAware {
 
-    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) : AnAction("Active Config: ${config.relativePath(project)}") {
+    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) :
+        AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             FileEditorManager.getInstance(service.project).openFile(config, true)
@@ -105,16 +107,15 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    private class WaitlistSignupAction : AnAction("Join the waitlist") {
+    private class NavigateToMirrodForTeamsIntroAction : AnAction("Try It Now") {
         override fun actionPerformed(e: AnActionEvent) {
-            val project = e.project ?: return
-            MirrordWaitlistDialog(project).show()
+            BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
         }
     }
 
-    private class FeedbackAction : AnAction("Give Feedback") {
+    private class DiscordAction : AnAction("Get Help on Discord") {
         override fun actionPerformed(e: AnActionEvent) {
-            BrowserUtil.browse(FEEDBACK_URL)
+            BrowserUtil.browse(DISCORD_URL)
         }
     }
 
@@ -130,9 +131,9 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             add(SelectActiveConfigAction())
             add(SettingsAction())
             addSeparator("mirrord for Teams")
-            add(WaitlistSignupAction())
-            addSeparator("Feedback")
-            add(FeedbackAction())
+            add(NavigateToMirrodForTeamsIntroAction())
+            addSeparator("Help")
+            add(DiscordAction())
         }
     }
 
@@ -152,7 +153,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
 
         e.presentation.isVisible = true
         e.presentation.isEnabled = projectOpen
-        e.presentation.description = if (projectOpen) "Options for mirrord plugin" else "Plugin requires an open project"
+        e.presentation.description =
+            if (projectOpen) "Options for mirrord plugin" else "Plugin requires an open project"
 
         super.update(e)
     }
@@ -188,11 +190,7 @@ class MirrordConfigIndex : ScalarIndexExtension<String>() {
 
     override fun getInputFilter(): FileBasedIndex.InputFilter {
         return FileBasedIndex.InputFilter {
-            it.isInLocalFileSystem && !it.isDirectory && (
-                it.path.endsWith("mirrord.json") ||
-                    it.path.endsWith("mirrord.yaml") ||
-                    it.path.endsWith("mirrord.toml")
-                )
+            it.isInLocalFileSystem && !it.isDirectory && MirrordConfigAPI.isConfigFilePath(it)
         }
     }
 

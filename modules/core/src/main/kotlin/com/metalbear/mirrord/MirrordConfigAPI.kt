@@ -82,11 +82,11 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     }
 
     /**
-     * Finds a parent directory for the `.mirrord` directory. This is a parent directory of the `.idea` directory,
-     * the `*.ipr` workspace file or the `*.iml` project file.
+     * Finds the project dir based on some heuristics since service.project.getBasePath don't recommend using it.
+     * This is a parent directory of the `.idea` directory, the `*.ipr` workspace file or the `*.iml` project file.
      * @throws InvalidProjectException if the directory could not be found.
      */
-    private fun getMirrordDirParent(): VirtualFile {
+    fun getProjectDir(): VirtualFile {
         val knownLocationFile = service.project.projectFile
             ?: service.project.workspaceFile
             ?: throw InvalidProjectException(
@@ -109,7 +109,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
     private fun getMirrordDir(): VirtualFile? {
-        return getMirrordDirParent().findChild(".mirrord")?.takeIf { it.isDirectory }
+        return getProjectDir().findChild(".mirrord")?.takeIf { it.isDirectory }
     }
 
     /**
@@ -121,7 +121,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     fun getDefaultConfig(): VirtualFile? {
         return getMirrordDir()
             ?.children
-            ?.filter { it.name.endsWith("mirrord.json") || it.name.endsWith("mirrord.yaml") || it.name.endsWith("mirrord.toml") }
+            ?.filter { isValidConfigExt(it) }
             ?.minByOrNull { it.name }
     }
 
@@ -131,11 +131,20 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
     fun createDefaultConfig(): VirtualFile {
-        val mirrordDir = getMirrordDir() ?: getMirrordDirParent().createChildDirectory(this, ".mirrord")
+        val mirrordDir = getMirrordDir() ?: getProjectDir().createChildDirectory(this, ".mirrord")
 
         return mirrordDir.createChildData(this, "mirrord.json")
             .apply { bom = null }
             .apply { charset = Charset.forName("UTF-8") }
             .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
+    }
+    companion object {
+        fun isConfigFilePath(file: VirtualFile): Boolean {
+            return file.path.contains("mirrord") && isValidConfigExt(file)
+        }
+
+        fun isValidConfigExt(file: VirtualFile): Boolean {
+            return file.name.endsWith(".json") || file.name.endsWith(".yaml") || file.name.endsWith(".toml")
+        }
     }
 }

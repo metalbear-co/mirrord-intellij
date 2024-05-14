@@ -33,9 +33,13 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
         service.execManager.wrapper("rider", commandLine.environment).apply {
             this.wsl = wsl
-        }.start()?.first?.let { env ->
-            for (entry in env.entries.iterator()) {
+        }.start()?.let { executionInfo ->
+            for (entry in executionInfo.environment.entries.iterator()) {
                 commandLine.withEnvironment(entry.key, entry.value)
+            }
+
+            for (key in executionInfo.envToUnset.orEmpty()) {
+                commandLine.environment.remove(key)
             }
         }
     }
@@ -50,6 +54,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         return resolvedPromise(workerRunInfo)
     }
 
+    /**
+     * This method is the one that overrides in newer Rider versions.
+     */
+    @Suppress("unused", "unused_parameter")
     fun patchDebugCommandLine(
         lifetime: Lifetime,
         workerRunInfo: WorkerRunInfo,

@@ -48,11 +48,18 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
 
             service.execManager.wrapper("goland", configuration.getCustomEnvironment()).apply {
                 this.wsl = wsl
-            }.start()?.first?.let { env ->
-                for (entry in env.entries.iterator()) {
+            }.start()?.let { executionInfo ->
+
+                for (entry in executionInfo.environment.entries.iterator()) {
                     cmdLine.addEnvironmentVariable(entry.key, entry.value)
                 }
                 cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
+
+                executionInfo.envToUnset?.let { keys ->
+                    for (key in keys.iterator()) {
+                        cmdLine.removeEnvironmentVariable(key)
+                    }
+                }
             }
         }
         super.patchCommandLine(configuration, runnerSettings, cmdLine, runnerId, state, commandLineType)

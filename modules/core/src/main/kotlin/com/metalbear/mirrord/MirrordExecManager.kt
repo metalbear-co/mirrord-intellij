@@ -3,12 +3,12 @@ package com.metalbear.mirrord
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.alsoIfNull
-import java.nio.file.Path
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -55,24 +55,23 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             service
                 .notifier
                 .notification(
-                    "mirrord plugin was unable to display the target selection dialog. " +
-                        "You can set it manually in the configuration file $config.",
+                    "mirrord plugin was unable to display the target selection dialog. You can set it manually in the configuration file.",
                     NotificationType.WARNING
                 )
                 .apply {
-                    val configFile = try {
-                        val path = Path.of(config)
-                        VirtualFileManager.getInstance().findFileByNioPath(path)
-                    } catch (e: Exception) {
-                        MirrordLogger.logger.debug("failed to find config under path $config", e)
-                        null
-                    }
-
-                    configFile?.let {
-                        withOpenFile(it)
+                    config.let {
+                        when {
+                            it != null -> withOpenPath(it)
+                            else -> withAction("Create") { _, _ ->
+                                WriteAction.run<InvalidProjectException> {
+                                    val newConfig = service.configApi.createDefaultConfig()
+                                    FileEditorManager.getInstance(service.project).openFile(newConfig, true)
+                                }
+                            }
+                        }
                     }
                 }
-                .withLink("Config doc", "https://mirrord.dev/docs/overview/configuration/#root-target")
+                .withLink("Config doc", "https://mirrord.dev/docs/reference/configuration/#root-target")
                 .fire()
 
             null
@@ -99,9 +98,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         executable: String?,
         product: String,
         projectEnvVars: Map<String, String>?
-    ): Pair<Map<String, String>, String?>? {
+    ): MirrordExecution? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
-        if (!service.enabled) {
+        val explicitlyEnabled = projectEnvVars?.any { (key, value) -> key == "MIRRORD_ACTIVE" && value == "1" } ?: false
+        if (!service.enabled && !explicitlyEnabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
         }
@@ -111,11 +111,34 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         }
 
         MirrordLogger.logger.debug("version check trigger")
-        service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+        try {
+            service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
+        } catch (e: Throwable) {
+            MirrordLogger.logger.debug("Failed checking plugin updates", e)
+            service.notifier.notifySimple(
+                "Couldn't check for plugin update",
+                NotificationType.WARNING
+            )
+        }
 
         val mirrordApi = service.mirrordApi(projectEnvVars)
 
-        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)
+        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
+            if (it.contains("\$ProjectPath\$")) {
+                val projectFile = service.configApi.getProjectDir()
+                projectFile.canonicalPath?.let { path ->
+                    it.replace("\$ProjectPath\$", path)
+                } ?: run {
+                    service.notifier.notifySimple(
+                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
+                        NotificationType.WARNING
+                    )
+                    it
+                }
+            } else {
+                it
+            }
+        }
         val cli = cliPath(wslDistribution, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
@@ -160,6 +183,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             null
         }
 
+        service.runCounter.bump()
+
         val executionInfo = mirrordApi.exec(
             cli,
             target,
@@ -170,7 +195,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
-        return Pair(executionInfo.environment, executionInfo.patchedPath)
+        return executionInfo
     }
 
     /**
@@ -182,7 +207,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         var wsl: WSLDistribution? = null
         var executable: String? = null
 
-        fun start(): Pair<Map<String, String>, String?>? {
+        fun start(): MirrordExecution? {
             return try {
                 manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {

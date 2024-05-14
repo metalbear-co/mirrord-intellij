@@ -74,4 +74,5 @@
     <depends optional="true" config-file="mirrord-rider.xml">com.intellij.modules.rider</depends>
     <depends optional="true" config-file="mirrord-tomcat.xml">Tomcat</depends>
     <depends optional="true" config-file="META-INF/mirrord-quarkus.xml">com.intellij.quarkus</depends>
+    <depends optional="true" config-file="mirrord-schema.xml">com.intellij.modules.json</depends>
 </idea-plugin>
