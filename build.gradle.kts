@@ -38,6 +38,7 @@ repositories {
 val remoteRobotVersion = "0.11.19"
 
 dependencies {
+    /*
     implementation(project(":mirrord-products-idea"))
     implementation(project(":mirrord-products-pycharm"))
     implementation(project(":mirrord-products-rubymine"))
@@ -45,6 +46,7 @@ dependencies {
     implementation(project(":mirrord-products-nodejs"))
     implementation(project(":mirrord-products-rider"))
     implementation(project(":mirrord-products-tomcat"))
+     */
     implementation(project(":mirrord-products-quarkus"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
@@ -232,7 +234,8 @@ tasks {
     listProductsReleases {
         val ides = System.getenv("IDE")
         types.set(ides?.split(',') ?: listOf("IU", "RD", "PY"))
-        sinceBuild.set(if (types.get() == listOf("IU")) "222.*" else "232.*")
+        //sinceBuild.set(if (types.get() == listOf("IU")) "222.*" else "232.*")
+        sinceBuild.set("241.*")
         releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
     }
 
