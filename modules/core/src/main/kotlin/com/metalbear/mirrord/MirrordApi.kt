@@ -123,6 +123,11 @@ private class SafeParser {
 private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
 
 /**
+ * How many times mirrord can be run before inviting the user to Discord.
+ */
+private const val DISCORD_COUNTER_INVITE_AFTER = 10
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
@@ -273,6 +278,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      */
     fun exec(cli: String, target: String?, configFile: String?, executable: String?, wslDistribution: WSLDistribution?): MirrordExecution {
         bumpFeedbackCounter()
+        checkDiscordCounter()
 
         val task = MirrordExtTask(cli, projectEnvVars).apply {
             this.target = target
@@ -301,6 +307,19 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
 
         service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
+    }
+
+    /**
+     * Invite user to MetalBear Discord server after a few usages.
+     */
+    private fun checkDiscordCounter() {
+        val currentRuns = MirrordSettingsState.instance.mirrordState.runsCounter
+
+        if ((currentRuns - DISCORD_COUNTER_INVITE_AFTER) != 0) {
+            return
+        }
+
+        service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
     }
 }
 
