@@ -95,7 +95,8 @@ data class Error(val message: String, val severity: String, val causes: List<Str
 data class MirrordExecution(
     val environment: MutableMap<String, String>,
     @SerializedName("patched_path") val patchedPath: String?,
-    @SerializedName("env_to_unset") val envToUnset: List<String>?
+    @SerializedName("env_to_unset") val envToUnset: List<String>?,
+    @SerializedName("uses_operator") val usesOperator: Boolean?
 )
 
 /**
@@ -118,7 +119,7 @@ private class SafeParser {
 }
 
 /**
- * How many times mirrord can be run before displaying a notification asking for marketplace review.
+ * How many times mirrord can be run before asking for marketplace review.
  */
 private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
 
@@ -126,6 +127,16 @@ private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
  * How many times mirrord can be run before inviting the user to Discord.
  */
 private const val DISCORD_COUNTER_INVITE_AFTER = 10
+
+/**
+ * How many times mirrord can be run before inviting the user to mirrord for Teams **for the first time**.
+ */
+private const val MIRRORD_FOR_TEAMS_INVITE_AFTER = 100
+
+/**
+ * How many times mirrord can run before inviting the user to mirrord for Teams **again**.
+ */
+private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 
 /**
  * Interact with mirrord CLI using this API.
@@ -249,7 +260,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             val stderr = process.errorStream.reader().buffered()
             MirrordLogger.logger.debug(stderr.readText())
 
-            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
             return bufferedReader.readText()
         }
     }
@@ -277,8 +287,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      * @return environment for the user's application
      */
     fun exec(cli: String, target: String?, configFile: String?, executable: String?, wslDistribution: WSLDistribution?): MirrordExecution {
-        bumpFeedbackCounter()
-        checkDiscordCounter()
+        bumpRunCounter()
 
         val task = MirrordExtTask(cli, projectEnvVars).apply {
             this.target = target
@@ -290,36 +299,39 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         val result = task.run(service.project)
         service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
 
+        result.usesOperator?.let { usesOperator ->
+            if (usesOperator) {
+                MirrordSettingsState.instance.mirrordState.operatorUsed = true
+            }
+        }
+
         return result
     }
 
     /**
-     * Increments the mirrord run counter. Occasionally displays a notification asking for marketplace review.
+     * Increments the mirrord run counter.
+     * Can display some notifications (asking for feedback, discord invite, mirrord for Teams invite).
      */
-    private fun bumpFeedbackCounter() {
+    private fun bumpRunCounter() {
         val previousRuns = MirrordSettingsState.instance.mirrordState.runsCounter
         val currentRuns = previousRuns + 1
-
         MirrordSettingsState.instance.mirrordState.runsCounter = currentRuns
 
-        if ((currentRuns % FEEDBACK_COUNTER_REVIEW_AFTER) != 0) {
-            return
+        val operatorUsed = MirrordSettingsState.instance.mirrordState.operatorUsed
+
+        if ((currentRuns % FEEDBACK_COUNTER_REVIEW_AFTER) == 0) {
+            service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
         }
 
-        service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
-    }
-
-    /**
-     * Invite user to MetalBear Discord server after a few usages.
-     */
-    private fun checkDiscordCounter() {
-        val currentRuns = MirrordSettingsState.instance.mirrordState.runsCounter
-
-        if ((currentRuns - DISCORD_COUNTER_INVITE_AFTER) != 0) {
-            return
+        if (currentRuns == DISCORD_COUNTER_INVITE_AFTER) {
+            service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
         }
 
-        service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
+        if (previousRuns >= MIRRORD_FOR_TEAMS_INVITE_AFTER && !operatorUsed) {
+            if ((previousRuns - MIRRORD_FOR_TEAMS_INVITE_AFTER) % MIRRORD_FOR_TEAMS_INVITE_EVERY == 0) {
+                service.notifier.notification("For more features of mirrord, including multi-pod impersonation, check out mirrord for Teams!", NotificationType.INFORMATION).withLink("Try it now", MIRRORD_FOR_TEAMS_URL).withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_FOR_TEAMS).fire()
+            }
+        }
     }
 }
 
