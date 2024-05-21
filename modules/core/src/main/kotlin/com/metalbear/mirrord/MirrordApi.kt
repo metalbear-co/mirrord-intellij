@@ -96,7 +96,7 @@ data class MirrordExecution(
     val environment: MutableMap<String, String>,
     @SerializedName("patched_path") val patchedPath: String?,
     @SerializedName("env_to_unset") val envToUnset: List<String>?,
-    @SerializedName("uses_operator") val usesOperator: Boolean?,
+    @SerializedName("uses_operator") val usesOperator: Boolean?
 )
 
 /**
@@ -299,9 +299,11 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         val result = task.run(service.project)
         service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
 
-        result.usesOperator?.let { usesOperator -> if (usesOperator) {
-            MirrordSettingsState.instance.mirrordState.operatorUsed = true
-        }}
+        result.usesOperator?.let { usesOperator ->
+            if (usesOperator) {
+                MirrordSettingsState.instance.mirrordState.operatorUsed = true
+            }
+        }
 
         return result
     }
@@ -320,7 +322,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         if ((currentRuns % FEEDBACK_COUNTER_REVIEW_AFTER) == 0) {
             service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
         }
-
 
         if (currentRuns == DISCORD_COUNTER_INVITE_AFTER) {
             service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
