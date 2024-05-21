@@ -130,8 +130,12 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             service.activeConfig?.let { add(ShowActiveConfigAction(it, project)) }
             add(SelectActiveConfigAction())
             add(SettingsAction())
-            addSeparator("mirrord for Teams")
-            add(NavigateToMirrodForTeamsIntroAction())
+
+            if (!MirrordSettingsState.instance.mirrordState.operatorUsed) {
+                addSeparator("mirrord for Teams")
+                add(NavigateToMirrodForTeamsIntroAction())
+            }
+
             addSeparator("Help")
             add(DiscordAction())
         }
