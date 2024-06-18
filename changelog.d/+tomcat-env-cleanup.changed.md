@@ -1,1 +1,0 @@
-Changed environment cleanup to happen when the process is terminating, instead of right after it started (Tomcat).

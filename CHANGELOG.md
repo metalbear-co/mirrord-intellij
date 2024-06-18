@@ -8,6 +8,28 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.61.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.61.0) - 2024-06-18
+
+
+### Added
+
+- Users will be invited to join the Discord server after 10 usages
+  [#250](https://github.com/metalbear-co/mirrord-intellij/issues/250)
+
+
+### Changed
+
+- Changed environment cleanup to happen when the process is terminating,
+  instead of right after it started (Tomcat).
+
+
+### Fixed
+
+- `Try It Now` menu item and mirrord for Teams notifications are now hidden
+  permanently after operator use was detected.
+  [#256](https://github.com/metalbear-co/mirrord-intellij/issues/256)
+
+
 ## [3.60.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.60.1) - 2024-04-17
 
 
