@@ -2,13 +2,14 @@ rootProject.name = "mirrord"
 
 include(
     "modules/core",
-    "modules/products/idea",
-    "modules/products/goland",
-    "modules/products/pycharm",
-    "modules/products/rubymine",
-    "modules/products/nodejs",
-    "modules/products/rider",
-    "modules/products/tomcat"
+  //  "modules/products/idea",
+  //  "modules/products/goland",
+  //  "modules/products/pycharm",
+  //  "modules/products/rubymine",
+  //  "modules/products/nodejs",
+  //  "modules/products/rider",
+  //  "modules/products/tomcat",
+    "modules/products/quarkus"
 )
 
 // Rename modules to mirrord-<module>, I think this is required IntelliJ wise.
