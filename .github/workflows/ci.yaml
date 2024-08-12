@@ -18,18 +18,18 @@ jobs:
   towncrier_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: install towncrier
-        run: pip install towncrier
+        run: pip install towncrier==23.11.0
       - name: verify newsfragment exist
         run: towncrier check
 
   lint_markdown:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: avto-dev/markdown-lint@v1
         with:
           config: "markdownlint-config.json"
@@ -38,9 +38,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: 17
