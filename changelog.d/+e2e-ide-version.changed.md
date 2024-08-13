@@ -1,0 +1,1 @@
+Pinned PyCharm version used in the E2E test.
