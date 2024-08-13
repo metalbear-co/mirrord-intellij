@@ -8,6 +8,13 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.61.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.61.2) - 2024-08-13
+
+
+### Changed
+
+- Pinned PyCharm version used in the E2E test.
+
 ## [3.61.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.61.1) - 2024-08-12
 
 
