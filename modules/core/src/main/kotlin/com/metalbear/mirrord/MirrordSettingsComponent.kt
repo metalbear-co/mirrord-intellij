@@ -17,6 +17,7 @@ class MirrordSettingsComponent {
         .associateWith { JBCheckBox(it.presentableName) }
 
     private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
+    private val enabledOnStartup = JBCheckBox("Enable mirrord on startup")
 
     private val mirrordVersionLabel = JBLabel("mirrord binary version:")
     private val mirrordVersion = with(JBTextField("", 10)) {
@@ -41,6 +42,7 @@ class MirrordSettingsComponent {
     val panel: JPanel = FormBuilder
         .createFormBuilder()
         .addComponent(usageBannerEnabled)
+        .addComponent(enabledOnStartup)
         .addComponent(versionCheckEnabled)
         .addSeparator()
         .addComponent(autoUpdatePanel)
@@ -62,6 +64,12 @@ class MirrordSettingsComponent {
         get() = usageBannerEnabled.isSelected
         set(value) {
             usageBannerEnabled.isSelected = value
+        }
+
+    var enabledOnStartupStatus: Boolean
+        get() = enabledOnStartup.isSelected
+        set(value) {
+            enabledOnStartup.isSelected = value
         }
 
     var versionCheckEnabledStatus: Boolean

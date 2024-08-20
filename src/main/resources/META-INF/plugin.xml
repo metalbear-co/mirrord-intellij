@@ -42,6 +42,7 @@
         <fileBasedIndex implementation="com.metalbear.mirrord.MirrordConfigIndex"/>
 
         <postStartupActivity implementation="com.metalbear.mirrord.MirrordUsageBanner"/>
+        <postStartupActivity implementation="com.metalbear.mirrord.MirrordEnabler"/>
         <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$DownloadInitializer"/>
     </extensions>
 

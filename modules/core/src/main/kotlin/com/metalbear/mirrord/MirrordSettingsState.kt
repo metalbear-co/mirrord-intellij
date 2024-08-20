@@ -49,6 +49,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var showUsageBanner: Boolean = true
         var runsCounter: Int = 0
         var operatorUsed: Boolean = false
+        var enabledByDefault: Boolean = false
 
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id
