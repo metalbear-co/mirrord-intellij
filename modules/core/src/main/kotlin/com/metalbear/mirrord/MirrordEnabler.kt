@@ -1,7 +1,6 @@
 package com.metalbear.mirrord
 
 import com.intellij.ide.ActivityTracker
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ToggleAction
@@ -38,10 +37,6 @@ class MirrordEnabler : ToggleAction(), DumbAware, StartupActivity, StartupActivi
         if (instance.mirrordState.enabledByDefault) {
             project.service<MirrordProjectService>().enabled = true
             ActivityTracker.getInstance().inc()
-            project.service<MirrordProjectService>().notifier.notification(
-                "mirrord is enabled by default",
-                NotificationType.IDE_UPDATE
-            )
         }
     }
 }
