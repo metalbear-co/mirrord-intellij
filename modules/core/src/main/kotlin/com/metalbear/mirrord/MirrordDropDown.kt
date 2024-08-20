@@ -2,6 +2,7 @@ package com.metalbear.mirrord
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.DataManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.application.WriteAction
@@ -30,6 +31,30 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             FileEditorManager.getInstance(service.project).openFile(config, true)
+        }
+    }
+
+    private class ToggleEnabledByDefault : AnAction("Enable/ Disable mirrord by Default") {
+        override fun actionPerformed(e: AnActionEvent) {
+            val newValue = !MirrordSettingsState.instance.mirrordState.enabledByDefault
+            MirrordSettingsState.instance.mirrordState.enabledByDefault = newValue
+            // popup containing new value of enabledByDefault
+            val service = e.project?.service<MirrordProjectService>() ?: return
+            val notification = if (newValue) {
+                service.notifier.notification(
+                    "mirrord set to be enabled by default",
+                    NotificationType.IDE_UPDATE
+                )
+            } else {
+                service.notifier.notification(
+                    "mirrord set to be disabled by default",
+                    NotificationType.IDE_UPDATE
+                )
+            }
+
+            notification.fire()
+
+            return
         }
     }
 
@@ -130,6 +155,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             service.activeConfig?.let { add(ShowActiveConfigAction(it, project)) }
             add(SelectActiveConfigAction())
             add(SettingsAction())
+            add(ToggleEnabledByDefault())
 
             if (!MirrordSettingsState.instance.mirrordState.operatorUsed) {
                 addSeparator("mirrord for Teams")

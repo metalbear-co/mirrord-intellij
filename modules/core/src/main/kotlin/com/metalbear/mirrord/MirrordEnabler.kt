@@ -1,13 +1,19 @@
 package com.metalbear.mirrord
 
+import com.intellij.ide.ActivityTracker
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.StartupActivity
+import com.intellij.openapi.util.IconLoader
+import com.metalbear.mirrord.MirrordSettingsState.Companion.instance
 import icons.MirrordIcons
 
-class MirrordEnabler : ToggleAction(), DumbAware {
+class MirrordEnabler : ToggleAction(), DumbAware, StartupActivity, StartupActivity.DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun isSelected(e: AnActionEvent): Boolean {
@@ -23,7 +29,20 @@ class MirrordEnabler : ToggleAction(), DumbAware {
     override fun update(e: AnActionEvent) {
         e.presentation.isVisible = true
         e.presentation.isEnabled = e.project != null
+        val state = e.project?.service<MirrordProjectService>()?.enabled ?: false
+        e.presentation.icon = if (state) MirrordIcons.enabled else MirrordIcons.disabled
 
         super.update(e)
+    }
+
+    override fun runActivity(project: Project) {
+        if (instance.mirrordState.enabledByDefault) {
+            project.service<MirrordProjectService>().enabled = true
+            ActivityTracker.getInstance().inc()
+            project.service<MirrordProjectService>().notifier.notification(
+                "mirrord is enabled by default",
+                NotificationType.IDE_UPDATE
+            )
+        }
     }
 }

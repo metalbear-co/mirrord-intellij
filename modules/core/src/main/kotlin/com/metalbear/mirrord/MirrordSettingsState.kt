@@ -1,10 +1,16 @@
 package com.metalbear.mirrord
 
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.modules
+import com.intellij.openapi.startup.StartupActivity
+import com.metalbear.mirrord.MirrordSettingsState.Companion.instance
+import icons.MirrordIcons
 
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
@@ -49,6 +55,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var showUsageBanner: Boolean = true
         var runsCounter: Int = 0
         var operatorUsed: Boolean = false
+        var enabledByDefault: Boolean = false
 
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id
