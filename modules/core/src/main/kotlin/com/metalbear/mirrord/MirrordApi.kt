@@ -82,7 +82,9 @@ data class IdeMessage(val id: String, val level: NotificationLevel, val text: St
         this.actions.forEach {
             if (it["kind"].asString == "Link") {
                 val action = Gson().fromJson(it, IdeAction.Link::class.java)
-                notification.withLink(action.label, action.link)
+                var link = action.link.replace("utm_medium=plugin", "utm_medium=intellij")
+                link = link.replace("utm_medium=cli", "utm_medium=intellij")
+                notification.withLink(action.label, link)
             }
         }
 
