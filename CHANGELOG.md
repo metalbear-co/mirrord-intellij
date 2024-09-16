@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.62.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.62.0) - 2024-09-16
+
+
+### Added
+
+- Add the option for mirrord to be enabled by default on startup in settings
+  [#268](https://github.com/metalbear-co/mirrord-intellij/issues/268)
+
+
+### Internal
+
+- Change link attributions from plugin or cli source to intellij source for
+  notifications from mirrord.
+  [#278](https://github.com/metalbear-co/mirrord-intellij/issues/278)
+
+
 ## [3.61.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.61.2) - 2024-08-13
 
 
