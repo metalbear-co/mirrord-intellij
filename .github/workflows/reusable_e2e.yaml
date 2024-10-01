@@ -17,7 +17,7 @@ on:
 
 jobs:
   intellij-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CI_BUILD_PLUGIN: "true"
     steps:
