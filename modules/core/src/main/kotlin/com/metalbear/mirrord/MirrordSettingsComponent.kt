@@ -93,6 +93,7 @@ class MirrordSettingsComponent {
     var mirrordVersionStatus: String
         get() = mirrordVersion.text
         set(value) {
-            mirrordVersion.text = value
+            // to avoid errornous whitespaces
+            mirrordVersion.text = value.trim()
         }
 }

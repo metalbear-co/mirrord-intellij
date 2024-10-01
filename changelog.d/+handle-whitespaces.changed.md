@@ -1,0 +1,1 @@
+mirrord version configuration auto-fixes whitespaces
