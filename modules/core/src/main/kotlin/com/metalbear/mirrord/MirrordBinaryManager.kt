@@ -79,7 +79,7 @@ class MirrordBinaryManager {
             val manager = service<MirrordBinaryManager>()
 
             val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
-            val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+            val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion.trim()
             manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
 
             val version = when {
