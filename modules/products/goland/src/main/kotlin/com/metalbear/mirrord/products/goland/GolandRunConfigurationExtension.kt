@@ -14,7 +14,6 @@ import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
-import com.sun.jdi.Mirror
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
