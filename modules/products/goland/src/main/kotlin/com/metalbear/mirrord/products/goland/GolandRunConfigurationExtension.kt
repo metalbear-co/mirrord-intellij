@@ -14,6 +14,7 @@ import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
+import com.sun.jdi.Mirror
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
@@ -67,6 +68,10 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         super.patchCommandLine(configuration, runnerSettings, cmdLine, runnerId, state, commandLineType)
     }
 
+    /**
+     * Patch delve used in the commandline, if necessary
+     * (debugging on Mac and commandline uses delve version older than ours).
+     */
     override fun patchExecutor(
         configuration: GoRunConfigurationBase<*>,
         runnerSettings: RunnerSettings?,
@@ -77,65 +82,72 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
     ) {
         val service = configuration.getProject().service<MirrordProjectService>()
 
-        if (commandLineType == GoRunningState.CommandLineType.RUN &&
-            service.enabled &&
-            SystemInfo.isMac &&
-            state.isDebug
-        ) {
-            val delvePath = getCustomDelvePath()
-            // convert the delve file to an executable
-            val delveExecutable = Paths.get(delvePath).toFile()
-            if (delveExecutable.exists()) {
-                if (!delveExecutable.canExecute()) {
-                    delveExecutable.setExecutable(true)
-                }
+        if (commandLineType != GoRunningState.CommandLineType.RUN || !service.enabled || !SystemInfo.isMac || !state.isDebug) {
+            super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
+            return
+        }
 
-                val ourDelveVersion = try {
-                    getDelveVersion(delvePath)
-                } catch (e: Throwable) {
-                    MirrordLogger.logger.error("Failed to get version of our bundled DLV $delvePath", e)
-                    null
-                }
+        val ourDelvePath = getCustomDelvePath()
+        val delveExecutable = Paths.get(ourDelvePath).toFile()
+        if (!delveExecutable.exists()) {
+            MirrordLogger.logger.error("Failed to find delve bundled with mirrord plugin ($ourDelvePath)")
+            super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
+            return
+        }
 
-                // parameters returns a copy, and we can't modify it so need to reset it.
-                val patchedParameters = executor.parameters
-                for (i in 0 until patchedParameters.size) {
-                    // no way to reset the whole commandline, so we just remove each entry.
-                    executor.withoutParameter(0)
+        if (!delveExecutable.canExecute()) {
+            delveExecutable.setExecutable(true)
+        }
 
-                    val foundDelvePath = patchedParameters[i].toPresentableString()
+        val ourDelveVersion = try {
+            getDelveVersion(ourDelvePath)
+        } catch (e: Throwable) {
+            MirrordLogger.logger.error("Failed to get version delve bundled with mirrord plugin ($ourDelvePath)", e)
+            super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
+            return
+        }
 
-                    if (!foundDelvePath.endsWith("/dlv", true)) {
-                        continue
-                    }
+        // parameters returns a copy, and we can't modify it so need to reset it.
+        val patchedParameters = executor.parameters
+        for (i in 0 until patchedParameters.size) {
+            // no way to reset the whole commandline, so we just remove each entry.
+            executor.withoutParameter(0)
 
-                    val delveVersion = if (ourDelveVersion == null) {
-                        null
-                    } else {
-                        try {
-                            getDelveVersion(foundDelvePath)
-                        } catch (e: Throwable) {
-                            MirrordLogger
-                                .logger
-                                .error("Failed to get version of DLV found in executor parameters $foundDelvePath", e)
-                            null
-                        }
-                    }
+            val foundDelvePath = patchedParameters[i].toPresentableString()
 
-                    if (delveVersion == null || delveVersion.lessThan(ourDelveVersion)) {
-                        patchedParameters[i] = PathParameter(delveExecutable.toString())
-                    }
-                }
-                executor.withParameters(*patchedParameters.toTypedArray())
+            if (!foundDelvePath.endsWith("/dlv", true)) {
+                continue
+            }
+
+            val delveVersion = try {
+                getDelveVersion(foundDelvePath)
+            } catch (e: Throwable) {
+                MirrordLogger
+                    .logger
+                    .error("Failed to get version of delve found in executor parameters ($foundDelvePath)", e)
+                continue
+            }
+
+            if (delveVersion.lessThan(ourDelveVersion)) {
+                patchedParameters[i] = PathParameter(delveExecutable.toString())
             }
         }
+
+        executor.withParameters(*patchedParameters.toTypedArray())
+
         super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
     }
 
+    /**
+     * Return path to custom delve bundled with mirrord plugin.
+     */
     private fun getCustomDelvePath(): String {
         return MirrordPathManager.getBinary("dlv", false)!!
     }
 
+    /**
+     * Get version of the given delve.
+     */
     private fun getDelveVersion(path: String): Version {
         val process = ProcessBuilder(path, "version")
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
