@@ -11,6 +11,7 @@ import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
@@ -89,9 +90,12 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         val ourDelvePath = getCustomDelvePath()
         val delveExecutable = Paths.get(ourDelvePath).toFile()
         if (!delveExecutable.exists()) {
-            MirrordLogger.logger.error("Failed to find delve bundled with mirrord plugin ($ourDelvePath)")
-            super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
-            return
+            val error = MirrordError(
+                "Failed to find delve bundled with mirrord plugin ($ourDelvePath",
+                "This is a bug, please contact us."
+            )
+            error.showHelp(configuration.getProject())
+            throw error
         }
 
         if (!delveExecutable.canExecute()) {
