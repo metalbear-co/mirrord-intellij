@@ -22,4 +22,5 @@ intellij {
 
 dependencies {
     implementation(project(":mirrord-core"))
+    implementation("com.github.zafarkhaja:java-semver:0.9.0")
 }
