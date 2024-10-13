@@ -8,6 +8,23 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.62.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.62.1) - 2024-10-13
+
+
+### Changed
+
+- Go Delve is now patched only if its version is older than the one bundled
+  with our plugin.
+  [#284](https://github.com/metalbear-co/mirrord-intellij/issues/284)
+- mirrord version configuration auto-fixes whitespaces
+
+
+### Internal
+
+- Run CI jobs on ubuntu-24.04.
+- Run towncrier on CI with uv to fix fail.
+
+
 ## [3.62.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.62.0) - 2024-09-16
 
 
