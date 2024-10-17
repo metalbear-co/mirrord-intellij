@@ -170,6 +170,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
                 .takeUnless { it == MirrordExecDialog.targetlessTargetName }
+                /*
                 .alsoIfNull {
                     MirrordLogger.logger.info("No target specified - running targetless")
                     service.notifier.notification(
@@ -179,6 +180,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                         .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
                         .fire()
                 }
+            */
         } else {
             null
         }
