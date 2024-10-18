@@ -8,7 +8,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.util.alsoIfNull
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
