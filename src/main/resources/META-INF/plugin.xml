@@ -11,7 +11,7 @@
       Read more <a href="https://mirrord.dev/docs/overview/introduction/">here</a>.
     ]]></description>
 
-    <idea-version since-build="222"/>
+    <idea-version since-build="241"/>
 
     <depends>com.intellij.modules.lang</depends>
 
@@ -74,5 +74,6 @@
     <depends optional="true" config-file="mirrord-js.xml">NodeJS</depends>
     <depends optional="true" config-file="mirrord-rider.xml">com.intellij.modules.rider</depends>
     <depends optional="true" config-file="mirrord-tomcat.xml">Tomcat</depends>
+    <depends optional="true" config-file="mirrord-bazel.xml">com.google.idea.bazel.ijwb</depends>
     <depends optional="true" config-file="mirrord-schema.xml">com.intellij.modules.json</depends>
 </idea-plugin>

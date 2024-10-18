@@ -17,7 +17,7 @@ tasks {
 
 intellij {
     version.set(properties("platformVersion"))
-    plugins.set(listOf("org.jetbrains.plugins.go:223.7571.182"))
+    plugins.set(listOf("org.jetbrains.plugins.go:241.14494.240"))
 }
 
 dependencies {

@@ -169,16 +169,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
 
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.targetlessTargetName }
-                .alsoIfNull {
-                    MirrordLogger.logger.info("No target specified - running targetless")
-                    service.notifier.notification(
-                        "No target specified, mirrord running targetless.",
-                        NotificationType.INFORMATION
-                    )
-                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                        .fire()
-                }
+                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
+                MirrordLogger.logger.info("No target specified - running targetless")
+                service.notifier.notification(
+                    "No target specified, mirrord running targetless.",
+                    NotificationType.INFORMATION
+                )
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                    .fire()
+
+                null
+            }
         } else {
             null
         }

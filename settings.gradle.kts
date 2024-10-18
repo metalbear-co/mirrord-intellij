@@ -8,7 +8,8 @@ include(
     "modules/products/rubymine",
     "modules/products/nodejs",
     "modules/products/rider",
-    "modules/products/tomcat"
+    "modules/products/tomcat",
+    "modules/products/bazel"
 )
 
 // Rename modules to mirrord-<module>, I think this is required IntelliJ wise.
