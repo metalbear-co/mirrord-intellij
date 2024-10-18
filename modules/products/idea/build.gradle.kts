@@ -18,7 +18,7 @@ tasks {
 intellij {
 
     version.set(properties("platformVersion"))
-    plugins.set(listOf("java", "gradle", "maven", "org.intellij.scala:2022.3.8"))
+    plugins.set(listOf("java", "gradle", "maven", "org.intellij.scala:2024.1.25"))
 }
 
 dependencies {

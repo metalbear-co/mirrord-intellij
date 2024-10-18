@@ -17,8 +17,7 @@ tasks {
 
 intellij {
     version.set(properties("platformVersion"))
-    type.set("IU")
-    plugins.set(listOf("Tomcat:241.14494.158", "com.intellij.javaee.app.servers.integration"))
+    plugins.set(listOf("com.google.idea.bazel.ijwb:2024.09.24.0.2-api-version-241"))
 }
 
 dependencies {
