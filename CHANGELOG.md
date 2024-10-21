@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.63.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.63.0) - 2024-10-21
+
+
+### Added
+
+- Added support for Bazel run configurations.
+  [#207](https://github.com/metalbear-co/mirrord-intellij/issues/207)
+
 ## [3.62.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.62.1) - 2024-10-13
 
 
