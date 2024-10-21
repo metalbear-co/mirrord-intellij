@@ -136,9 +136,6 @@ class TomcatExecutionListener : ExecutionListener {
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
-        if (!service.enabled) {
-            return
-        }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
 
@@ -263,7 +260,7 @@ class TomcatExecutionListener : ExecutionListener {
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStarted (noop): $executorId $env")
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted (noop): $executorId $env")
         super.processNotStarted(executorId, env)
     }
 

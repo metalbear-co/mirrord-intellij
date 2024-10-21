@@ -17,11 +17,11 @@ import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
 
 class RiderPatchCommandLineExtension : PatchCommandLineExtension {
-    @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
     private fun patchCommandLine(commandLine: GeneralCommandLine, project: Project) {
         val service = project.service<MirrordProjectService>()
 
         val wsl = RunManager.getInstance(project).selectedConfiguration?.configuration?.let {
+            @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
             when (val request = createEnvironmentRequest(it, project)) {
                 is WslTargetEnvironmentRequest -> request.configuration.distribution!!
                 else -> null

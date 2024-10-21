@@ -33,12 +33,8 @@ class BazelExecutionListener : ExecutionListener {
         return state
     }
 
-    @Suppress("UnstableApiUsage") // `createEnvironmentRequest
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
-        if (!service.enabled) {
-            return
-        }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
 
@@ -50,6 +46,7 @@ class BazelExecutionListener : ExecutionListener {
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got config state $state")
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
+        @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
         val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
@@ -57,7 +54,8 @@ class BazelExecutionListener : ExecutionListener {
 
         val originalEnv = state.userEnvVarsState.data.envs
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found ${originalEnv.size} original env variables")
-        val originalBazelPath = if (SystemInfo.isMac) {
+
+        val binaryToPatch = if (SystemInfo.isMac) {
             state.blazeBinaryState.blazeBinary?.let {
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $it")
                 it
@@ -75,7 +73,7 @@ class BazelExecutionListener : ExecutionListener {
         try {
             service.execManager.wrapper("bazel", originalEnv).apply {
                 this.wsl = wsl
-                this.executable = originalBazelPath
+                this.executable = binaryToPatch
             }.start()?.let { executionInfo ->
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${executionInfo.environment.size} environment variables")
                 var envVars = originalEnv + executionInfo.environment
@@ -86,15 +84,17 @@ class BazelExecutionListener : ExecutionListener {
                 }
                 state.userEnvVarsState.setEnvVars(envVars)
 
+                val originalBinary = state.blazeBinaryState.blazeBinary
                 if (SystemInfo.isMac) {
-                    MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, patching SIP.")
                     executionInfo.patchedPath?.let {
                         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
                         state.blazeBinaryState.blazeBinary = it
+                    } ?: run {
+                        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, but not patching SIP (no patched path returned by the CLI).")
                     }
                 }
 
-                savedEnvs[executorId] = SavedConfigData(originalEnv, originalBazelPath)
+                savedEnvs[executorId] = SavedConfigData(originalEnv, originalBinary)
             }
         } catch (e: Throwable) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: exception catched: ", e)
@@ -143,7 +143,7 @@ class BazelExecutionListener : ExecutionListener {
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStarted (noop): $executorId $env")
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted (noop): $executorId $env")
         super.processNotStarted(executorId, env)
     }
 
