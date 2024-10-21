@@ -1,0 +1,7 @@
+<idea-plugin>
+    <projectListeners>
+        <listener class="com.metalbear.mirrord.products.bazel.BazelExecutionListener"
+                  topic="com.intellij.execution.ExecutionListener"/>
+    </projectListeners>
+</idea-plugin>
+

@@ -1,7 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
-// ^^ `createEnvironmentRequest` used to get the env references unstable API
-
 package com.metalbear.mirrord.products.rider
 
 import com.intellij.execution.RunManager
@@ -25,6 +21,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         val service = project.service<MirrordProjectService>()
 
         val wsl = RunManager.getInstance(project).selectedConfiguration?.configuration?.let {
+            @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
             when (val request = createEnvironmentRequest(it, project)) {
                 is WslTargetEnvironmentRequest -> request.configuration.distribution!!
                 else -> null
@@ -44,34 +41,13 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         }
     }
 
-    override fun patchDebugCommandLine(
-        lifetime: Lifetime,
-        workerRunInfo: WorkerRunInfo,
-        project: Project
-    ): Promise<WorkerRunInfo> {
+    override fun patchDebugCommandLine(lifetime: Lifetime, workerRunInfo: WorkerRunInfo, processInfo: ProcessInfo?, project: Project): Promise<WorkerRunInfo> {
         patchCommandLine(workerRunInfo.commandLine, project)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
         return resolvedPromise(workerRunInfo)
     }
 
-    /**
-     * This method is the one that overrides in newer Rider versions.
-     */
-    @Suppress("unused", "unused_parameter")
-    fun patchDebugCommandLine(
-        lifetime: Lifetime,
-        workerRunInfo: WorkerRunInfo,
-        processInfo: ProcessInfo?,
-        project: Project
-    ): Promise<WorkerRunInfo> {
-        return patchDebugCommandLine(lifetime, workerRunInfo, project)
-    }
-
-    override fun patchRunCommandLine(
-        commandLine: GeneralCommandLine,
-        dotNetRuntime: DotNetRuntime,
-        project: Project
-    ): ProcessListener? {
+    override fun patchRunCommandLine(commandLine: GeneralCommandLine, dotNetRuntime: DotNetRuntime, project: Project): ProcessListener? {
         patchCommandLine(commandLine, project)
         return null
     }

@@ -135,6 +135,8 @@ class TomcatExecutionListener : ExecutionListener {
     }
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
+        val service = env.project.service<MirrordProjectService>()
+
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
 
         val config = getConfig(env) ?: run {
@@ -146,8 +148,6 @@ class TomcatExecutionListener : ExecutionListener {
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got config $config")
         var envVars = config.envVariables
         val envVarsMap = envVars.map { it.NAME to it.VALUE }.toMap()
-
-        val service = env.project.service<MirrordProjectService>()
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
         val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
@@ -171,7 +171,7 @@ class TomcatExecutionListener : ExecutionListener {
         }
 
         try {
-            service.execManager.wrapper("idea", envVarsMap).apply {
+            service.execManager.wrapper("tomcat", envVarsMap).apply {
                 this.wsl = wsl
                 this.executable = scriptAndArgs?.command
             }.start()?.let { executionInfo ->
@@ -260,7 +260,7 @@ class TomcatExecutionListener : ExecutionListener {
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStarted (noop): $executorId $env")
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted (noop): $executorId $env")
         super.processNotStarted(executorId, env)
     }
 

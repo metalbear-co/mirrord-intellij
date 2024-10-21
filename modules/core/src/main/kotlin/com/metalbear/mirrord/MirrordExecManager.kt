@@ -8,7 +8,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.util.alsoIfNull
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -169,16 +168,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
 
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.targetlessTargetName }
-                .alsoIfNull {
-                    MirrordLogger.logger.info("No target specified - running targetless")
-                    service.notifier.notification(
-                        "No target specified, mirrord running targetless.",
-                        NotificationType.INFORMATION
-                    )
-                        .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                        .fire()
-                }
+                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
+                MirrordLogger.logger.info("No target specified - running targetless")
+                service.notifier.notification(
+                    "No target specified, mirrord running targetless.",
+                    NotificationType.INFORMATION
+                )
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                    .fire()
+
+                null
+            }
         } else {
             null
         }

@@ -59,7 +59,7 @@ internal class MirrordPluginTest {
                 Ide.PYCHARM_COMMUNITY,
                 tmpDir,
                 Ide.BuildType.RELEASE,
-                "2022.3.2"
+                "2024.1"
             )
 
             // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
