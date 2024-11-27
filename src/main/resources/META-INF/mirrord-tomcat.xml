@@ -3,4 +3,8 @@
         <listener class="com.metalbear.mirrord.products.tomcat.TomcatExecutionListener"
                   topic="com.intellij.execution.ExecutionListener"/>
     </projectListeners>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <stepsBeforeRunProvider implementation="com.metalbear.mirrord.products.tomcat.TomcatBeforeRunTaskProvider"/>
+    </extensions>
 </idea-plugin>
