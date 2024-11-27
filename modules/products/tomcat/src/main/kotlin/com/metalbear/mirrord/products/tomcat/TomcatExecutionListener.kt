@@ -141,6 +141,9 @@ class TomcatExecutionListener : ExecutionListener {
     /**
      * Verifies that [ExecutionEnvironment] is a Tomcat run. Extracts original environment and startup script info (SIP).
      * Injects a [TomcatBeforeRunTaskProvider.TomcatBeforeRunTask] task into the run configuration.
+     *
+     * Main mirrord plugin logic (e.g. spawning intproxy) is done in a [com.intellij.execution.BeforeRunTask],
+     * because we can't stop execution from this [ExecutionListener].
      */
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
