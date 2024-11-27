@@ -27,6 +27,9 @@ class TomcatBeforeRunTaskProvider : BeforeRunTaskProvider<TomcatBeforeRunTaskPro
         return null
     }
 
+    /**
+     * Returning `false` here prevents the execution.
+     */
     override fun executeTask(
         context: DataContext,
         configuration: RunConfiguration,
