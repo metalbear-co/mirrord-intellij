@@ -3,6 +3,7 @@
 package com.metalbear.mirrord.products.tomcat
 
 import com.intellij.execution.ExecutionListener
+import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.target.createEnvironmentRequest
@@ -79,24 +80,27 @@ fun patchedScriptFromScript(scriptInfo: ScriptInfo, script: String, args: String
     return PatchedScriptInfo(scriptInfo.scriptHelper, parent, startupNotShutdown, params.toTypedArray())
 }
 
-data class SavedConfigData(val envVars: List<EnvironmentVariable>, var scriptInfo: ScriptInfo?)
+data class SavedConfigData(var envVars: List<EnvironmentVariable>? = null, var scriptInfo: ScriptInfo? = null)
 
 data class CommandLineWithArgs(val command: String, val args: String?)
 
 class TomcatExecutionListener : ExecutionListener {
     private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
 
-    private fun getConfig(env: ExecutionEnvironment): RunnerSpecificLocalConfigurationBit? {
+    /**
+     * Attempts to downcast [ExecutionEnvironment] fields to known Tomcat-specific types.
+     */
+    private fun getConfig(env: ExecutionEnvironment): Pair<RunnerSpecificLocalConfigurationBit, RunConfigurationBase<*>>? {
         MirrordLogger.logger.debug("getConfig - env: $env")
 
         val settings = env.configurationSettings ?: return null
         MirrordLogger.logger.debug("getConfig - settings: $settings")
 
-        return if (settings is RunnerSpecificLocalConfigurationBit) {
-            settings
-        } else {
-            null
-        }
+        val configurationBit = settings as? RunnerSpecificLocalConfigurationBit ?: return null
+        configurationBit.parentConfiguration
+        val base = env.runProfile as? RunConfigurationBase<*> ?: return null
+
+        return Pair(configurationBit, base)
     }
 
     /**
@@ -134,6 +138,10 @@ class TomcatExecutionListener : ExecutionListener {
         }
     }
 
+    /**
+     * Verifies that [ExecutionEnvironment] is a Tomcat run. Extracts original environment and startup script info (SIP).
+     * Injects a [TomcatBeforeRunTaskProvider.TomcatBeforeRunTask] task into the run configuration.
+     */
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
 
@@ -146,8 +154,8 @@ class TomcatExecutionListener : ExecutionListener {
         }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got config $config")
-        var envVars = config.envVariables
-        val envVarsMap = envVars.map { it.NAME to it.VALUE }.toMap()
+        var envVars = config.first.envVariables
+        val envVarsMap = envVars.associate { it.NAME to it.VALUE }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
         val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
@@ -155,7 +163,7 @@ class TomcatExecutionListener : ExecutionListener {
             else -> null
         }
 
-        val startupInfo = config.startupInfo
+        val startupInfo = config.first.startupInfo
         val scriptAndArgs = if (SystemInfo.isMac) {
             val startScriptAndArgs = getStartScript(startupInfo, env)
             if (startScriptAndArgs == null) {
@@ -170,17 +178,27 @@ class TomcatExecutionListener : ExecutionListener {
             null
         }
 
-        try {
+        config.second.beforeRunTasks = config.second.beforeRunTasks + TomcatBeforeRunTaskProvider.TomcatBeforeRunTask {
+            val savedData = SavedConfigData()
+            // Always inject `SavedConfigData` early.
+            // This allows for removing `TomcatBeforeRunTask` from the run configuration,
+            // even if mirrord is disabled, or we throw an exception in `MirrordExecManager`.
+            savedEnvs[executorId] = savedData
+
             service.execManager.wrapper("tomcat", envVarsMap).apply {
                 this.wsl = wsl
                 this.executable = scriptAndArgs?.command
             }.start()?.let { executionInfo ->
                 // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
                 // even if `outgoing` feature is enabled.
-                val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"), Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort()))
+                val mirrordEnv = executionInfo.environment + mapOf(
+                    Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"),
+                    Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort())
+                )
 
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: saving ${envVars.size} original environment variables")
-                val savedData = SavedConfigData(envVars.toList(), null)
+                savedData.envVars = envVars.toList()
+
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${mirrordEnv.size} environment variables")
                 envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
 
@@ -189,68 +207,68 @@ class TomcatExecutionListener : ExecutionListener {
                         !envToUnset.contains(it.name)
                     }
                 }
-                config.setEnvironmentVariables(envVars)
+                config.first.setEnvironmentVariables(envVars)
 
                 if (SystemInfo.isMac) {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, patching SIP.")
                     executionInfo.patchedPath?.let {
                         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
                         savedData.scriptInfo = startupInfo
-                        if (config.startupInfo.USE_DEFAULT) {
+                        if (config.first.startupInfo.USE_DEFAULT) {
                             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: using default - handling SIP by replacing config.startupInfo")
                             val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
-                            val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
+                            val startupInfoField =
+                                RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
                             startupInfoField.isAccessible = true
                             startupInfoField.set(config, patchedStartupInfo)
                         } else {
                             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: NOT using default - patching by changing the non-default script")
-                            config.startupInfo.SCRIPT = it
+                            config.first.startupInfo.SCRIPT = it
                         }
                     }
                 }
-                savedEnvs[executorId] = savedData
             }
-        } catch (e: Throwable) {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: exception catched: ", e)
-            // Error notifications were already fired.
-            // We can't abort the execution here, so we let the app run without mirrord.
-            service.notifier.notifySimple(
-                "Cannot abort run due to platform limitations, running without mirrord",
-                NotificationType.WARNING
-            )
         }
 
         super.processStartScheduled(executorId, env)
     }
 
-    private fun restoreConfig(executorId: String, config: RunnerSpecificLocalConfigurationBit) {
+    private fun restoreConfig(executorId: String, config: Pair<RunnerSpecificLocalConfigurationBit, RunConfigurationBase<*>>) {
         MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: $executorId $config")
 
         val saved = savedEnvs.remove(executorId) ?: run {
             MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: no saved config data found")
             return
         }
-        MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found ${saved.envVars.size} saved original variables")
 
-        config.setEnvironmentVariables(saved.envVars)
+        val savedEnvVars = saved.envVars
+        if (savedEnvVars != null) {
+            MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found ${savedEnvVars.size} saved original variables")
+            config.first.setEnvironmentVariables(savedEnvVars)
+        }
 
-        if (SystemInfo.isMac) {
-            val scriptInfo = saved.scriptInfo ?: run {
-                MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: no saved script info found")
-                return
-            }
-
+        val savedScriptInfo = saved.scriptInfo
+        if (SystemInfo.isMac && savedScriptInfo != null) {
+            MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved script info")
             val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
             startupInfoField.isAccessible = true
-            startupInfoField.set(config, scriptInfo)
+            startupInfoField.set(config, savedScriptInfo)
         }
+
+        MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: removing before run task")
+        config.second.beforeRunTasks = config.second.beforeRunTasks.filter { it !is TomcatBeforeRunTaskProvider.TomcatBeforeRunTask }
     }
 
-    override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: $executorId $env $handler")
+    override fun processTerminated(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+        exitCode: Int
+    ) {
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminated: $executorId $env $handler")
 
         val config = getConfig(env) ?: run {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: Tomcat not detected")
+            MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminated: Tomcat not detected")
             return
         }
 
@@ -260,12 +278,15 @@ class TomcatExecutionListener : ExecutionListener {
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted (noop): $executorId $env")
-        super.processNotStarted(executorId, env)
-    }
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted: $executorId $env")
 
-    override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStarted (noop): $executorId $env $handler")
-        super.processStarted(executorId, env, handler)
+        val config = getConfig(env) ?: run {
+            MirrordLogger.logger.debug("[${this.javaClass.name}] processNotStarted: Tomcat not detected")
+            return
+        }
+
+        restoreConfig(executorId, config)
+
+        super.processNotStarted(executorId, env)
     }
 }

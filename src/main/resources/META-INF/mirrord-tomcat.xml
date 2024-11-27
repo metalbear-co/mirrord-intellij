@@ -5,6 +5,6 @@
     </projectListeners>
 
     <extensions defaultExtensionNs="com.intellij">
-        <befo
+        <stepsBeforeRunProvider implementation="com.metalbear.mirrord.products.tomcat.TomcatBeforeRunTaskProvider"/>
     </extensions>
 </idea-plugin>
