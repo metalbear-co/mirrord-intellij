@@ -223,7 +223,7 @@ class TomcatExecutionListener : ExecutionListener {
                             val startupInfoField =
                                 RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
                             startupInfoField.isAccessible = true
-                            startupInfoField.set(config, patchedStartupInfo)
+                            startupInfoField.set(config.first, patchedStartupInfo)
                         } else {
                             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: NOT using default - patching by changing the non-default script")
                             config.first.startupInfo.SCRIPT = it
@@ -255,7 +255,7 @@ class TomcatExecutionListener : ExecutionListener {
             MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved script info")
             val startupInfoField = RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
             startupInfoField.isAccessible = true
-            startupInfoField.set(config, savedScriptInfo)
+            startupInfoField.set(config.first, savedScriptInfo)
         }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: removing before run task")
