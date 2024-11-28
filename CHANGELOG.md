@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.64.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.64.1) - 2024-11-28
+
+
+### Fixed
+
+- Tomcat executions now get stopped when mirrord setup fails.
+  [#230](https://github.com/metalbear-co/mirrord-intellij/issues/230)
+
 ## [3.64.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.64.0) - 2024-11-20
 
 
