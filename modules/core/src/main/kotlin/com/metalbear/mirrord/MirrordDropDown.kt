@@ -44,9 +44,11 @@ abstract class TogglePopupAction : ToggleAction() {
         return popup
     }
 
-    open fun createPopup(actionGroup: ActionGroup,
-                         e: AnActionEvent,
-                         disposeCallback: () -> Unit) = JBPopupFactory.getInstance().createActionGroupPopup(
+    open fun createPopup(
+        actionGroup: ActionGroup,
+        e: AnActionEvent,
+        disposeCallback: () -> Unit
+    ) = JBPopupFactory.getInstance().createActionGroupPopup(
         null,
         actionGroup,
         e.dataContext,
