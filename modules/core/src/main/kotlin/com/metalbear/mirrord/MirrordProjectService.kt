@@ -27,7 +27,7 @@ class MirrordProjectService(val project: Project) : Disposable {
     var activeConfig: VirtualFile? = null
 
     @Volatile
-    private var _enabled = false
+    private var _enabled = MirrordSettingsState.instance.mirrordState.enabledByDefault
 
     var enabled: Boolean
         get() = _enabled

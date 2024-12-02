@@ -1,30 +1,73 @@
 package com.metalbear.mirrord
 
 import com.intellij.ide.BrowserUtil
-import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.*
-import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.*
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.indexing.*
 import com.intellij.util.io.EnumeratorStringDescriptor
 import com.intellij.util.io.KeyDescriptor
+import com.intellij.util.ui.JBDimension
 import java.util.*
 import javax.swing.JComponent
 
 const val DISCORD_URL = "https://discord.gg/metalbear"
 const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/"
 
+/**
+ * Copied from internal [com.intellij.execution.ui.TogglePopupAction].
+ */
+abstract class TogglePopupAction : ToggleAction() {
+    override fun isSelected(e: AnActionEvent): Boolean {
+        return Toggleable.isSelected(e.presentation)
+    }
+
+    override fun setSelected(e: AnActionEvent, state: Boolean) {
+        if (!state) return
+        val component = e.inputEvent?.component as? JComponent ?: return
+        val popup = createPopup(e) ?: return
+        popup.showUnderneathOf(component)
+    }
+
+    private fun createPopup(e: AnActionEvent): JBPopup? {
+        val presentation = e.presentation
+        val actionGroup = getActionGroup(e) ?: return null
+        val disposeCallback = { Toggleable.setSelected(presentation, false) }
+        val popup = createPopup(actionGroup, e, disposeCallback)
+        popup.setMinimumSize(JBDimension(270, 0))
+        return popup
+    }
+
+    open fun createPopup(
+        actionGroup: ActionGroup,
+        e: AnActionEvent,
+        disposeCallback: () -> Unit
+    ) = JBPopupFactory.getInstance().createActionGroupPopup(
+        null,
+        actionGroup,
+        e.dataContext,
+        false,
+        false,
+        false,
+        disposeCallback,
+        30,
+        null
+    )
+
+    abstract fun getActionGroup(e: AnActionEvent): ActionGroup?
+}
+
 fun VirtualFile.relativePath(project: Project): String {
     return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
 }
 
-class MirrordDropDown : ComboBoxAction(), DumbAware {
-
+class MirrordDropDown : TogglePopupAction(), DumbAware {
     private class ShowActiveConfigAction(val config: VirtualFile, project: Project) :
         AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
@@ -41,7 +84,7 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
             val projectLocator = ProjectLocator.getInstance()
             val configs = FileBasedIndex
                 .getInstance()
-                .getAllKeys(MirrordConfigIndex.key, service.project)
+                .getAllKeys(MIRRORD_CONFIG_INDEX_KEY, service.project)
                 .mapNotNull { fileManager.findFileByUrl(it) }
                 .filter { !it.isDirectory }
                 .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
@@ -119,10 +162,8 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    override fun getActionUpdateThread() = ActionUpdateThread.BGT
-
-    override fun createPopupActionGroup(button: JComponent, dataContext: DataContext): DefaultActionGroup {
-        val project = dataContext.getData(CommonDataKeys.PROJECT) ?: throw Error("mirrord requires an open project")
+    override fun getActionGroup(e: AnActionEvent): ActionGroup {
+        val project = e.project ?: throw Error("mirrord requires an open project")
         val service = project.service<MirrordProjectService>()
 
         return DefaultActionGroup().apply {
@@ -141,16 +182,9 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
         }
     }
 
-    @Deprecated(
-        "Deprecated in Java",
-        ReplaceWith(
-            "createPopupActionGroup(button, DataManager.getInstance().getDataContext(button))",
-            "com.intellij.ide.DataManager"
-        )
-    )
-    override fun createPopupActionGroup(button: JComponent): DefaultActionGroup {
-        return createPopupActionGroup(button, DataManager.getInstance().getDataContext(button))
-    }
+    override fun displayTextInToolbar(): Boolean = true
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val projectOpen = e.project != null
@@ -164,18 +198,16 @@ class MirrordDropDown : ComboBoxAction(), DumbAware {
     }
 }
 
+private val MIRRORD_CONFIG_INDEX_KEY = ID.create<String, Void>("mirrordConfig")
+
 /**
  * An index for mirrord config files.
  * Indexes files with names ending with `mirrord.json`.
  */
 class MirrordConfigIndex : ScalarIndexExtension<String>() {
 
-    companion object {
-        val key = ID.create<String, Void>("mirrordConfig")
-    }
-
     override fun getName(): ID<String, Void> {
-        return key
+        return MIRRORD_CONFIG_INDEX_KEY
     }
 
     override fun getIndexer(): DataIndexer<String, Void, FileContent> {

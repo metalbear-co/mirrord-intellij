@@ -25,7 +25,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val mirrordDropdownButton
         get() = find<ContainerFixture>(
-            byXpath("//div[@text='mirrord' and @class='ComboBoxButton']"),
+            byXpath("//div[@visible_text='mirrord' and @class='ActionButtonWithText']"),
             Duration.ofSeconds(30)
         )
 

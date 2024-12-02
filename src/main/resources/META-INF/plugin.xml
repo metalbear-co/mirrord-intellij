@@ -24,7 +24,6 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService
                 serviceImplementation="com.metalbear.mirrord.MirrordSettingsState"/>
-        <projectService serviceImplementation="com.metalbear.mirrord.MirrordProjectService"/>
     </extensions>
 
     <projectListeners>
@@ -42,7 +41,6 @@
         <fileBasedIndex implementation="com.metalbear.mirrord.MirrordConfigIndex"/>
 
         <postStartupActivity implementation="com.metalbear.mirrord.MirrordUsageBanner"/>
-        <postStartupActivity implementation="com.metalbear.mirrord.MirrordEnabler"/>
         <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$DownloadInitializer"/>
     </extensions>
 
@@ -57,6 +55,8 @@
             <action id="MirrordConfigDropDown"
                     class="com.metalbear.mirrord.MirrordDropDown"
                     text="mirrord"
+                    description="Options for mirrord plugin"
+                    icon="AllIcons.Actions.More"
             />
             <separator/>
 
