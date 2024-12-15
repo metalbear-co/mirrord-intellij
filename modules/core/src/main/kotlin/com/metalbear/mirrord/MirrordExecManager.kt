@@ -198,6 +198,95 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return executionInfo
     }
 
+    private fun containerStart(
+        wslDistribution: WSLDistribution?,
+        product: String,
+        projectEnvVars: Map<String, String>?
+    ): MirrordContainerExecution? {
+        MirrordLogger.logger.debug("MirrordExecManager.startContainer")
+        val explicitlyEnabled = projectEnvVars?.any { (key, value) -> key == "MIRRORD_ACTIVE" && value == "1" } ?: false
+        if (!service.enabled && !explicitlyEnabled) {
+            MirrordLogger.logger.debug("disabled, returning")
+            return null
+        }
+
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+
+        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
+            if (it.contains("\$ProjectPath\$")) {
+                val projectFile = service.configApi.getProjectDir()
+                projectFile.canonicalPath?.let { path ->
+                    it.replace("\$ProjectPath\$", path)
+                } ?: run {
+                    service.notifier.notifySimple(
+                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
+                        NotificationType.WARNING
+                    )
+                    it
+                }
+            } else {
+                it
+            }
+        }
+        val cli = cliPath(wslDistribution, product)
+
+        MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
+        // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
+        // from the config without relying on mirrord-layer.
+
+        val configPath = service.configApi.getConfigPath(mirrordConfigPath)
+        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
+
+        val verifiedConfig = configPath?.let {
+            val verifiedConfigOutput =
+                mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+            MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
+            MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
+                if (isError()) {
+                    MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
+                    throw InvalidConfigException(it, "Validation failed for config")
+                }
+            }
+        }
+
+        MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
+
+        val targetSet = verifiedConfig?.let { isTargetSet(it.config) } ?: false
+        val target = if (!targetSet) {
+            // There is no config file or the config does not specify a target, so show dialog.
+            MirrordLogger.logger.debug("target not selected, showing dialog")
+
+            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
+                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
+                MirrordLogger.logger.info("No target specified - running targetless")
+                service.notifier.notification(
+                    "No target specified, mirrord running targetless.",
+                    NotificationType.INFORMATION
+                )
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                    .fire()
+
+                null
+            }
+        } else {
+            null
+        }
+
+        val executionInfo = mirrordApi.containerExec(
+            cli,
+            target,
+            configPath,
+            wslDistribution
+        )
+        MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
+
+        executionInfo.extraArgs.add("-e")
+        executionInfo.extraArgs.add("MIRRORD_IGNORE_DEBUGGER_PORTS=\"35000-65535\"")
+
+        return executionInfo
+    }
+
     /**
      * Wrapper around `MirrordExecManager` that is called by each IDE, or language variant.
      *
@@ -210,6 +299,22 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         fun start(): MirrordExecution? {
             return try {
                 manager.start(wsl, executable, product, extraEnvVars)
+            } catch (e: MirrordError) {
+                e.showHelp(manager.service.project)
+                throw e
+            } catch (e: ProcessCanceledException) {
+                manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
+                throw e
+            } catch (e: Throwable) {
+                val mirrordError = MirrordError(e.toString(), e)
+                mirrordError.showHelp(manager.service.project)
+                throw e
+            }
+        }
+
+        fun containerStart(): MirrordContainerExecution? {
+            return try {
+                manager.containerStart(wsl, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e

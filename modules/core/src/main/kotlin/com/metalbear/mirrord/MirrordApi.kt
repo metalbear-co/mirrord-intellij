@@ -101,6 +101,12 @@ data class MirrordExecution(
     @SerializedName("uses_operator") val usesOperator: Boolean?
 )
 
+data class MirrordContainerExecution(
+    val runtime: String,
+    @SerializedName("extra_args") val extraArgs: MutableList<String>,
+    @SerializedName("uses_operator") val usesOperator: Boolean?
+)
+
 /**
  * Wrapper around Gson for parsing messages from the mirrord binary.
  */
@@ -144,7 +150,7 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
-    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<List<String>>(cli, "ls", null, projectEnvVars) {
+    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<List<String>>(cli, listOf("ls"), null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
             setText("mirrord is listing targets...")
 
@@ -183,7 +189,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars) {
+    private class MirrordExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordExecution>(cli, listOf("ext"), null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -243,13 +249,73 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
     }
 
+    private class MirrordContainerExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordContainerExecution>(cli, listOf("container", "ext"), null, projectEnvVars) {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordContainerExecution {
+            val parser = SafeParser()
+            val bufferedReader = process.inputStream.reader().buffered()
+
+            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
+
+            setText("mirrord is starting...")
+            for (line in bufferedReader.lines()) {
+                val message = parser.parse(line, Message::class.java)
+                when {
+                    message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
+                        val success = message.success
+                            ?: throw MirrordError("invalid message received from the mirrord binary")
+                        if (success) {
+                            val innerMessage = message.message
+                                ?: throw MirrordError("invalid message received from the mirrord binary")
+                            val executionInfo = parser.parse(innerMessage as String, MirrordContainerExecution::class.java)
+                            setText("mirrord is running")
+                            return executionInfo
+                        }
+                    }
+
+                    message.type == MessageType.Info -> {
+                        val service = project.service<MirrordProjectService>()
+                        message.message?.let { service.notifier.notifySimple(it as String, NotificationType.INFORMATION) }
+                    }
+
+                    message.type == MessageType.Warning -> {
+                        message.message?.let { warningHandler.handle(it as String) }
+                    }
+
+                    message.type == MessageType.IdeMessage -> {
+                        message.message?.run {
+                            val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
+                            val service = project.service<MirrordProjectService>()
+                            ideMessage?.handleIdeMessage(service)
+                        }
+                    }
+
+                    else -> {
+                        var displayMessage = message.name
+                        message.message?.let {
+                            displayMessage += ": $it"
+                        }
+                        setText(displayMessage)
+                    }
+                }
+            }
+
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                throw MirrordError.fromStdErr(processStdError)
+            } else {
+                throw MirrordError("invalid output of the mirrord binary")
+            }
+        }
+    }
+
     /**
      * Interacts with the `mirrord verify-config [path]` cli command.
      *
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", path), projectEnvVars) {
+    private class MirrordVerifyConfigTask(cli: String, path: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<String>(cli, listOf("verify-config"), listOf("--ide", path), projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -310,6 +376,27 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return result
     }
 
+    fun containerExec(cli: String, target: String?, configFile: String?, wslDistribution: WSLDistribution?): MirrordContainerExecution {
+        bumpRunCounter()
+
+        val task = MirrordContainerExtTask(cli, projectEnvVars).apply {
+            this.target = target
+            this.configFile = configFile
+            this.wslDistribution = wslDistribution
+        }
+
+        val result = task.run(service.project)
+        service.notifier.notifySimple("mirrord starting...", NotificationType.INFORMATION)
+
+        result.usesOperator?.let { usesOperator ->
+            if (usesOperator) {
+                MirrordSettingsState.instance.mirrordState.operatorUsed = true
+            }
+        }
+
+        return result
+    }
+
     /**
      * Increments the mirrord run counter.
      * Can display some notifications (asking for feedback, discord invite, mirrord for Teams invite).
@@ -342,7 +429,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
  *
  * @param args: An extra list of arguments (used by `verify-config`).
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?, private val projectEnvVars: Map<String, String>?) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: List<String>, private val args: List<String>?, private val projectEnvVars: Map<String, String>?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -353,7 +440,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      * Returns command line for execution.
      */
     private fun prepareCommandLine(project: Project): GeneralCommandLine {
-        return GeneralCommandLine(cli, command).apply {
+        return GeneralCommandLine(cli, *command.toTypedArray()).apply {
             // Merge our `environment` vars with what's set in the current launch run configuration.
             if (projectEnvVars != null) {
                 environment.putAll(projectEnvVars)
