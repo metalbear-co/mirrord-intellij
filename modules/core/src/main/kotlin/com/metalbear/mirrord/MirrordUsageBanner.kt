@@ -2,7 +2,7 @@ package com.metalbear.mirrord
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.startup.StartupActivity
+import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
@@ -22,7 +22,7 @@ The dropdown menu next to the icon provides shortcuts for working with mirrord c
 
 private const val SHOW_AGAIN_AFTER_MS: Long = 30 * 60 * 1000
 
-class MirrordUsageBanner : StartupActivity, StartupActivity.DumbAware {
+class MirrordUsageBanner : ProjectActivity {
     /**
      * Timestamp in milliseconds.
      */
@@ -73,7 +73,7 @@ class MirrordUsageBanner : StartupActivity, StartupActivity.DumbAware {
         }
     }
 
-    override fun runActivity(project: Project) {
+    override suspend fun execute(project: Project) {
         val now = System.currentTimeMillis()
         lastShownAt?.let {
             if (now <= it + SHOW_AGAIN_AFTER_MS) {
