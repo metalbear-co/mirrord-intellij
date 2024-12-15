@@ -42,9 +42,12 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
                 service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
                     this.wsl = wsl
                 }.containerStart()?.let { executionInfo ->
-                    val runCliOptions = "--entrypoint= --rm"
+                    val runCliOptionsField = docker.javaClass.getDeclaredField("myRunCliOptions");
+                    if (runCliOptionsField.trySetAccessible()) {
+                        val runCliOptions = runCliOptionsField.get(docker) as String
+                        executionInfo.extraArgs.add(runCliOptions);
+                    }
 
-                    executionInfo.extraArgs.add(    runCliOptions);
                     docker.javaClass.getMethod("setRunCliOptions", Class.forName("java.lang.String")).invoke(docker, executionInfo.extraArgs.joinToString(" "))
                 }
             } else {
