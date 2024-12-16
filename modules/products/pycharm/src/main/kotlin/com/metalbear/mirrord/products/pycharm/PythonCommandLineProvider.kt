@@ -16,7 +16,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
 
         var runCliOptions: String?
             get() {
-                val runCliOptionsField = inner.javaClass.getDeclaredField("myRunCliOptions");
+                val runCliOptionsField = inner.javaClass.getDeclaredField("myRunCliOptions")
                 return if (runCliOptionsField.trySetAccessible()) {
                     runCliOptionsField.get(inner) as String
                 } else {
