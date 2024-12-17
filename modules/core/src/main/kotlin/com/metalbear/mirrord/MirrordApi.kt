@@ -150,7 +150,7 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
-    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<List<String>>(cli, listOf("ls"), null, projectEnvVars) {
+    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<List<String>>(cli, "ls", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
             setText("mirrord is listing targets...")
 
@@ -189,7 +189,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordExecution>(cli, listOf("ext"), null, projectEnvVars) {
+    private class MirrordExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -249,7 +249,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
     }
 
-    private class MirrordContainerExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordContainerExecution>(cli, listOf("container", "ext"), null, projectEnvVars) {
+    private class MirrordContainerExtTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordContainerExecution>(cli, "container-ext", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordContainerExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -315,7 +315,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      * Reads the output (json) from stdout which contain either a success + warnings, or the errors from the verify
      * command.
      */
-    private class MirrordVerifyConfigTask(cli: String, path: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<String>(cli, listOf("verify-config"), listOf("--ide", path), projectEnvVars) {
+    private class MirrordVerifyConfigTask(cli: String, path: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<String>(cli, "verify-config", listOf("--ide", path), projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             setText("mirrord is verifying the config options...")
             process.waitFor()
@@ -429,7 +429,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
  *
  * @param args: An extra list of arguments (used by `verify-config`).
  */
-private abstract class MirrordCliTask<T>(private val cli: String, private val command: List<String>, private val args: List<String>?, private val projectEnvVars: Map<String, String>?) {
+private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?, private val projectEnvVars: Map<String, String>?) {
     var target: String? = null
     var configFile: String? = null
     var executable: String? = null
@@ -440,7 +440,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      * Returns command line for execution.
      */
     private fun prepareCommandLine(project: Project): GeneralCommandLine {
-        return GeneralCommandLine(cli, *command.toTypedArray()).apply {
+        return GeneralCommandLine(cli, command).apply {
             // Merge our `environment` vars with what's set in the current launch run configuration.
             if (projectEnvVars != null) {
                 environment.putAll(projectEnvVars)
