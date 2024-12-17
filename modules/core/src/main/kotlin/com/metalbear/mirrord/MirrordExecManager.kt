@@ -84,20 +84,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return wslDistribution?.getWslPath(path) ?: path
     }
 
-    /**
-     * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
-     *
-     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
-     * @return extra environment variables to set for the executed process and path to the patched executable.
-     * null if mirrord service is disabled
-     * @throws ProcessCanceledException if the user cancelled
-     */
-    private fun start(
+    private fun prepareStart(
         wslDistribution: WSLDistribution?,
-        executable: String?,
         product: String,
-        projectEnvVars: Map<String, String>?
-    ): MirrordExecution? {
+        projectEnvVars: Map<String, String>?,
+        mirrordApi: MirrordApi
+    ): Pair<String?, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
         val explicitlyEnabled = mirrordActiveValue == "1"
@@ -121,8 +113,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 NotificationType.WARNING
             )
         }
-
-        val mirrordApi = service.mirrordApi(projectEnvVars)
 
         val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
             if (it.contains("\$ProjectPath\$")) {
@@ -185,6 +175,27 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             null
         }
 
+        return Pair(configPath, target)
+    }
+
+    /**
+     * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
+     *
+     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     * @return extra environment variables to set for the executed process and path to the patched executable.
+     * null if mirrord service is disabled
+     * @throws ProcessCanceledException if the user cancelled
+     */
+    private fun start(
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        projectEnvVars: Map<String, String>?
+    ): MirrordExecution? {
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(wslDistribution, product)
+
         val executionInfo = mirrordApi.exec(
             cli,
             target,
@@ -195,6 +206,29 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
+        return executionInfo
+    }
+
+    private fun containerStart(
+        wslDistribution: WSLDistribution?,
+        product: String,
+        projectEnvVars: Map<String, String>?
+    ): MirrordContainerExecution? {
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(wslDistribution, product)
+
+        val executionInfo = mirrordApi.containerExec(
+            cli,
+            target,
+            configPath,
+            wslDistribution
+        )
+        MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
+
+        executionInfo.extraArgs.add("-e")
+        executionInfo.extraArgs.add("MIRRORD_IGNORE_DEBUGGER_PORTS=\"35000-65535\"")
+
         return executionInfo
     }
 
@@ -210,6 +244,22 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         fun start(): MirrordExecution? {
             return try {
                 manager.start(wsl, executable, product, extraEnvVars)
+            } catch (e: MirrordError) {
+                e.showHelp(manager.service.project)
+                throw e
+            } catch (e: ProcessCanceledException) {
+                manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
+                throw e
+            } catch (e: Throwable) {
+                val mirrordError = MirrordError(e.toString(), e)
+                mirrordError.showHelp(manager.service.project)
+                throw e
+            }
+        }
+
+        fun containerStart(): MirrordContainerExecution? {
+            return try {
+                manager.containerStart(wsl, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
