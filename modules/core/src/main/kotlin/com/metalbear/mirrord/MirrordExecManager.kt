@@ -88,7 +88,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         projectEnvVars: Map<String, String>?,
         mirrordApi: MirrordApi,
-        cli: String,
+        cli: String
     ): Pair<String?, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
