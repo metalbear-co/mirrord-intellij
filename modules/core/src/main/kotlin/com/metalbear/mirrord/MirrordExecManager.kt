@@ -86,9 +86,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
     private fun prepareStart(
         wslDistribution: WSLDistribution?,
+        product: String,
         projectEnvVars: Map<String, String>?,
-        mirrordApi: MirrordApi,
-        cli: String
+        mirrordApi: MirrordApi
     ): Pair<String?, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
@@ -130,6 +130,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 it
             }
         }
+        val cli = cliPath(wslDistribution, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
@@ -191,9 +192,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordExecution? {
-        val cli = cliPath(wslDistribution, product)
         val mirrordApi = service.mirrordApi(projectEnvVars)
-        val (configPath, target) = this.prepareStart(wslDistribution, projectEnvVars, mirrordApi, cli) ?: return null
+        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(wslDistribution, product)
 
         val executionInfo = mirrordApi.exec(
             cli,
@@ -213,9 +214,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordContainerExecution? {
-        val cli = cliPath(wslDistribution, product)
         val mirrordApi = service.mirrordApi(projectEnvVars)
-        val (configPath, target) = this.prepareStart(wslDistribution, projectEnvVars, mirrordApi, cli) ?: return null
+        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(wslDistribution, product)
 
         val executionInfo = mirrordApi.containerExec(
             cli,
