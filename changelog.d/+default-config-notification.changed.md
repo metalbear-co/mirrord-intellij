@@ -1,0 +1,1 @@
+Improved notification message when mirrord uses config from the default path.
