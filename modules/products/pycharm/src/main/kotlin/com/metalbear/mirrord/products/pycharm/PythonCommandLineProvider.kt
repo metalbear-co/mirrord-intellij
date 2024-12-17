@@ -12,8 +12,9 @@ import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvide
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
+    // Wrapper for docker variant of TargetEnvironmentRequest because the variant is dynamically loaded from another
+    // plugin so we need to perform our operations via reflection api
     private class DockerRuntimeConfig(val inner: TargetEnvironmentRequest) {
-
         var runCliOptions: String?
             get() {
                 val runCliOptionsField = inner.javaClass.getDeclaredField("myRunCliOptions")
@@ -34,9 +35,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     private fun extendContainerTargetEnvironment(project: Project, runParams: PythonRunParams, docker: DockerRuntimeConfig) {
         val service = project.service<MirrordProjectService>()
 
-        service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
-            this.wsl = null
-        }.containerStart()?.let { executionInfo ->
+        service.execManager.wrapper("pycharm", runParams.getEnvs()).containerStart()?.let { executionInfo ->
             docker.runCliOptions?.let {
                 executionInfo.extraArgs.add(it)
             }

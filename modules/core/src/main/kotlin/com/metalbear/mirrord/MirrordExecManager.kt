@@ -84,20 +84,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return wslDistribution?.getWslPath(path) ?: path
     }
 
-    /**
-     * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
-     *
-     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
-     * @return extra environment variables to set for the executed process and path to the patched executable.
-     * null if mirrord service is disabled
-     * @throws ProcessCanceledException if the user cancelled
-     */
-    private fun start(
+    private fun prepareStart(
         wslDistribution: WSLDistribution?,
-        executable: String?,
-        product: String,
-        projectEnvVars: Map<String, String>?
-    ): MirrordExecution? {
+        projectEnvVars: Map<String, String>?,
+        mirrordApi: MirrordApi,
+        cli: String,
+    ): Pair<String?, String?>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
         val explicitlyEnabled = mirrordActiveValue == "1"
@@ -122,8 +114,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             )
         }
 
-        val mirrordApi = service.mirrordApi(projectEnvVars)
-
         val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
             if (it.contains("\$ProjectPath\$")) {
                 val projectFile = service.configApi.getProjectDir()
@@ -140,7 +130,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 it
             }
         }
-        val cli = cliPath(wslDistribution, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
@@ -184,6 +173,27 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         } else {
             null
         }
+
+        return Pair(configPath, target)
+    }
+
+    /**
+     * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
+     *
+     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     * @return extra environment variables to set for the executed process and path to the patched executable.
+     * null if mirrord service is disabled
+     * @throws ProcessCanceledException if the user cancelled
+     */
+    private fun start(
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        projectEnvVars: Map<String, String>?
+    ): MirrordExecution? {
+        val cli = cliPath(wslDistribution, product)
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val (configPath, target) = this.prepareStart(wslDistribution, projectEnvVars, mirrordApi, cli) ?: return null
 
         val executionInfo = mirrordApi.exec(
             cli,
@@ -203,75 +213,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordContainerExecution? {
-        MirrordLogger.logger.debug("MirrordExecManager.startContainer")
-        val explicitlyEnabled = projectEnvVars?.any { (key, value) -> key == "MIRRORD_ACTIVE" && value == "1" } ?: false
-        if (!service.enabled && !explicitlyEnabled) {
-            MirrordLogger.logger.debug("disabled, returning")
-            return null
-        }
-
-        val mirrordApi = service.mirrordApi(projectEnvVars)
-
-        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
-            if (it.contains("\$ProjectPath\$")) {
-                val projectFile = service.configApi.getProjectDir()
-                projectFile.canonicalPath?.let { path ->
-                    it.replace("\$ProjectPath\$", path)
-                } ?: run {
-                    service.notifier.notifySimple(
-                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
-                        NotificationType.WARNING
-                    )
-                    it
-                }
-            } else {
-                it
-            }
-        }
         val cli = cliPath(wslDistribution, product)
-
-        MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
-        // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
-        // from the config without relying on mirrord-layer.
-
-        val configPath = service.configApi.getConfigPath(mirrordConfigPath)
-        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
-
-        val verifiedConfig = configPath?.let {
-            val verifiedConfigOutput =
-                mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
-            MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
-            MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
-                MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
-                if (isError()) {
-                    MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
-                    throw InvalidConfigException(it, "Validation failed for config")
-                }
-            }
-        }
-
-        MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
-
-        val targetSet = verifiedConfig?.let { isTargetSet(it.config) } ?: false
-        val target = if (!targetSet) {
-            // There is no config file or the config does not specify a target, so show dialog.
-            MirrordLogger.logger.debug("target not selected, showing dialog")
-
-            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
-                MirrordLogger.logger.info("No target specified - running targetless")
-                service.notifier.notification(
-                    "No target specified, mirrord running targetless.",
-                    NotificationType.INFORMATION
-                )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                    .fire()
-
-                null
-            }
-        } else {
-            null
-        }
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val (configPath, target) = this.prepareStart(wslDistribution, projectEnvVars, mirrordApi, cli) ?: return null
 
         val executionInfo = mirrordApi.containerExec(
             cli,
