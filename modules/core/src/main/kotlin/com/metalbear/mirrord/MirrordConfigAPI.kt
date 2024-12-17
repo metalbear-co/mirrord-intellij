@@ -69,7 +69,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
 
         getDefaultConfig()?.let {
             service.notifier.notification(
-                "Using mirrord default config",
+                "Using mirrord config from default path",
                 NotificationType.INFORMATION
             )
                 .withOpenFile(it)

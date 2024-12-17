@@ -8,6 +8,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.*
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.util.text.StringUtil.ELLIPSIS
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.util.indexing.*
@@ -64,7 +65,8 @@ abstract class TogglePopupAction : ToggleAction() {
 }
 
 fun VirtualFile.relativePath(project: Project): String {
-    return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = true)
+    return calcRelativeToProjectPath(this, project, includeFilePath = true, keepModuleAlwaysOnTheLeft = false)
+        .substringAfter("$ELLIPSIS/") // trim leading "…/", which is confusing
 }
 
 class MirrordDropDown : TogglePopupAction(), DumbAware {
