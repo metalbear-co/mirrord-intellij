@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.65.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.65.0) - 2024-12-19
+
+
+### Changed
+
+- Removed leading `…/` from displayed paths to mirrord config files.
+  [#311](https://github.com/metalbear-co/mirrord-intellij/issues/311)
+- Improved notification message when mirrord uses config from the default path.
+
+
+### Added
+
+- Added support for using python docker interpreter.
+  [#294](https://github.com/metalbear-co/mirrord-intellij/issues/294)
+
 ## [3.64.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.64.2) - 2024-12-02
 
 
