@@ -19,8 +19,8 @@ import java.util.*
 import javax.swing.JComponent
 
 const val DISCORD_URL = "https://discord.gg/metalbear"
-const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/?utm_medium=intellij"
-const val DOCS_URL = "https://mirrord.dev/docs/using-mirrord/intellij-plugin/?utm_medium=intellij"
+const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/?utm_medium=intellij&utm_source=ui_action"
+const val DOCS_URL = "https://mirrord.dev/docs/using-mirrord/intellij-plugin/?utm_medium=intellij&utm_source=ui_action"
 
 /**
  * Copied from internal [com.intellij.execution.ui.TogglePopupAction].
