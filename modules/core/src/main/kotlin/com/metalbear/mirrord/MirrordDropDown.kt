@@ -165,7 +165,7 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
-    private class DocsAction : AnAction("How To Use?") {
+    private class DocsAction : AnAction("Documentation") {
         override fun actionPerformed(e: AnActionEvent) {
             BrowserUtil.browse(DOCS_URL)
         }
