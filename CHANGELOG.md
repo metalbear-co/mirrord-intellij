@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.66.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.66.0) - 2025-01-14
+
+
+### Added
+
+- Added dropdown menu action that redirects to the plugin docs.
+  [#316](https://github.com/metalbear-co/mirrord-intellij/issues/316)
+
 ## [3.65.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.65.0) - 2024-12-19
 
 
