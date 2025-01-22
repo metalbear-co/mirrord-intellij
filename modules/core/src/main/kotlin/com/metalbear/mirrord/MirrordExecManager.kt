@@ -7,6 +7,9 @@ import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.util.SystemInfo
 
 /**
@@ -84,6 +87,27 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return wslDistribution?.getWslPath(path) ?: path
     }
 
+    /**
+     * Starts a plugin version check in a background thread.
+     */
+    private fun dispatchPluginVersionCheck() {
+        MirrordLogger.logger.debug("Plugin version check triggered")
+
+        ProgressManager.getInstance().run(object : Task.Backgroundable(service.project, "mirrord plugin version check", true) {
+            override fun run(indicator: ProgressIndicator) {
+                service.versionCheck.checkVersion()
+            }
+
+            override fun onThrowable(error: Throwable) {
+                MirrordLogger.logger.debug("Failed to check plugin updates", error)
+                service.notifier.notifySimple(
+                    "Failed to check for plugin update",
+                    NotificationType.WARNING
+                )
+            }
+        })
+    }
+
     private fun prepareStart(
         wslDistribution: WSLDistribution?,
         product: String,
@@ -103,16 +127,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             throw MirrordError("can't use on Windows without WSL")
         }
 
-        MirrordLogger.logger.debug("version check trigger")
-        try {
-            service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
-        } catch (e: Throwable) {
-            MirrordLogger.logger.debug("Failed checking plugin updates", e)
-            service.notifier.notifySimple(
-                "Couldn't check for plugin update",
-                NotificationType.WARNING
-            )
-        }
+        dispatchPluginVersionCheck()
 
         val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
             if (it.contains("\$ProjectPath\$")) {
@@ -181,7 +196,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
-     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
      * @return extra environment variables to set for the executed process and path to the patched executable.
      * null if mirrord service is disabled
      * @throws ProcessCanceledException if the user cancelled
