@@ -147,11 +147,46 @@ private const val MIRRORD_FOR_TEAMS_INVITE_AFTER = 100
 private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 
 /**
+ * Name of the environment variable used to trigger rich output of `mirrord ls`.
+ */
+private const val MIRRORD_LS_RICH_OUTPUT_ENV = "MIRRORD_LS_RICH_OUTPUT"
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
-    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<List<String>>(cli, "ls", null, projectEnvVars) {
-        override fun compute(project: Project, process: Process, setText: (String) -> Unit): List<String> {
+    data class FoundTarget(val path: String, val available: Boolean)
+    private data class RichOutput(
+        val targets: Array<FoundTarget>,
+        @SerializedName("current_namespace") val currentNamespace: String,
+        val namespaces: Array<String>,
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as RichOutput
+
+            if (!targets.contentEquals(other.targets)) return false
+            if (currentNamespace != other.currentNamespace) return false
+            if (!namespaces.contentEquals(other.namespaces)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = targets.contentHashCode()
+            result = 31 * result + currentNamespace.hashCode()
+            result = 31 * result + namespaces.contentHashCode()
+            return result
+        }
+    }
+
+    class MirrordLsOutput(val targets: List<FoundTarget>, val currentNamespace: String?, val namespaces: List<String>?)
+
+
+    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?, namespace: String?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", namespace?.let { listOf("-n", it) }, projectEnvVars) {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             setText("mirrord is listing targets...")
 
             process.waitFor()
@@ -163,13 +198,31 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             val data = process.inputStream.bufferedReader().readText()
             MirrordLogger.logger.debug("parsing mirrord ls output: $data")
 
-            val pods = SafeParser().parse(data, Array<String>::class.java).toMutableList()
-
-            if (pods.isEmpty()) {
-                project.service<MirrordProjectService>().notifier.notifySimple("No mirrord target available in the configured namespace. You can run targetless, or set a different target namespace or kubeconfig in the mirrord configuration file.", NotificationType.INFORMATION)
+            val output = try {
+                val richOutput = SafeParser().parse(data, RichOutput::class.java)
+                MirrordLsOutput(richOutput.targets.toList(), richOutput.currentNamespace, richOutput.namespaces.toList())
+            } catch (error: Throwable) {
+                val simpleOutput = SafeParser().parse(data, Array<String>::class.java)
+                MirrordLsOutput(
+                    simpleOutput.map { FoundTarget(it, true) },
+                    null,
+                    null,
+                )
             }
 
-            return pods
+            if (output.targets.isEmpty()) {
+                project
+                    .service<MirrordProjectService>()
+                    .notifier
+                    .notifySimple(
+                        "No mirrord target available in the configured namespace. " +
+                                "You can run targetless, or set a different target namespace " +
+                                "or kubeconfig in the mirrord configuration file.",
+                        NotificationType.INFORMATION
+                    )
+            }
+
+            return output
         }
     }
 
@@ -179,8 +232,9 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      *
      * @return list of pods
      */
-    fun listPods(cli: String, configFile: String?, wslDistribution: WSLDistribution?): List<String> {
-        val task = MirrordLsTask(cli, projectEnvVars).apply {
+    fun listPods(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
+        val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
+        val task = MirrordLsTask(cli, envVars, namespace).apply {
             this.configFile = configFile
             this.wslDistribution = wslDistribution
             this.output = "json"
