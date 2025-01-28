@@ -32,23 +32,18 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     ): String {
         MirrordLogger.logger.debug("choose target called")
 
-        val pods = mirrordApi.listPods(
-            cli,
-            config,
-            wslDistribution
-        )
-
+        val getTargets = { namespace: String? -> mirrordApi.listTargets(cli, config, wslDistribution, namespace) }
         val application = ApplicationManager.getApplication()
 
         val selected = if (application.isDispatchThread) {
             MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
-            MirrordExecDialog.selectTargetDialog(pods)
+            MirrordExecDialog(service.project, getTargets).showAndGetSelection()
         } else if (!application.isReadAccessAllowed) {
             MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
             var target: String? = null
             application.invokeAndWait {
                 MirrordLogger.logger.debug("choosing target from invoke")
-                target = MirrordExecDialog.selectTargetDialog(pods)
+                target = MirrordExecDialog(service.project, getTargets).showAndGetSelection()
             }
             target
         } else {
@@ -175,7 +170,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("target not selected, showing dialog")
 
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
+                .takeUnless { it == MirrordExecDialog.TARGETLESS_SELECTION_VALUE } ?: run {
                 MirrordLogger.logger.info("No target specified - running targetless")
                 service.notifier.notification(
                     "No target specified, mirrord running targetless.",

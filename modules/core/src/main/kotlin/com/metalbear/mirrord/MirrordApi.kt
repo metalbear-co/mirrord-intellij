@@ -230,9 +230,9 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      * Runs `mirrord ls` to get the list of available targets.
      * Displays a modal progress dialog.
      *
-     * @return list of pods
+     * @return available targets
      */
-    fun listPods(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
         val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
         val task = MirrordLsTask(cli, envVars, namespace).apply {
             this.configFile = configFile
