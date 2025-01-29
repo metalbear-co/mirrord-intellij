@@ -156,10 +156,35 @@ private const val MIRRORD_LS_RICH_OUTPUT_ENV = "MIRRORD_LS_RICH_OUTPUT"
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
-    data class FoundTarget(val path: String, val available: Boolean)
+    /**
+     * New format of found target returned from `mirrord ls`.
+     */
+    data class FoundTarget(
+        /**
+         * Path to the target, e.g `pod/my-pod`.
+         */
+        val path: String,
+        /**
+         * Whether this target can be selected.
+         */
+        val available: Boolean
+    )
+
+    /**
+     * New format of `mirrord ls`, enabled by setting MIRRORD_LS_RICH_OUTPUT_ENV to `true`.
+     */
     private data class RichOutput(
+        /**
+         * Targets found in the namespace.
+         */
         val targets: Array<FoundTarget>,
+        /**
+         * Namespace where the lookup was done.
+         */
         @SerializedName("current_namespace") val currentNamespace: String,
+        /**
+         * All namespaces available to the user.
+         */
         val namespaces: Array<String>
     ) {
         override fun equals(other: Any?): Boolean {
@@ -183,7 +208,23 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
     }
 
-    class MirrordLsOutput(val targets: List<FoundTarget>, val currentNamespace: String?, val namespaces: List<String>?)
+    /**
+     * Output of `mirrord ls`.
+     */
+    class MirrordLsOutput(
+        /**
+         * List of found targets.
+         */
+        val targets: List<FoundTarget>,
+        /**
+         * Namespace where the lookup was done.
+         */
+        val currentNamespace: String?,
+        /**
+         * All namespaces avaiable to the user.
+         */
+        val namespaces: List<String>?
+    )
 
     private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {

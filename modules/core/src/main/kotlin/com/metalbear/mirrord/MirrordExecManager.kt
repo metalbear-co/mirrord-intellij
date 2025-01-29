@@ -21,7 +21,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Attempts to show the target selection dialog and allow user to select the mirrord target.
      *
-     * @return target chosen by the user (or special constant for targetless mode)
+     * @return target chosen by the user
      * @throws ProcessCanceledException if the dialog cannot be displayed
      */
     private fun chooseTarget(
@@ -103,6 +103,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         })
     }
 
+    /**
+     * Resolves path to the mirrord config and the session target.
+     *
+     * Returns null if mirrord is disabled.
+     */
     private fun prepareStart(
         wslDistribution: WSLDistribution?,
         product: String,

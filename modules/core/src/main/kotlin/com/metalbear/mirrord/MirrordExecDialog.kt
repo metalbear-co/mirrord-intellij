@@ -20,28 +20,73 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
+/**
+ * Target and namespace selection dialog.
+ * @param project for getting the MirrordNotifier.
+ * @param getTargets function used to fetch targets from the cluster.
+ *                   Accepts the name of a namespace where the lookup should be done.
+ *                   If no name is given, the default value from the mirrord config should be user.
+ */
 class MirrordExecDialog(private val project: Project, private val getTargets: (String?) -> MirrordApi.MirrordLsOutput) : DialogWrapper(project, true) {
-    data class UserSelection(val target: String?, val namespace: String?)
+    /**
+     * Target and namespace selected by the user.
+     */
+    data class UserSelection(
+        /**
+         * Path to the target, e.g `pod/my-pod`.
+         * null if targetless.
+         */
+        val target: String?,
+        /**
+         * Optional target namespace override.
+         */
+        val namespace: String?
+    )
 
     companion object {
+        /**
+         * Dummy label we use in the dialog to allow the user for explicitly selecting the targetless mode.
+         * There can be no clash with real target labels, because each of those starts with a target type, e.g `pod/`.
+         */
         private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targeteless\")"
+
+        /**
+         * Placeholder value for the target filter.
+         */
         private const val TARGET_FILTER_PLACEHOLDER = "Filter targets..."
     }
 
+    /**
+     * Targets fetched from the cluster.
+     */
     private var fetched: MirrordApi.MirrordLsOutput = getTargets(null)
 
+    /**
+     * Whether we are currently refreshing the widgets with new content.
+     *
+     * This is set in `refresh` and inspected in the custom `namespaceOptions` data model.
+     * Prevents infinite loops and other bugs.
+     */
     private var refreshing: Boolean = false
 
+    /**
+     * List of targets available in the current namespace.
+     */
     private val targetOptions: JBList<String> = JBList(emptyList<String>()).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         minimumSize = Dimension(250, 350)
     }
 
+    /**
+     * Dropdown allowing for switching namespaces.
+     */
     private val namespaceOptions: ComboBox<String> = ComboBox(object : DefaultComboBoxModel<String>() {
         override fun setSelectedItem(anObject: Any?) {
             super.setSelectedItem(anObject)
 
             if (refreshing) {
+                // If we don't check this, we're going to have problems.
+                // `refresh` changes data in this data model, which triggers this function.
                 return
             }
 
@@ -54,7 +99,7 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     })
 
     /**
-     * Whether to show pods.
+     * Checkbox allowing for filtering out pods from the target list.
      */
     private val showPods: JBCheckBox = JBCheckBox("Pods", MirrordSettingsState.instance.mirrordState.showPodsInSelection ?: true).apply {
         this.addActionListener {
@@ -63,7 +108,7 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     }
 
     /**
-     * Whether to show deployments.
+     * Checkbox allowing for filtering out deployments from the target list.
      */
     private val showDeployments: JBCheckBox = JBCheckBox("Deployments", MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true).apply {
         this.addActionListener {
@@ -72,7 +117,7 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     }
 
     /**
-     * Whether to show rollouts.
+     * Checkbox allowing for filtering out rollouts from the target list.
      */
     private val showRollouts: JBCheckBox = JBCheckBox("Rollouts", MirrordSettingsState.instance.mirrordState.showRolloutsInSelection ?: true).apply {
         this.addActionListener {
@@ -80,6 +125,9 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
         }
     }
 
+    /**
+     * Text field allowing for searching targets by path.
+     */
     private val targetFilter = JTextField().apply {
         val field = this
 
@@ -140,19 +188,31 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
         maximumSize = Dimension(10000, 30)
     }
 
+    /**
+     * Label for `targetFilter` and `targetOptions`.
+     */
     private val selectTargetLabel = JLabel("Select Target").apply {
         alignmentX = JLabel.LEFT_ALIGNMENT
         font = JBFont.create(font.deriveFont(Font.BOLD), false)
     }
 
+    /**
+     * Label for `namespaceOptions`.
+     */
     private val selectNamespaceLabel = JLabel("Select Namespace").apply {
         alignmentX = JLabel.LEFT_ALIGNMENT
         font = JBFont.create(font.deriveFont(Font.BOLD), false)
     }
 
+    /**
+     * Small vertical gap between widgets.
+     */
     private val verticalSeparator: Component
         get() = Box.createRigidArea(Dimension(0, 10))
 
+    /**
+     * Small horizontal gap between widgets.
+     */
     private val horizontalSeparator: Component
         get() = Box.createRigidArea(Dimension(10, 0))
 
@@ -162,6 +222,9 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
         init()
     }
 
+    /**
+     * Updates widgets' content based on what we fetched from the cluster (`fetched` field).
+     */
     private fun refresh() {
         refreshing = true
         try {
@@ -238,6 +301,11 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
         )
     }
 
+    /**
+     * Displays the dialog and returns the user selection.
+     *
+     * Returns null if the user cancelled.
+     */
     fun showAndGetSelection(): UserSelection? {
         if (!showAndGet()) {
             return null
