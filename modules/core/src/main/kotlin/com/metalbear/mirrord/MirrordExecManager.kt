@@ -7,6 +7,9 @@ import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.util.SystemInfo
 
 /**
@@ -18,7 +21,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Attempts to show the target selection dialog and allow user to select the mirrord target.
      *
-     * @return target chosen by the user (or special constant for targetless mode)
+     * @return target chosen by the user
      * @throws ProcessCanceledException if the dialog cannot be displayed
      */
     private fun chooseTarget(
@@ -26,26 +29,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         config: String?,
         mirrordApi: MirrordApi
-    ): String {
+    ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
-        val pods = mirrordApi.listPods(
-            cli,
-            config,
-            wslDistribution
-        )
-
+        val getTargets = { namespace: String? -> mirrordApi.listTargets(cli, config, wslDistribution, namespace) }
         val application = ApplicationManager.getApplication()
 
         val selected = if (application.isDispatchThread) {
             MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
-            MirrordExecDialog.selectTargetDialog(pods)
+            MirrordExecDialog(service.project, getTargets).showAndGetSelection()
         } else if (!application.isReadAccessAllowed) {
             MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
-            var target: String? = null
+            var target: MirrordExecDialog.UserSelection? = null
             application.invokeAndWait {
                 MirrordLogger.logger.debug("choosing target from invoke")
-                target = MirrordExecDialog.selectTargetDialog(pods)
+                target = MirrordExecDialog(service.project, getTargets).showAndGetSelection()
             }
             target
         } else {
@@ -84,12 +82,38 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return wslDistribution?.getWslPath(path) ?: path
     }
 
+    /**
+     * Starts a plugin version check in a background thread.
+     */
+    private fun dispatchPluginVersionCheck() {
+        MirrordLogger.logger.debug("Plugin version check triggered")
+
+        ProgressManager.getInstance().run(object : Task.Backgroundable(service.project, "mirrord plugin version check", true) {
+            override fun run(indicator: ProgressIndicator) {
+                service.versionCheck.checkVersion()
+            }
+
+            override fun onThrowable(error: Throwable) {
+                MirrordLogger.logger.debug("Failed to check plugin updates", error)
+                service.notifier.notifySimple(
+                    "Failed to check for plugin update",
+                    NotificationType.WARNING
+                )
+            }
+        })
+    }
+
+    /**
+     * Resolves path to the mirrord config and the session target.
+     *
+     * Returns null if mirrord is disabled.
+     */
     private fun prepareStart(
         wslDistribution: WSLDistribution?,
         product: String,
         projectEnvVars: Map<String, String>?,
         mirrordApi: MirrordApi
-    ): Pair<String?, String?>? {
+    ): Pair<String?, MirrordExecDialog.UserSelection>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
         val explicitlyEnabled = mirrordActiveValue == "1"
@@ -103,16 +127,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             throw MirrordError("can't use on Windows without WSL")
         }
 
-        MirrordLogger.logger.debug("version check trigger")
-        try {
-            service.versionCheck.checkVersion() // TODO makes an HTTP request, move to background
-        } catch (e: Throwable) {
-            MirrordLogger.logger.debug("Failed checking plugin updates", e)
-            service.notifier.notifySimple(
-                "Couldn't check for plugin update",
-                NotificationType.WARNING
-            )
-        }
+        dispatchPluginVersionCheck()
 
         val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
             if (it.contains("\$ProjectPath\$")) {
@@ -158,21 +173,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val target = if (!targetSet) {
             // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
-
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.targetlessTargetName } ?: run {
-                MirrordLogger.logger.info("No target specified - running targetless")
-                service.notifier.notification(
-                    "No target specified, mirrord running targetless.",
-                    NotificationType.INFORMATION
-                )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                    .fire()
-
-                null
-            }
         } else {
-            null
+            MirrordExecDialog.UserSelection(null, null)
         }
 
         return Pair(configPath, target)
@@ -181,7 +184,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
-     * @param envVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
      * @return extra environment variables to set for the executed process and path to the patched executable.
      * null if mirrord service is disabled
      * @throws ProcessCanceledException if the user cancelled
