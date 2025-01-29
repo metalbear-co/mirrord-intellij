@@ -160,7 +160,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     private data class RichOutput(
         val targets: Array<FoundTarget>,
         @SerializedName("current_namespace") val currentNamespace: String,
-        val namespaces: Array<String>,
+        val namespaces: Array<String>
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -185,7 +185,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
     class MirrordLsOutput(val targets: List<FoundTarget>, val currentNamespace: String?, val namespaces: List<String>?)
 
-
     private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             setText("mirrord is listing targets...")
@@ -208,7 +207,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                     MirrordLsOutput(
                         simpleOutput.map { FoundTarget(it, true) },
                         null,
-                        null,
+                        null
                     )
                 } else {
                     throw error
@@ -221,8 +220,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                     .notifier
                     .notifySimple(
                         "No mirrord target available in the configured namespace. " +
-                                "You can run targetless, or set a different target namespace " +
-                                "or kubeconfig in the mirrord configuration file.",
+                            "You can run targetless, or set a different target namespace " +
+                            "or kubeconfig in the mirrord configuration file.",
                         NotificationType.INFORMATION
                     )
             }

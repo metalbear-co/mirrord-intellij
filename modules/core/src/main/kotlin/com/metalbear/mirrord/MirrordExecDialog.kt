@@ -172,8 +172,8 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
                 .map { it.path }
                 .filter {
                     (showPods.isSelected && it.startsWith("pod/")) ||
-                            (showDeployments.isSelected && it.startsWith("deployment/")) ||
-                            (showRollouts.isSelected && it.startsWith("rollout/"))
+                        (showDeployments.isSelected && it.startsWith("deployment/")) ||
+                        (showRollouts.isSelected && it.startsWith("rollout/"))
                 }
                 .filter { targetFilter.text == TARGET_FILTER_PLACEHOLDER || it.contains(targetFilter.text) }
                 .toMutableList()
