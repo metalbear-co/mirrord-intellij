@@ -31,7 +31,25 @@ class MirrordExecDialog(project: Project, private val getTargets: (String?) -> M
         minimumSize = Dimension(250, 350)
     }
 
-    private val namespaceOptions: ComboBox<String> = ComboBox()
+    private val namespaceOptions: ComboBox<String> = ComboBox(object : DefaultComboBoxModel<String>() {
+        private var refreshing: Boolean = false
+
+        override fun setSelectedItem(anObject: Any?) {
+            super.setSelectedItem(anObject)
+
+            if (refreshing) {
+                return
+            }
+
+            val namespace = anObject as? String? ?: return
+            if (fetched.currentNamespace != namespace && fetched.namespaces.orEmpty().contains(namespace)) {
+                fetched = getTargets(namespace)
+                refreshing = true
+                refresh()
+                refreshing = false
+            }
+        }
+    })
 
     /**
      * Whether to show pods.
@@ -183,10 +201,7 @@ class MirrordExecDialog(project: Project, private val getTargets: (String?) -> M
                 JBBox.createHorizontalBox().apply {
                     add(selectNamespaceLabel)
                     add(horizontalSeparator)
-                    add(JComboBox<String>().apply {
-                        selectedItem = fetched.currentNamespace
-                        fetched.namespaces?.forEach( this::addItem )
-                    })
+                    add(namespaceOptions)
                     alignmentX = JBBox.LEFT_ALIGNMENT
                     maximumSize = Dimension(10000, 30)
                 }
