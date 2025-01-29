@@ -241,6 +241,8 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
                 .filter { targetFilter.text == TARGET_FILTER_PLACEHOLDER || it.contains(targetFilter.text) }
                 .toMutableList()
                 .apply {
+                    // Here, for user convenience, we insert the last chosen target at the head of the list.
+                    // Target is identified only by its path, no matter the namespace.
                     MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
                         val idx = this.indexOf(it)
                         if (idx != -1) {
