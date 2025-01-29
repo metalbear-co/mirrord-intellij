@@ -8,6 +8,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.67.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.0) - 2025-01-29
+
+
+### Added
+
+- The target selection dialog now allows for switching between available
+  namespaces.
+
+
+### Changed
+
+- Changed toggle button colors.
+  [#322](https://github.com/metalbear-co/mirrord-intellij/issues/322)
+
 ## [3.66.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.66.0) - 2025-01-14
 
 
