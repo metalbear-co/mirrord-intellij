@@ -30,14 +30,14 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
 
     private var fetched: MirrordApi.MirrordLsOutput = getTargets(null)
 
+    private var refreshing: Boolean = false
+
     private val targetOptions: JBList<String> = JBList(emptyList<String>()).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         minimumSize = Dimension(250, 350)
     }
 
     private val namespaceOptions: ComboBox<String> = ComboBox(object : DefaultComboBoxModel<String>() {
-        private var refreshing: Boolean = false
-
         override fun setSelectedItem(anObject: Any?) {
             super.setSelectedItem(anObject)
 
@@ -48,9 +48,7 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
             val namespace = anObject as? String? ?: return
             if (fetched.currentNamespace != namespace && fetched.namespaces.orEmpty().contains(namespace)) {
                 fetched = getTargets(namespace)
-                refreshing = true
                 refresh()
-                refreshing = false
             }
         }
     })
@@ -165,34 +163,39 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     }
 
     private fun refresh() {
-        val selectableTargets = fetched
-            .targets
-            .asSequence()
-            .filter { it.available }
-            .map { it.path }
-            .filter {
-                (showPods.isSelected && it.startsWith("pod/")) ||
-                        (showDeployments.isSelected && it.startsWith("deployment/")) ||
-                        (showRollouts.isSelected && it.startsWith("rollout/"))
-            }
-            .filter { targetFilter.text == TARGET_FILTER_PLACEHOLDER || it.contains(targetFilter.text) }
-            .toMutableList()
-            .apply {
-                MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
-                    val idx = this.indexOf(it)
-                    if (idx != -1) {
-                        this.removeAt(idx)
-                        this.add(0, it)
-                    }
+        refreshing = true
+        try {
+            val selectableTargets = fetched
+                .targets
+                .asSequence()
+                .filter { it.available }
+                .map { it.path }
+                .filter {
+                    (showPods.isSelected && it.startsWith("pod/")) ||
+                            (showDeployments.isSelected && it.startsWith("deployment/")) ||
+                            (showRollouts.isSelected && it.startsWith("rollout/"))
                 }
-                add(TARGETLESS_SELECTION_LABEL)
-            }
-            .toTypedArray()
-        targetOptions.setListData(selectableTargets)
+                .filter { targetFilter.text == TARGET_FILTER_PLACEHOLDER || it.contains(targetFilter.text) }
+                .toMutableList()
+                .apply {
+                    MirrordSettingsState.instance.mirrordState.lastChosenTarget?.let {
+                        val idx = this.indexOf(it)
+                        if (idx != -1) {
+                            this.removeAt(idx)
+                            this.add(0, it)
+                        }
+                    }
+                    add(TARGETLESS_SELECTION_LABEL)
+                }
+                .toTypedArray()
+            targetOptions.setListData(selectableTargets)
 
-        namespaceOptions.removeAllItems()
-        fetched.namespaces?.forEach { namespaceOptions.addItem(it) }
-        fetched.currentNamespace?.let { namespaceOptions.selectedItem = it }
+            namespaceOptions.removeAllItems()
+            fetched.namespaces?.forEach { namespaceOptions.addItem(it) }
+            fetched.currentNamespace?.let { namespaceOptions.selectedItem = it }
+        } finally {
+            refreshing = false
+        }
     }
 
     override fun createCenterPanel(): JComponent = JPanel().apply {
