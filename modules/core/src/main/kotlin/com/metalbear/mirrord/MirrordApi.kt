@@ -4,6 +4,7 @@ package com.metalbear.mirrord
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonSyntaxException
 import com.google.gson.annotations.SerializedName
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
@@ -202,12 +203,16 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                 val richOutput = SafeParser().parse(data, RichOutput::class.java)
                 MirrordLsOutput(richOutput.targets.toList(), richOutput.currentNamespace, richOutput.namespaces.toList())
             } catch (error: Throwable) {
-                val simpleOutput = SafeParser().parse(data, Array<String>::class.java)
-                MirrordLsOutput(
-                    simpleOutput.map { FoundTarget(it, true) },
-                    null,
-                    null,
-                )
+                if (error.cause != null && error.cause is JsonSyntaxException) {
+                    val simpleOutput = SafeParser().parse(data, Array<String>::class.java)
+                    MirrordLsOutput(
+                        simpleOutput.map { FoundTarget(it, true) },
+                        null,
+                        null,
+                    )
+                } else {
+                    throw error
+                }
             }
 
             if (output.targets.isEmpty()) {
