@@ -29,7 +29,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         config: String?,
         mirrordApi: MirrordApi
-    ): String {
+    ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
         val getTargets = { namespace: String? -> mirrordApi.listTargets(cli, config, wslDistribution, namespace) }
@@ -40,7 +40,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordExecDialog(service.project, getTargets).showAndGetSelection()
         } else if (!application.isReadAccessAllowed) {
             MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
-            var target: String? = null
+            var target: MirrordExecDialog.UserSelection? = null
             application.invokeAndWait {
                 MirrordLogger.logger.debug("choosing target from invoke")
                 target = MirrordExecDialog(service.project, getTargets).showAndGetSelection()
@@ -108,7 +108,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?,
         mirrordApi: MirrordApi
-    ): Pair<String?, String?>? {
+    ): Pair<String?, MirrordExecDialog.UserSelection>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
         val explicitlyEnabled = mirrordActiveValue == "1"
@@ -168,21 +168,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val target = if (!targetSet) {
             // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
-
             chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-                .takeUnless { it == MirrordExecDialog.TARGETLESS_SELECTION_VALUE } ?: run {
-                MirrordLogger.logger.info("No target specified - running targetless")
-                service.notifier.notification(
-                    "No target specified, mirrord running targetless.",
-                    NotificationType.INFORMATION
-                )
-                    .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
-                    .fire()
-
-                null
-            }
         } else {
-            null
+            MirrordExecDialog.UserSelection(null, null)
         }
 
         return Pair(configPath, target)

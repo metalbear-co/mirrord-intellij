@@ -408,11 +408,12 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      *
      * @return environment for the user's application
      */
-    fun exec(cli: String, target: String?, configFile: String?, executable: String?, wslDistribution: WSLDistribution?): MirrordExecution {
+    fun exec(cli: String, target: MirrordExecDialog.UserSelection, configFile: String?, executable: String?, wslDistribution: WSLDistribution?): MirrordExecution {
         bumpRunCounter()
 
         val task = MirrordExtTask(cli, projectEnvVars).apply {
-            this.target = target
+            this.target = target.target
+            this.namespace = target.namespace
             this.configFile = configFile
             this.executable = executable
             this.wslDistribution = wslDistribution
@@ -430,11 +431,12 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return result
     }
 
-    fun containerExec(cli: String, target: String?, configFile: String?, wslDistribution: WSLDistribution?): MirrordContainerExecution {
+    fun containerExec(cli: String, target: MirrordExecDialog.UserSelection, configFile: String?, wslDistribution: WSLDistribution?): MirrordContainerExecution {
         bumpRunCounter()
 
         val task = MirrordContainerExtTask(cli, projectEnvVars).apply {
-            this.target = target
+            this.target = target.target
+            this.namespace = target.namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution
         }
@@ -485,6 +487,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
  */
 private abstract class MirrordCliTask<T>(private val cli: String, private val command: String, private val args: List<String>?, private val projectEnvVars: Map<String, String>?) {
     var target: String? = null
+    var namespace: String? = null
     var configFile: String? = null
     var executable: String? = null
     var wslDistribution: WSLDistribution? = null
@@ -505,11 +508,16 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 addParameter(it)
             }
 
+            namespace?.let {
+                environment.put("MIRRORD_TARGET_NAMESPACE", it)
+            }
+
             configFile?.let {
                 val formattedPath = wslDistribution?.getWslPath(it) ?: it
                 addParameter("-f")
                 addParameter(formattedPath)
             }
+
             executable?.let {
                 addParameter("-e")
                 addParameter(it)

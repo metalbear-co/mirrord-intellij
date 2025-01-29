@@ -1,5 +1,7 @@
 package com.metalbear.mirrord
 
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
@@ -18,9 +20,11 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-class MirrordExecDialog(project: Project, private val getTargets: (String?) -> MirrordApi.MirrordLsOutput) : DialogWrapper(project, true) {
+class MirrordExecDialog(private val project: Project, private val getTargets: (String?) -> MirrordApi.MirrordLsOutput) : DialogWrapper(project, true) {
+    data class UserSelection(val target: String?, val namespace: String?)
+
     companion object {
-        const val TARGETLESS_SELECTION_VALUE = "No Target (\"targeteless\")"
+        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targeteless\")"
         private const val TARGET_FILTER_PLACEHOLDER = "Filter targets..."
     }
 
@@ -181,7 +185,7 @@ class MirrordExecDialog(project: Project, private val getTargets: (String?) -> M
                         this.add(0, it)
                     }
                 }
-                add(TARGETLESS_SELECTION_VALUE)
+                add(TARGETLESS_SELECTION_LABEL)
             }
             .toTypedArray()
         targetOptions.setListData(selectableTargets)
@@ -231,20 +235,30 @@ class MirrordExecDialog(project: Project, private val getTargets: (String?) -> M
         )
     }
 
-    fun showAndGetSelection(): String? {
-        return if (showAndGet()) {
-            MirrordSettingsState.instance.mirrordState.showPodsInSelection = showPods.isSelected
-            MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection = showDeployments.isSelected
-            MirrordSettingsState.instance.mirrordState.showRolloutsInSelection = showRollouts.isSelected
-
-            if (targetOptions.isSelectionEmpty) {
-                TARGETLESS_SELECTION_VALUE
-            } else {
-                MirrordSettingsState.instance.mirrordState.lastChosenTarget = targetOptions.selectedValue
-                targetOptions.selectedValue
-            }
-        } else {
-            null
+    fun showAndGetSelection(): UserSelection? {
+        if (!showAndGet()) {
+            return null
         }
+
+        MirrordSettingsState.instance.mirrordState.showPodsInSelection = showPods.isSelected
+        MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection = showDeployments.isSelected
+        MirrordSettingsState.instance.mirrordState.showRolloutsInSelection = showRollouts.isSelected
+
+        val target = if (targetOptions.isSelectionEmpty) {
+            MirrordLogger.logger.info("No target specified - running targetless")
+            project.service<MirrordProjectService>().notifier.notification(
+                "No target specified, mirrord running targetless.",
+                NotificationType.INFORMATION
+            )
+                .withDontShowAgain(MirrordSettingsState.NotificationId.RUNNING_TARGETLESS)
+                .fire()
+
+            null
+        } else {
+            MirrordSettingsState.instance.mirrordState.lastChosenTarget = targetOptions.selectedValue
+            targetOptions.selectedValue.takeUnless { it == TARGETLESS_SELECTION_LABEL }
+        }
+
+        return UserSelection(target, fetched.currentNamespace)
     }
 }
