@@ -8,16 +8,18 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
 
-This repository is for the IntelliJ plugin.
-mirrord main repository can be found [here](https://github.com/metalbear-co/mirrord).
+This repository is for the IntelliJ plugin of mirrord.
+The main mirrord repository can be found [here](https://github.com/metalbear-co/mirrord).
 
 <!-- Plugin description -->
 
 mirrord lets developers [run local processes in the context of their cloud environment](https://mirrord.dev).
-It’s provides the benefits of running your service on a cloud environment (e.g. staging) without actually
+It provides the benefits of running your service on a cloud environment (e.g. staging) without actually
 going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
-It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool. You can read more about it [here](https://mirrord.dev/docs/overview/introduction/).
-mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
+There is a mirrord CLI tool, this IntelliJ plugin, and there is also a Visual Studio Code extension.
+You can read more about mirrord [in the documentation](https://mirrord.dev/docs/overview/introduction/).
+Both the [core mirrord repository](https://github.com/metalbear-co/mirrord) and
+[this plugin's code](https://github.com/metalbear-co/mirrord-intellij) can be found on GitHub.
 
 ## How To Use
 
