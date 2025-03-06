@@ -64,7 +64,7 @@ class MirrordConfigDialog(private val title: String, private val options: List<S
                 private fun updateList() {
                     val searchTerm = field.text
                     if (!searchTerm.equals(PLACEHOLDER)) {
-                    jbOptions.setListData(options.filter { it.contains(searchTerm) || it == (UNSET_OPTION) }.toTypedArray())
+                        jbOptions.setListData(options.filter { it.contains(searchTerm) || it == (UNSET_OPTION) }.toTypedArray())
                     }
                 }
             })
