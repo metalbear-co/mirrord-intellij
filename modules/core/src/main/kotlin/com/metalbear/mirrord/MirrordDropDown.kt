@@ -79,6 +79,13 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
+    private class UnsetActiveConfigAction : AnAction("Unset Active Config") {
+        override fun actionPerformed(e: AnActionEvent) {
+            val service = e.project?.service<MirrordProjectService>() ?: return
+            service.activeConfig = null
+        }
+    }
+
     private class SelectActiveConfigAction : AnAction("Select Active Config") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
@@ -177,7 +184,10 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
 
         return DefaultActionGroup().apply {
             addSeparator("Configuration")
-            service.activeConfig?.let { add(ShowActiveConfigAction(it, project)) }
+            service.activeConfig?.let {
+                add(ShowActiveConfigAction(it, project))
+                add(UnsetActiveConfigAction())
+            }
             add(SelectActiveConfigAction())
             add(SettingsAction())
 
