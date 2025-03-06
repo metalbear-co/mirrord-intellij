@@ -182,6 +182,31 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     /**
+     * Checks for env vars that might've been left behind by some previous execution of mirrord.
+     *
+     * Sometimes a crash or under weird circumstances, the IDE doesn't clear the launch config env vars of the ones we've
+     * added, so this performs a check and spits out a warning to the user, even when mirrord is **disabled**!
+     *
+     * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     */
+    @Throws(MirrordError::class)
+    private fun checkForSuspiciousEnvVars(
+        projectEnvVars: Map<String, String>?
+    ) {
+        val suspiciousMap = projectEnvVars?.filter {
+            it.key == "MIRRORD_RESOLVED_CONFIG" || ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains("libmirrord"))
+        }
+
+        if (suspiciousMap?.isEmpty() == false) {
+            MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
+            throw MirrordError(
+                "Detected mirrord environment variables that were probably left behind by a previous execution: ${suspiciousMap.keys}!" +
+                    " Please check your project launch configuration and remove environment variables that you do not recognize."
+            )
+        }
+    }
+
+    /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
@@ -195,6 +220,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordExecution? {
+        checkForSuspiciousEnvVars(projectEnvVars)
+
         val mirrordApi = service.mirrordApi(projectEnvVars)
         val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
         val cli = cliPath(wslDistribution, product)
