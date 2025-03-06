@@ -79,7 +79,7 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
-    private class UnsetActiveConfigAction : AnAction("Unset the Current Active Config") {
+    private class UnsetActiveConfigAction : AnAction("Unset Active Config") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             service.activeConfig = null
