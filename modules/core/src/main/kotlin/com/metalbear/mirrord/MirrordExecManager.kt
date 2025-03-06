@@ -193,11 +193,15 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     private fun checkForSuspiciousEnvVars(
         projectEnvVars: Map<String, String>?
     ) {
-        val suspiciousMap = projectEnvVars?.filter { it.key == "MIRRORD_RESOLVED_CONFIG" || ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains("libmirrord")) }
+        val suspiciousMap = projectEnvVars?.filter {
+            it.key == "MIRRORD_RESOLVED_CONFIG" || ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains(
+                "libmirrord"
+            ))
+        }
         if (suspiciousMap?.isEmpty() == false) {
             MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
             throw MirrordError(
-        "Detected mirrord environment variables that were probably left behind by a previous execution!" +
+                "Detected mirrord environment variables that were probably left behind by a previous execution!" +
                         " Please check your project launch configuration and remove environment variables that start with `MIRRORD`." +
                         "${suspiciousMap.keys}"
             )
