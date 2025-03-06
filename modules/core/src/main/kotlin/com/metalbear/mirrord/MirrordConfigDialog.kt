@@ -13,6 +13,7 @@ import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
 private const val PLACEHOLDER = "Filter configuration files..."
+private const val UNSET_OPTION = "Unset active config"
 
 /**
  * Dialog for selecting configuration files.
@@ -26,6 +27,8 @@ class MirrordConfigDialog(private val title: String, private val options: List<S
      * @return null if user cancelled
      */
     fun show(): Selection? {
+        // Add explicit list item to unset active config
+        val options = options + UNSET_OPTION
         val jbOptions = JBList(options).apply {
             selectionMode = ListSelectionModel.SINGLE_SELECTION
         }
@@ -61,7 +64,7 @@ class MirrordConfigDialog(private val title: String, private val options: List<S
                 private fun updateList() {
                     val searchTerm = field.text
                     if (!searchTerm.equals(PLACEHOLDER)) {
-                        jbOptions.setListData(options.filter { it.contains(searchTerm) }.toTypedArray())
+                    jbOptions.setListData(options.filter { it.contains(searchTerm) || it == (UNSET_OPTION) }.toTypedArray())
                     }
                 }
             })
@@ -74,6 +77,10 @@ class MirrordConfigDialog(private val title: String, private val options: List<S
         }.show()
 
         if (result == DialogWrapper.OK_EXIT_CODE) {
+            if (jbOptions.selectedValue == UNSET_OPTION) {
+                // choosing UNSET_OPTION behaves the same as selecting nothing
+                jbOptions.setSelectedValue(null, false)
+            }
             return Selection(jbOptions.selectedValue)
         }
 
