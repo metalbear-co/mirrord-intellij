@@ -188,7 +188,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * added, so this performs a check and spits out a warning to the user, even when mirrord is **disabled**!
      *
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
-    */
+     */
     @Throws(MirrordError::class)
     private fun checkForSuspiciousEnvVars(
         projectEnvVars: Map<String, String>?
@@ -198,12 +198,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
             throw MirrordError(
         "Detected mirrord environment variables that were probably left behind by a previous execution!" +
-                    " Please check your project launch configuration and remove environment variables that start with `MIRRORD`." +
-                    "${suspiciousMap.keys}"
+                        " Please check your project launch configuration and remove environment variables that start with `MIRRORD`." +
+                        "${suspiciousMap.keys}"
             )
         }
     }
-
 
     /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
