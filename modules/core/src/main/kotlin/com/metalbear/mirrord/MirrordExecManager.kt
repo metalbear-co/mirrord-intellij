@@ -188,14 +188,13 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * added, so this performs a check and spits out a warning to the user, even when mirrord is **disabled**!
      *
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
-     * @return the suspicious env vars that we might've left behind.
     */
     @Throws(MirrordError::class)
     private fun checkForSuspiciousEnvVars(
         projectEnvVars: Map<String, String>?
     ) {
         val suspiciousEnvVars = "(MIRRORD_RESOLVED_CONFIG)|(.*libmirrord.+)".toRegex()
-        val suspiciousMap = projectEnvVars?.filterKeys { it.matches(suspiciousEnvVars) }
+        val suspiciousMap = projectEnvVars?.filter { it.key.matches(suspiciousEnvVars) || it.value.matches(suspiciousEnvVars) }
         if (suspiciousMap?.isEmpty() == false) {
             MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
             throw MirrordError(
