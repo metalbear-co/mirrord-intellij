@@ -187,6 +187,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * Sometimes a crash or under weird circumstances, the IDE doesn't clear the launch config env vars of the ones we've
      * added, so this performs a check and spits out a warning to the user, even when mirrord is **disabled**!
      *
+     * `MIRRORD_ACTIVE` is a special case, and is allowed to pass this check, since it's an env var that the user might've
+     * put there.
+     *
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
      * @return the suspicious env vars that we might've left behind.
     */
