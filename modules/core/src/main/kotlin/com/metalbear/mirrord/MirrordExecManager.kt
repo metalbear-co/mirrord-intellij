@@ -198,9 +198,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         if (suspiciousMap?.isEmpty() == false) {
             MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
             throw MirrordError(
-                "Detected mirrord environment variables that were probably left behind by a previous execution!" +
-                        " Please check your project launch configuration and remove environment variables that start with `MIRRORD`." +
-                        "${suspiciousMap.keys}"
+        "Detected mirrord environment variables that were probably left behind by a previous execution!" +
+                    " Please check your project launch configuration and remove environment variables that start with `MIRRORD`." +
+                    "${suspiciousMap.keys}"
             )
         }
     }
