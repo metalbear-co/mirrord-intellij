@@ -86,7 +86,7 @@ ffmpeg -i path-to-screen-recording.mov -r 16 -lavfi '[0]split[a][b];[a]palettege
 
 Alternatively, you can use [Image Magick](https://imagemagick.org/) to create higher quality (but
 much larger in terms of filesize) gifs from a screen recording, using `-layers Optimize` to slightly
-reduce the file size:
+reduce the filesize:
 
 ```
 magick path-to-screen-recording.mov -layers Optimize usage.gif
