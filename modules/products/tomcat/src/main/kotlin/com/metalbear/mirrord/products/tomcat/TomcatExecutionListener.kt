@@ -186,7 +186,10 @@ class TomcatExecutionListener : ExecutionListener {
             // Always inject `SavedConfigData` early.
             // This allows for removing `TomcatBeforeRunTask` from the run configuration,
             // even if mirrord is disabled, or we throw an exception in `MirrordExecManager`.
-            savedEnvs[executorId] = savedData
+            if (savedEnvs[executorId] == null) {
+                // On a hot redeploy, do not record the new saved env (it contains all the mirrord env)
+                savedEnvs[executorId] = savedData
+            }
 
             service.execManager.wrapper("tomcat", envVarsMap).apply {
                 this.wsl = wsl
