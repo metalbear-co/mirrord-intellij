@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: abatilo/actions-poetry@v2
+      - uses: metalbear-co/actions-poetry
 
         # we are on a release branch, so we need to download the mirrord binary from
         # mirrord-artifacts and add it to the path
@@ -74,7 +74,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/metalbear-co/mirrord/main/scripts/install.sh | bash
 
       - name: Start minikube
-        uses: medyagh/setup-minikube@master
+        uses: metalbear-co/setup-minikube@3fa06c2257eb48a3ca8e24fedece59ee2479255a
         with:
           container-runtime: docker
       - run: |
@@ -99,7 +99,7 @@ jobs:
           ./gradlew buildPlugin
 
       - name: Run intellij e2e in headless state
-        uses: coactions/setup-xvfb@v1
+        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
@@ -110,7 +110,7 @@ jobs:
             ./gradlew test
 
       - name: Run intellij e2e in headless state
-        uses: coactions/setup-xvfb@v1
+        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ !inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}

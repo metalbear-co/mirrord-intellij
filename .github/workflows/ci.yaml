@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: avto-dev/markdown-lint@v1
+      - uses: metalbear-co/markdownlint-cli2-action@0fb2cca662f67f99dfdb04fce7d81bb2904ee404
         with:
           config: "markdownlint-config.json"
-          args: "README.md"
+          globs: "README.md"
 
   lint:
     runs-on: ubuntu-24.04
