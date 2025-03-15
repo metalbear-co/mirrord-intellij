@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: metalbear-co/markdownlint-cli2-action@0fb2cca662f67f99dfdb04fce7d81bb2904ee404
         with:
-          config: "markdownlint-config.json"
+          config: ".markdownlint.json"
           globs: "README.md"
 
   lint:
