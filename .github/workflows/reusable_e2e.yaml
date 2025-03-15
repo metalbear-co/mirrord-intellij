@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: metalbear-co/actions-poetry
+      - uses: metalbear-co/actions-poetry@b8f6fe29ba2eb78e0d45ccbf41cd14154c4e25b2
 
         # we are on a release branch, so we need to download the mirrord binary from
         # mirrord-artifacts and add it to the path
