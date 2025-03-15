@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/icon.png" width="20%">
+  <img alt="mirrord Icon" src="images/icon.png" width="20%">
 </p>
 <h1 align="center">mirrord</h1>
 
@@ -59,7 +59,7 @@ You can use the `Settings` button in the dropdown menu to quickly edit detected 
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 <p align="center">
-  <img src="./src/main/resources/META-INF/usage.gif">
+  <img alt="Demonstration of how to use mirrord" src="./src/main/resources/META-INF/usage.gif">
 </p>
 
 ## FAQ
