@@ -83,8 +83,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             if (configuration is ExternalSystemRunConfiguration) {
                 runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
                 val env = configuration.settings.env +
-                        mirrordEnv -
-                        executionInfo.envToUnset.orEmpty().toSet()
+                    mirrordEnv -
+                    executionInfo.envToUnset.orEmpty().toSet()
                 configuration.settings.env = env
             }
             MirrordLogger.logger.debug("setting env and finishing")

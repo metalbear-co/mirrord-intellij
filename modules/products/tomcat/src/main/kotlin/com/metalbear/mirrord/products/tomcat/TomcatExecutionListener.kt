@@ -207,8 +207,8 @@ class TomcatExecutionListener : ExecutionListener {
 
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${mirrordEnv.size} environment variables")
                 val finalEnvVars = originalEnvVars.associateBy { it.NAME } +
-                        mirrordEnv.mapValues { (key, value) -> EnvironmentVariable(key, value, false) } -
-                        executionInfo.envToUnset.orEmpty().toSet()
+                    mirrordEnv.mapValues { (key, value) -> EnvironmentVariable(key, value, false) } -
+                    executionInfo.envToUnset.orEmpty().toSet()
                 config.first.setEnvironmentVariables(finalEnvVars.values.toList())
 
                 if (SystemInfo.isMac) {
