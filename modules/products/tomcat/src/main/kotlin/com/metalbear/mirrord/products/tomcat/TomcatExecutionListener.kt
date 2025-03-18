@@ -157,8 +157,7 @@ class TomcatExecutionListener : ExecutionListener {
         }
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got config $config")
-        var envVars = config.first.envVariables
-        val envVarsMap = envVars.associate { it.NAME to it.VALUE }
+        val originalEnvVars = config.first.envVariables
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
         val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
@@ -191,6 +190,7 @@ class TomcatExecutionListener : ExecutionListener {
                 savedEnvs[executorId] = savedData
             }
 
+            val envVarsMap = originalEnvVars.associate { it.NAME to it.VALUE }
             service.execManager.wrapper("tomcat", envVarsMap).apply {
                 this.wsl = wsl
                 this.executable = scriptAndArgs?.command
@@ -202,18 +202,14 @@ class TomcatExecutionListener : ExecutionListener {
                     Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort())
                 )
 
-                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: saving ${envVars.size} original environment variables")
-                savedData.envVars = envVars.toList()
+                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: saving ${originalEnvVars.size} original environment variables")
+                savedData.envVars = originalEnvVars.toList()
 
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${mirrordEnv.size} environment variables")
-                envVars.addAll(mirrordEnv.map { (k, v) -> EnvironmentVariable(k, v, false) })
-
-                executionInfo.envToUnset?.let { envToUnset ->
-                    envVars = envVars.filter {
-                        !envToUnset.contains(it.name)
-                    }
-                }
-                config.first.setEnvironmentVariables(envVars)
+                val finalEnvVars = originalEnvVars.associateBy { it.NAME } +
+                        mirrordEnv.mapValues { (key, value) -> EnvironmentVariable(key, value, false) } -
+                        executionInfo.envToUnset.orEmpty().toSet()
+                config.first.setEnvironmentVariables(finalEnvVars.values.toList())
 
                 if (SystemInfo.isMac) {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, patching SIP.")

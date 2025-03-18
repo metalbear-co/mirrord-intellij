@@ -76,20 +76,16 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             this.wsl = wsl
         }.start()?.let { executionInfo ->
             val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"))
-            params.env = params.env + mirrordEnv
-            executionInfo.envToUnset?.let { keys ->
-                params.env = params.env.filterKeys { !keys.contains(it) }
-            }
+            params.env = params.env + mirrordEnv - executionInfo.envToUnset.orEmpty().toSet()
             runningProcessEnvs[configuration.project] = params.env.toMap()
 
             // Gradle support (and external system configuration)
             if (configuration is ExternalSystemRunConfiguration) {
                 runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
-                var env = configuration.settings.env + mirrordEnv
-                executionInfo.envToUnset?.let { keys ->
-                    env = env.filterKeys { !keys.contains(it) }
-                }
-                configuration.settings.env = configuration.settings.env + mirrordEnv
+                val env = configuration.settings.env +
+                        mirrordEnv -
+                        executionInfo.envToUnset.orEmpty().toSet()
+                configuration.settings.env = env
             }
             MirrordLogger.logger.debug("setting env and finishing")
         }
