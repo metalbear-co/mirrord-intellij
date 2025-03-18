@@ -8,6 +8,23 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.67.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.2) - 2025-03-18
+
+
+### Fixed
+
+- Fix dirty env remaining in Tomcat run configurations after hot reload.
+  [#328](https://github.com/metalbear-co/mirrord-intellij/issues/328)
+- mirrord no longer injects duplicate environment variables into Tomcat run
+  configurations.
+  [#336](https://github.com/metalbear-co/mirrord-intellij/issues/336)
+
+
+### Internal
+
+- Added use of Image Magick to the gif section of the contribution guide.
+- Switched to our own fork of the changed-files GitHub Action.
+
 ## [3.67.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.1) - 2025-03-07
 
 
