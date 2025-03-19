@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
-[![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-756df3)](https://plugins.jetbrains.com/plugin/19772-mirrord)
+[![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-e6005c)](https://plugins.jetbrains.com/plugin/19772-mirrord)
 
 This repository is for the IntelliJ plugin.
 mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
@@ -57,13 +57,19 @@ _Quick start: the easiest way to start configuring mirrord is to choose_ "Settin
   <img src="src/main/resources/META-INF/enable_mirrord.gif" width="50%" alt="A gif showing mirrord being enabled via a click in the IntelliJ UI">
 </p>
 
+> Enable mirrord
+
 <p align="center">
-  <img src="src/main/resources/META-INF/target_selection_dialog.png" width="40%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
+  <img src="src/main/resources/META-INF/target_selection_dialog.png" width="50%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
 </p>
+
+> Target selection dialog 
 
 <p align="center">
   <img src="src/main/resources/META-INF/settings_from_dropdown.png" width="50%" alt="A screenshot of mirrord's dropdown menu in the IntelliJ UI, with 'Settings' highlighted">
 </p>
+
+> Settings option in the dropdown menu
 
 ## Helpful Links
 
