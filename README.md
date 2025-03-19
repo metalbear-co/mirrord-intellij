@@ -52,15 +52,15 @@ _Quick start: the easiest way to start configuring mirrord is to choose_ "Settin
 ## Screenshots
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/enable_mirrord.gif" width="60%" alt="A gif showing mirrord being enabled via a click in the IntelliJ UI">
+  <img src="src/main/resources/META-INF/enable_mirrord.gif" width="60%" alt="A gif showing mirrord being enabled via a click in the IntelliJ UI">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/target_selection_dialog.png" width="60%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
+  <img src="src/main/resources/META-INF/target_selection_dialog.png" width="60%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/settings_from_dropdown.png" width="20%" alt="A screenshot of mirrord's dropdown menu in the IntelliJ UI, with 'Settings' highlighted">
+  <img src="src/main/resources/META-INF/settings_from_dropdown.png" width="20%" alt="A screenshot of mirrord's dropdown menu in the IntelliJ UI, with 'Settings' highlighted">
 </p>
 
 ## Helpful Links
