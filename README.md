@@ -9,9 +9,8 @@
 This repository is for the IntelliJ plugin.
 mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
-[//]: # (TODO: gif)
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/usage.gif" alt="A gif showing mirrord being used to mirror traffic from a kubernetes cluster in the IntelliJ UI">
+  <img src="src/main/resources/META-INF/usage.gif" alt="A gif showing mirrord being used to mirror traffic from a kubernetes cluster in the IntelliJ UI">
 </p>
 
 <!-- Plugin description -->
