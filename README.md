@@ -1,4 +1,4 @@
-# mirrord for JatBrains IntelliJ
+# mirrord for JetBrains IntelliJ
 
 [![Discord](https://img.shields.io/discord/933706914808889356?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/metalbear)
 ![License](https://img.shields.io/badge/license-MIT-green)
