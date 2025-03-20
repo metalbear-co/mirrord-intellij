@@ -10,7 +10,7 @@ This repository is for the IntelliJ plugin.
 mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-vscode/main/src/main/resources/META-INF/usage.gif"
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/usage.gif"
   alt="A gif showing mirrord being used to mirror traffic from a kubernetes cluster in the IntelliJ UI">
 </p>
 
@@ -57,21 +57,21 @@ which will open a new `mirrord.json`._
 ## Screenshots
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-vscode/main/src/main/resources/META-INF/enable_mirrord.gif"
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/enable_mirrord.gif"
   width="50%" alt="A gif showing mirrord being enabled via a click in the IntelliJ UI">
 </p>
 
 > Enable mirrord
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-vscode/main/src/main/resources/META-INF/target_selection_dialog.png"
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/target_selection_dialog.png"
   width="50%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
 </p>
 
 > Target selection dialog
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-vscode/main/src/main/resources/META-INF/settings_from_dropdown.png"
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/settings_from_dropdown.png"
   width="50%" alt="A screenshot of mirrord's dropdown menu in the IntelliJ UI, with 'Settings' highlighted">
 </p>
 
@@ -79,7 +79,7 @@ which will open a new `mirrord.json`._
 
 ## Helpful Links
 
-- [Official documentation for this extension](https://mirrord.dev/docs/using-mirrord/vscode-extension/)
+- [Official documentation for this extension](https://mirrord.dev/docs/using-mirrord/intellij-plugin/)
 - [Official language-specific guides for debugging](https://metalbear.co/guides/)
 - [Frequently Asked Questions](https://mirrord.dev/docs/faq/general)
 
@@ -87,7 +87,7 @@ which will open a new `mirrord.json`._
 
 - Feel free to join to our [Discord channel](https://discord.gg/metalbear) if you need help using mirrord,
 or if you encounter an issue while using the extension.
-- Check our open issues for [the VSCode extension](https://github.com/metalbear-co/mirrord-intellij/issues)
+- Check our open issues for [the IntelliJ extension](https://github.com/metalbear-co/mirrord-intellij/issues)
 and [mirrord's core code](https://github.com/metalbear-co/mirrord/issues), and 👍 react to any that you would like to see addressed.
 - Before submitting a pull request for new features, please take a look at [mirrord's contributing guide](https://github.com/metalbear-co/mirrord/blob/main/CONTRIBUTING.md).
 
