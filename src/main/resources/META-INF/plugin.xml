@@ -6,8 +6,9 @@
     <vendor email="hi@metalbear.co" url="https://metalbear.co/">MetalBear</vendor>
 
     <description><![CDATA[
-      mirrord lets you run a local process in the context your Kubernetes cluster. 
-      It’s meant to provide the benefits of running your service on a cloud environment (e.g. staging) without actually going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
+      mirrord lets developers run local processes in the context of their cloud environment.
+      It provides the benefits of running your service on a cloud environment (e.g. staging) without going through the
+      hassle of deploying it there, and without disrupting the environment by deploying untested code.
       Read more <a href="https://mirrord.dev/docs/overview/introduction/">here</a>.
     ]]></description>
 
