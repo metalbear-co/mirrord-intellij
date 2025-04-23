@@ -231,12 +231,12 @@ class MirrordApi(private val service: MirrordProjectService, private val project
          */
         val currentNamespace: String?,
         /**
-         * All namespaces avaiable to the user.
+         * All namespaces available to the user.
          */
         val namespaces: List<String>?
     )
 
-    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", null, projectEnvVars) {
+    private class MirrordLsTask(cli: String, targetType: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", listOf("-t", targetType), projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             setText("mirrord is listing targets...")
 
@@ -288,8 +288,9 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      * @return available targets
      */
     fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
+        val targetType = "pod"
         val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
-        val task = MirrordLsTask(cli, envVars).apply {
+        val task = MirrordLsTask(cli, targetType, envVars).apply {
             this.namespace = namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution
