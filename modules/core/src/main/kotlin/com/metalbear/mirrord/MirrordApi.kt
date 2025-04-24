@@ -251,7 +251,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             val output = try {
                 val richOutput = SafeParser().parse(data, RichOutput::class.java)
-                MirrordLsOutput(richOutput.targets.toList(), richOutput.currentNamespace, richOutput.namespaces.toList())
+                MirrordLsOutput(richOutput.targets.toList(),  richOutput.currentNamespace, richOutput.namespaces.toList())
             } catch (error: Throwable) {
                 if (error.cause != null && error.cause is JsonSyntaxException) {
                     val simpleOutput = SafeParser().parse(data, Array<String>::class.java)
@@ -282,13 +282,12 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     /**
-     * Runs `mirrord ls` to get the list of available targets.
+     * Runs `mirrord ls -t <targetType>` to get the list of available targets.
      * Displays a modal progress dialog.
      *
      * @return available targets
      */
-    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
-        val targetType = "pod"
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetType: String): MirrordLsOutput {
         val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
         val task = MirrordLsTask(cli, targetType, envVars).apply {
             this.namespace = namespace

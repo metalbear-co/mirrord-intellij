@@ -32,7 +32,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
-        val getTargets = { namespace: String? -> mirrordApi.listTargets(cli, config, wslDistribution, namespace) }
+        val getTargets = { namespace: String?, targetType: String -> mirrordApi.listTargets(cli, config, wslDistribution, namespace, targetType) }
         val application = ApplicationManager.getApplication()
 
         val selected = if (application.isDispatchThread) {

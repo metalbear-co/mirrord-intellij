@@ -12,6 +12,7 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
+import com.metalbear.mirrord.MirrordApi.FoundTarget
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Font
@@ -19,6 +20,7 @@ import java.awt.event.*
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import kotlin.collections.set
 
 /**
  * Target and namespace selection dialog.
@@ -27,7 +29,10 @@ import javax.swing.event.DocumentListener
  *                   Accepts the name of a namespace where the lookup should be done.
  *                   If no name is given, the default value from the mirrord config should be user.
  */
-class MirrordExecDialog(private val project: Project, private val getTargets: (String?) -> MirrordApi.MirrordLsOutput) : DialogWrapper(project, true) {
+class MirrordExecDialog(
+    private val project: Project,
+    private val getTargets: (String?, String) -> MirrordApi.MirrordLsOutput
+) : DialogWrapper(project, true) {
     /**
      * Target and namespace selected by the user.
      */
@@ -43,12 +48,112 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
         val namespace: String?
     )
 
+    /**
+     * Store of the targets fetched so far, similar to MirrordApi.MirrordLsOutput.
+     * Allows targets to be retrieved by resource type.
+     */
+    class FetchedTargets(
+        /**
+         * List of found targets, with resource type as the key.
+         * i.e. "pod", "deployment", "rollout".
+         */
+        var targets: HashMap<String, List<FoundTarget>>,
+        /**
+         * Namespace where the lookup was done.
+         */
+        var currentNamespace: String?,
+        /**
+         * All namespaces available to the user.
+         */
+        var namespaces: List<String>?,
+    ) {
+        constructor(
+            getTargets: (String?, String) -> MirrordApi.MirrordLsOutput,
+            currentNamespace: String?,
+            fallbackNamespaces: List<String>?,
+            pods: Boolean,
+            deployments: Boolean,
+            rollouts: Boolean
+        ) : this(
+            HashMap<String, List<FoundTarget>>(),
+            currentNamespace,
+            fallbackNamespaces
+        ) {
+            var namespace: String? = currentNamespace
+            var namespaces: List<String>? = fallbackNamespaces
+            if (pods) {
+                val output = getTargets(currentNamespace, "pod")
+                this.targets["pod"] = output.targets
+                namespace = output.currentNamespace
+                namespaces = output.namespaces
+            }
+            if (deployments) {
+                val output = getTargets(currentNamespace, "deployment")
+                this.targets["deployment"] = output.targets
+                namespace = output.currentNamespace
+                namespaces = output.namespaces
+            }
+            if (rollouts) {
+                val output = getTargets(currentNamespace, "rollout")
+                this.targets["rollout"] = output.targets
+                namespace = output.currentNamespace
+                namespaces = output.namespaces
+            }
+            this.currentNamespace = namespace
+            this.namespaces = namespaces
+        }
+
+        /**
+         * Return a list of targets according to resource type filters, either by retrieving them from the stored
+         * HashMap (`self.targets`) or, if not present, by executing a call to the mirrord ls command
+         */
+        fun getTargetsStoredOrFetch(
+            getTargets: (String?, String) -> MirrordApi.MirrordLsOutput,
+            pods: Boolean,
+            deployments: Boolean,
+            rollouts: Boolean
+        ): List<FoundTarget> {
+            val targets: MutableList<FoundTarget> = mutableListOf()
+            if (pods) {
+                val foundPods: List<FoundTarget>? = if (this.targets.containsKey("pod")) {
+                    this.targets.get("pod")
+                } else {
+                    val outputList = getTargets(this.currentNamespace, "pod").targets
+                    this.targets["pod"] = outputList
+                    outputList
+                }
+                targets.addAll(foundPods ?: listOf())
+            }
+            if (deployments) {
+                val foundDeployments: List<FoundTarget>? = if (this.targets.containsKey("deployment")) {
+                    this.targets.get("deployment")
+                } else {
+                    val outputList = getTargets(this.currentNamespace, "deployment").targets
+                    this.targets["deployment"] = outputList
+                    outputList
+                }
+                targets.addAll(foundDeployments ?: listOf())
+            }
+            if (rollouts) {
+                val foundRollouts: List<FoundTarget>? = if (this.targets.containsKey("rollout")) {
+                    this.targets.get("rollout")
+                } else {
+                    val outputList = getTargets(this.currentNamespace, "rollout").targets
+                    this.targets["rollout"] = outputList
+                    outputList
+                }
+                targets.addAll(foundRollouts ?: listOf())
+            }
+            return targets
+        }
+    }
+
     companion object {
         /**
          * Dummy label we use in the dialog to allow the user for explicitly selecting the targetless mode.
          * There can be no clash with real target labels, because each of those starts with a target type, e.g `pod/`.
          */
-        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targeteless\")"
+        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targetless\")"
 
         /**
          * Placeholder value for the target filter.
@@ -59,7 +164,15 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     /**
      * Targets fetched from the cluster.
      */
-    private var fetched: MirrordApi.MirrordLsOutput = getTargets(null)
+    private var fetched: FetchedTargets =
+        FetchedTargets(
+            getTargets,
+            null,
+            null,
+            MirrordSettingsState.instance.mirrordState.showPodsInSelection ?: true,
+            MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true,
+            MirrordSettingsState.instance.mirrordState.showRolloutsInSelection ?: true
+        )
 
     /**
      * Whether we are currently refreshing the widgets with new content.
@@ -92,7 +205,16 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
 
             val namespace = anObject as? String? ?: return
             if (fetched.currentNamespace != namespace && fetched.namespaces.orEmpty().contains(namespace)) {
-                fetched = getTargets(namespace)
+                // namespace changed, recompute fetched targets and fallback to the previous list of namespaces
+                val fallbackNamespaces = fetched.namespaces
+                fetched = FetchedTargets(
+                    getTargets,
+                    namespace,
+                    fallbackNamespaces,
+                    showPods.isSelected,
+                    showDeployments.isSelected,
+                    showRollouts.isSelected
+                )
                 refresh()
             }
         }
@@ -101,29 +223,32 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     /**
      * Checkbox allowing for filtering out pods from the target list.
      */
-    private val showPods: JBCheckBox = JBCheckBox("Pods", MirrordSettingsState.instance.mirrordState.showPodsInSelection ?: true).apply {
-        this.addActionListener {
-            refresh()
+    private val showPods: JBCheckBox =
+        JBCheckBox("Pods", MirrordSettingsState.instance.mirrordState.showPodsInSelection ?: true).apply {
+            this.addActionListener {
+                refresh()
+            }
         }
-    }
 
     /**
      * Checkbox allowing for filtering out deployments from the target list.
      */
-    private val showDeployments: JBCheckBox = JBCheckBox("Deployments", MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true).apply {
-        this.addActionListener {
-            refresh()
+    private val showDeployments: JBCheckBox =
+        JBCheckBox("Deployments", MirrordSettingsState.instance.mirrordState.showDeploymentsInSelection ?: true).apply {
+            this.addActionListener {
+                refresh()
+            }
         }
-    }
 
     /**
      * Checkbox allowing for filtering out rollouts from the target list.
      */
-    private val showRollouts: JBCheckBox = JBCheckBox("Rollouts", MirrordSettingsState.instance.mirrordState.showRolloutsInSelection ?: true).apply {
-        this.addActionListener {
-            refresh()
+    private val showRollouts: JBCheckBox =
+        JBCheckBox("Rollouts", MirrordSettingsState.instance.mirrordState.showRolloutsInSelection ?: true).apply {
+            this.addActionListener {
+                refresh()
+            }
         }
-    }
 
     /**
      * Text field allowing for searching targets by path.
@@ -228,16 +353,17 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
     private fun refresh() {
         refreshing = true
         try {
-            val selectableTargets = fetched
-                .targets
+            val shownTargets: List<FoundTarget> = fetched.getTargetsStoredOrFetch(
+                getTargets,
+                showPods.isSelected,
+                showDeployments.isSelected,
+                showRollouts.isSelected
+            )
+
+            val selectableTargets = shownTargets
                 .asSequence()
                 .filter { it.available }
                 .map { it.path }
-                .filter {
-                    (showPods.isSelected && it.startsWith("pod/")) ||
-                        (showDeployments.isSelected && it.startsWith("deployment/")) ||
-                        (showRollouts.isSelected && it.startsWith("rollout/"))
-                }
                 .filter { targetFilter.text == TARGET_FILTER_PLACEHOLDER || it.contains(targetFilter.text) }
                 .toMutableList()
                 .apply {
