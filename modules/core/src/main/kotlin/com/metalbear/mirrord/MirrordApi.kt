@@ -236,7 +236,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         val namespaces: List<String>?
     )
 
-    private class MirrordLsTask(cli: String, targetType: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", listOf("-t", targetType), projectEnvVars) {
+    private class MirrordLsTask(cli: String, extraArgs: List<String>?, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", extraArgs, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             setText("mirrord is listing targets...")
 
@@ -282,14 +282,15 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     /**
-     * Runs `mirrord ls -t <targetType>` to get the list of available targets.
+     * Runs `mirrord ls`, optionally with ` -t <targetType>`, to get the list of available targets.
      * Displays a modal progress dialog.
      *
      * @return available targets
      */
-    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetType: String): MirrordLsOutput {
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetType: String?): MirrordLsOutput {
         val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
-        val task = MirrordLsTask(cli, targetType, envVars).apply {
+        val extraArgs = if (targetType.isNullOrEmpty()) null else listOf("-t", targetType)
+        val task = MirrordLsTask(cli, extraArgs, envVars).apply {
             this.namespace = namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution

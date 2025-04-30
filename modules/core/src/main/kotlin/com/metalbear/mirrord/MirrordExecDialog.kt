@@ -1,5 +1,6 @@
 package com.metalbear.mirrord
 
+import com.github.zafarkhaja.semver.Version
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -31,7 +32,7 @@ import kotlin.collections.set
  */
 class MirrordExecDialog(
     private val project: Project,
-    private val getTargets: (String?, String) -> MirrordApi.MirrordLsOutput
+    private val getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput
 ) : DialogWrapper(project, true) {
     /**
      * Target and namespace selected by the user.
@@ -47,6 +48,23 @@ class MirrordExecDialog(
          */
         val namespace: String?
     )
+
+    companion object {
+        /**
+         * Dummy label we use in the dialog to allow the user for explicitly selecting the targetless mode.
+         * There can be no clash with real target labels, because each of those starts with a target type, e.g `pod/`.
+         */
+        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targetless\")"
+
+        /**
+         * Placeholder value for the target filter.
+         */
+        private const val TARGET_FILTER_PLACEHOLDER = "Filter targets..."
+        /**
+         * The minimum required version of the mirrord CLI to use `-t type` arguments when calling `mirrord ls`
+         */
+        const val LS_TARGET_MIN_VERSION: String = "0.0.0"
+    }
 
     /**
      * Store of the targets fetched so far, similar to MirrordApi.MirrordLsOutput.
@@ -66,9 +84,13 @@ class MirrordExecDialog(
          * All namespaces available to the user.
          */
         var namespaces: List<String>?,
+        /**
+         * If true, the mirrord CLI supports using the `-t type` argument
+         */
+        var allowTargetArg: Boolean?,
     ) {
         constructor(
-            getTargets: (String?, String) -> MirrordApi.MirrordLsOutput,
+            getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput,
             currentNamespace: String?,
             fallbackNamespaces: List<String>?,
             pods: Boolean,
@@ -77,38 +99,75 @@ class MirrordExecDialog(
         ) : this(
             HashMap<String, List<FoundTarget>>(),
             currentNamespace,
-            fallbackNamespaces
+            fallbackNamespaces,
+            null
         ) {
-            var namespace: String? = currentNamespace
-            var namespaces: List<String>? = fallbackNamespaces
-            if (pods) {
-                val output = getTargets(currentNamespace, "pod")
-                this.targets["pod"] = output.targets
-                namespace = output.currentNamespace
-                namespaces = output.namespaces
+            val binaryVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+            val allowTargetArg = Version.valueOf(binaryVersion).greaterThanOrEqualTo(Version.valueOf(LS_TARGET_MIN_VERSION))
+            this.allowTargetArg = allowTargetArg
+
+            if (allowTargetArg) {
+                var namespace: String? = currentNamespace
+                var namespaces: List<String>? = fallbackNamespaces
+
+                if (pods) {
+                    val output = getTargets(currentNamespace, "pod")
+                    this.targets["pod"] = output.targets
+                    namespace = output.currentNamespace
+                    namespaces = output.namespaces
+                }
+                if (deployments) {
+                    val output = getTargets(currentNamespace, "deployment")
+                    this.targets["deployment"] = output.targets
+                    namespace = output.currentNamespace
+                    namespaces = output.namespaces
+                }
+                if (rollouts) {
+                    val output = getTargets(currentNamespace, "rollout")
+                    this.targets["rollout"] = output.targets
+                    namespace = output.currentNamespace
+                    namespaces = output.namespaces
+                }
+
+                this.currentNamespace = namespace
+                this.namespaces = namespaces
+            } else {
+                val output = getTargets(currentNamespace, null)
+
+                val podsList: MutableList<FoundTarget> = mutableListOf()
+                val deploymentsList: MutableList<FoundTarget> = mutableListOf()
+                val rolloutsList: MutableList<FoundTarget> = mutableListOf()
+
+                output
+                    .targets
+                    .asSequence()
+                    .forEach {
+                        if (it.path.startsWith("pod/")) {
+                            podsList += it
+                        } else if (it.path.startsWith("deployment/")) {
+                            deploymentsList += it
+                        } else if (it.path.startsWith("rollout/")) {
+                            rolloutsList += it
+                        }
+                    }
+
+                this.targets["pod"] = podsList.toList()
+                this.targets["deployment"] = deploymentsList.toList()
+                this.targets["rollout"] = rolloutsList.toList()
+                this.currentNamespace = output.currentNamespace
+                this.namespaces = output.namespaces
             }
-            if (deployments) {
-                val output = getTargets(currentNamespace, "deployment")
-                this.targets["deployment"] = output.targets
-                namespace = output.currentNamespace
-                namespaces = output.namespaces
-            }
-            if (rollouts) {
-                val output = getTargets(currentNamespace, "rollout")
-                this.targets["rollout"] = output.targets
-                namespace = output.currentNamespace
-                namespaces = output.namespaces
-            }
-            this.currentNamespace = namespace
-            this.namespaces = namespaces
         }
 
         /**
          * Return a list of targets according to resource type filters, either by retrieving them from the stored
-         * HashMap (`self.targets`) or, if not present, by executing a call to the mirrord ls command
+         * HashMap (`self.targets`) or, if not present, by executing a call to the mirrord ls command.
+         *
+         * In cases where the mirrord CLI does not support the `-t type` argument, new targets will not be fetched as
+         * all target types are fetched when FetchedTargets is initialised.
          */
         fun getTargetsStoredOrFetch(
-            getTargets: (String?, String) -> MirrordApi.MirrordLsOutput,
+            getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput,
             pods: Boolean,
             deployments: Boolean,
             rollouts: Boolean
@@ -146,19 +205,6 @@ class MirrordExecDialog(
             }
             return targets
         }
-    }
-
-    companion object {
-        /**
-         * Dummy label we use in the dialog to allow the user for explicitly selecting the targetless mode.
-         * There can be no clash with real target labels, because each of those starts with a target type, e.g `pod/`.
-         */
-        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targetless\")"
-
-        /**
-         * Placeholder value for the target filter.
-         */
-        private const val TARGET_FILTER_PLACEHOLDER = "Filter targets..."
     }
 
     /**
