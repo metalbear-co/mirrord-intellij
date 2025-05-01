@@ -153,6 +153,11 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 private const val MIRRORD_LS_RICH_OUTPUT_ENV = "MIRRORD_LS_RICH_OUTPUT"
 
 /**
+ * Name of the environment variable used to specify which resource types to list with `mirrord ls`
+ */
+private const val MIRRORD_LS_TARGET_TYPES_ENV = "MIRRORD_LS_TARGET_TYPES"
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
@@ -236,7 +241,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         val namespaces: List<String>?
     )
 
-    private class MirrordLsTask(cli: String, extraArgs: List<String>?, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", extraArgs, projectEnvVars) {
+    private class MirrordLsTask(cli: String, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordLsOutput>(cli, "ls", null, projectEnvVars) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             setText("mirrord is listing targets...")
 
@@ -287,10 +292,16 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      *
      * @return available targets
      */
-    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetType: String?): MirrordLsOutput {
-        val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
-        val extraArgs = if (targetType.isNullOrEmpty()) null else listOf("-t", targetType)
-        val task = MirrordLsTask(cli, extraArgs, envVars).apply {
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetTypes: List<String>): MirrordLsOutput {
+        val envVars: MutableMap<String, String> = projectEnvVars.orEmpty().toMutableMap()
+        envVars[MIRRORD_LS_RICH_OUTPUT_ENV] = "true"
+        if (targetTypes.isNotEmpty()) {
+            val gson = Gson()
+            val targetTypesJson = gson.toJson(targetTypes).orEmpty()
+            if (targetTypesJson.isNotEmpty()) envVars[MIRRORD_LS_TARGET_TYPES_ENV] = targetTypesJson
+        }
+
+        val task = MirrordLsTask(cli, envVars.toMap()).apply {
             this.namespace = namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution

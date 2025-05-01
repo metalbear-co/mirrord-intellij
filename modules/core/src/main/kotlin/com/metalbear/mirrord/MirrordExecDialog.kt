@@ -32,7 +32,7 @@ import kotlin.collections.set
  */
 class MirrordExecDialog(
     private val project: Project,
-    private val getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput
+    private val getTargets: (String?, List<String>) -> MirrordApi.MirrordLsOutput
 ) : DialogWrapper(project, true) {
     /**
      * Target and namespace selected by the user.
@@ -83,14 +83,10 @@ class MirrordExecDialog(
         /**
          * All namespaces available to the user.
          */
-        var namespaces: List<String>?,
-        /**
-         * If true, the mirrord CLI supports using the `-t type` argument
-         */
-        var allowTargetArg: Boolean?,
+        var namespaces: List<String>?
     ) {
         constructor(
-            getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput,
+            getTargets: (String?, List<String>) -> MirrordApi.MirrordLsOutput,
             currentNamespace: String?,
             fallbackNamespaces: List<String>?,
             pods: Boolean,
@@ -100,63 +96,36 @@ class MirrordExecDialog(
             HashMap<String, List<FoundTarget>>(),
             currentNamespace,
             fallbackNamespaces,
-            null
         ) {
-            val binaryVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-            val allowTargetArg = Version.valueOf(binaryVersion).greaterThanOrEqualTo(Version.valueOf(LS_TARGET_MIN_VERSION))
-            this.allowTargetArg = allowTargetArg
+            var resourceTypes: MutableList<String> = mutableListOf()
+            if (pods) resourceTypes.add("pod")
+            if (deployments) resourceTypes.add("deployment")
+            if (rollouts) resourceTypes.add("rollout")
 
-            if (allowTargetArg) {
-                var namespace: String? = currentNamespace
-                var namespaces: List<String>? = fallbackNamespaces
+            val output = getTargets(currentNamespace, resourceTypes)
 
-                if (pods) {
-                    val output = getTargets(currentNamespace, "pod")
-                    this.targets["pod"] = output.targets
-                    namespace = output.currentNamespace
-                    namespaces = output.namespaces
-                }
-                if (deployments) {
-                    val output = getTargets(currentNamespace, "deployment")
-                    this.targets["deployment"] = output.targets
-                    namespace = output.currentNamespace
-                    namespaces = output.namespaces
-                }
-                if (rollouts) {
-                    val output = getTargets(currentNamespace, "rollout")
-                    this.targets["rollout"] = output.targets
-                    namespace = output.currentNamespace
-                    namespaces = output.namespaces
-                }
+            val podsList: MutableList<FoundTarget> = mutableListOf()
+            val deploymentsList: MutableList<FoundTarget> = mutableListOf()
+            val rolloutsList: MutableList<FoundTarget> = mutableListOf()
 
-                this.currentNamespace = namespace
-                this.namespaces = namespaces
-            } else {
-                val output = getTargets(currentNamespace, null)
-
-                val podsList: MutableList<FoundTarget> = mutableListOf()
-                val deploymentsList: MutableList<FoundTarget> = mutableListOf()
-                val rolloutsList: MutableList<FoundTarget> = mutableListOf()
-
-                output
-                    .targets
-                    .asSequence()
-                    .forEach {
-                        if (it.path.startsWith("pod/")) {
-                            podsList += it
-                        } else if (it.path.startsWith("deployment/")) {
-                            deploymentsList += it
-                        } else if (it.path.startsWith("rollout/")) {
-                            rolloutsList += it
-                        }
+            output
+                .targets
+                .asSequence()
+                .forEach {
+                    if (it.path.startsWith("pod/")) {
+                        podsList += it
+                    } else if (it.path.startsWith("deployment/")) {
+                        deploymentsList += it
+                    } else if (it.path.startsWith("rollout/")) {
+                        rolloutsList += it
                     }
+                }
 
-                this.targets["pod"] = podsList.toList()
-                this.targets["deployment"] = deploymentsList.toList()
-                this.targets["rollout"] = rolloutsList.toList()
-                this.currentNamespace = output.currentNamespace
-                this.namespaces = output.namespaces
-            }
+            if (podsList.isNotEmpty() || pods) this.targets["pod"] = podsList.toList()
+            if (deploymentsList.isNotEmpty() || deployments) this.targets["deployment"] = deploymentsList.toList()
+            if (rolloutsList.isNotEmpty() || rollouts) this.targets["rollout"] = rolloutsList.toList()
+            this.currentNamespace = output.currentNamespace
+            this.namespaces = output.namespaces
         }
 
         /**
@@ -167,7 +136,7 @@ class MirrordExecDialog(
          * all target types are fetched when FetchedTargets is initialised.
          */
         fun getTargetsStoredOrFetch(
-            getTargets: (String?, String?) -> MirrordApi.MirrordLsOutput,
+            getTargets: (String?, List<String>) -> MirrordApi.MirrordLsOutput,
             pods: Boolean,
             deployments: Boolean,
             rollouts: Boolean
@@ -177,7 +146,7 @@ class MirrordExecDialog(
                 val foundPods: List<FoundTarget>? = if (this.targets.containsKey("pod")) {
                     this.targets.get("pod")
                 } else {
-                    val outputList = getTargets(this.currentNamespace, "pod").targets
+                    val outputList = getTargets(this.currentNamespace, listOf("pod")).targets
                     this.targets["pod"] = outputList
                     outputList
                 }
@@ -187,7 +156,7 @@ class MirrordExecDialog(
                 val foundDeployments: List<FoundTarget>? = if (this.targets.containsKey("deployment")) {
                     this.targets.get("deployment")
                 } else {
-                    val outputList = getTargets(this.currentNamespace, "deployment").targets
+                    val outputList = getTargets(this.currentNamespace, listOf("deployment")).targets
                     this.targets["deployment"] = outputList
                     outputList
                 }
@@ -197,7 +166,7 @@ class MirrordExecDialog(
                 val foundRollouts: List<FoundTarget>? = if (this.targets.containsKey("rollout")) {
                     this.targets.get("rollout")
                 } else {
-                    val outputList = getTargets(this.currentNamespace, "rollout").targets
+                    val outputList = getTargets(this.currentNamespace, listOf("rollout")).targets
                     this.targets["rollout"] = outputList
                     outputList
                 }
