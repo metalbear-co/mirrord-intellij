@@ -1,6 +1,5 @@
 package com.metalbear.mirrord
 
-import com.github.zafarkhaja.semver.Version
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -142,35 +141,66 @@ class MirrordExecDialog(
             rollouts: Boolean
         ): List<FoundTarget> {
             val targets: MutableList<FoundTarget> = mutableListOf()
+            val missingResourceTypes: MutableList<String> = mutableListOf()
+
+            // retrieve the targets from storage, or add them to the list of types to be listed
             if (pods) {
-                val foundPods: List<FoundTarget>? = if (this.targets.containsKey("pod")) {
-                    this.targets.get("pod")
+                if (this.targets.containsKey("pod")) {
+                    targets.addAll(this.targets.get("pod") ?: listOf())
                 } else {
-                    val outputList = getTargets(this.currentNamespace, listOf("pod")).targets
-                    this.targets["pod"] = outputList
-                    outputList
+                    missingResourceTypes.add("pod")
                 }
-                targets.addAll(foundPods ?: listOf())
+
             }
             if (deployments) {
-                val foundDeployments: List<FoundTarget>? = if (this.targets.containsKey("deployment")) {
-                    this.targets.get("deployment")
+                if (this.targets.containsKey("deployment")) {
+                    targets.addAll(this.targets.get("deployment") ?: listOf())
                 } else {
-                    val outputList = getTargets(this.currentNamespace, listOf("deployment")).targets
-                    this.targets["deployment"] = outputList
-                    outputList
+                    missingResourceTypes.add("deployment")
                 }
-                targets.addAll(foundDeployments ?: listOf())
             }
             if (rollouts) {
-                val foundRollouts: List<FoundTarget>? = if (this.targets.containsKey("rollout")) {
-                    this.targets.get("rollout")
+                if (this.targets.containsKey("rollout")) {
+                    targets.addAll(this.targets.get("rollout") ?: listOf())
                 } else {
-                    val outputList = getTargets(this.currentNamespace, listOf("rollout")).targets
-                    this.targets["rollout"] = outputList
-                    outputList
+                    missingResourceTypes.add("rollout")
                 }
-                targets.addAll(foundRollouts ?: listOf())
+            }
+
+            // if there are types to be listed by the CLI, do so
+            if (missingResourceTypes.isNotEmpty()) {
+                val output = getTargets(currentNamespace, missingResourceTypes)
+
+                val podsList: MutableList<FoundTarget> = mutableListOf()
+                val deploymentsList: MutableList<FoundTarget> = mutableListOf()
+                val rolloutsList: MutableList<FoundTarget> = mutableListOf()
+
+                output
+                    .targets
+                    .asSequence()
+                    .forEach {
+                        if (it.path.startsWith("pod/")) {
+                            podsList += it
+                        } else if (it.path.startsWith("deployment/")) {
+                            deploymentsList += it
+                        } else if (it.path.startsWith("rollout/")) {
+                            rolloutsList += it
+                        }
+                    }
+
+                // depending on which types were requested, return the targets and store them
+                if (missingResourceTypes.contains("pod")) {
+                    this.targets["pod"] = podsList.toList()
+                    targets.addAll(podsList)
+                }
+                if (missingResourceTypes.contains("deployment")) {
+                    this.targets["deployment"] = deploymentsList.toList()
+                    targets.addAll(deploymentsList)
+                }
+                if (missingResourceTypes.contains("rollout")) {
+                    this.targets["rollout"] = rolloutsList.toList()
+                    targets.addAll(rolloutsList)
+                }
             }
             return targets
         }
