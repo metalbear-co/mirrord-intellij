@@ -256,7 +256,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             val output = try {
                 val richOutput = SafeParser().parse(data, RichOutput::class.java)
-                MirrordLsOutput(richOutput.targets.toList(),  richOutput.currentNamespace, richOutput.namespaces.toList())
+                MirrordLsOutput(richOutput.targets.toList(), richOutput.currentNamespace, richOutput.namespaces.toList())
             } catch (error: Throwable) {
                 if (error.cause != null && error.cause is JsonSyntaxException) {
                     val simpleOutput = SafeParser().parse(data, Array<String>::class.java)

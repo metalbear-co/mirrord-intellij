@@ -19,6 +19,12 @@ import com.intellij.openapi.util.SystemInfo
  */
 class MirrordExecManager(private val service: MirrordProjectService) {
     /**
+     * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
+     * This is used to show a specific help popup in the case that listing targets took too long.
+     */
+    class InitListingTargetsCancelledException(cause: Throwable? = null) : ProcessCanceledException("Initial mirrord target listing was cancelled")
+
+    /**
      * Attempts to show the target selection dialog and allow user to select the mirrord target.
      *
      * @return target chosen by the user
@@ -37,7 +43,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val selected = if (application.isDispatchThread) {
             MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
-            MirrordExecDialog(service.project, getTargets).showAndGetSelection()
+            val dialog = try {
+                MirrordExecDialog(service.project, getTargets)
+            } catch (e: ProcessCanceledException) {
+                throw InitListingTargetsCancelledException(e)
+            }
+            dialog.showAndGetSelection()
         } else if (!application.isReadAccessAllowed) {
             MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
             var target: MirrordExecDialog.UserSelection? = null
@@ -276,6 +287,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
+                throw e
+            } catch (e: InitListingTargetsCancelledException) {
+                manager.service.notifier.notifySimple("mirrord was cancelled: if listing targets took too long, you can specify the target in the mirrord config", NotificationType.WARNING)
                 throw e
             } catch (e: ProcessCanceledException) {
                 manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)

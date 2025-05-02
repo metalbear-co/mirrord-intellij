@@ -59,10 +59,6 @@ class MirrordExecDialog(
          * Placeholder value for the target filter.
          */
         private const val TARGET_FILTER_PLACEHOLDER = "Filter targets..."
-        /**
-         * The minimum required version of the mirrord CLI to use `-t type` arguments when calling `mirrord ls`
-         */
-        const val LS_TARGET_MIN_VERSION: String = "0.0.0"
     }
 
     /**
@@ -94,7 +90,7 @@ class MirrordExecDialog(
         ) : this(
             HashMap<String, List<FoundTarget>>(),
             currentNamespace,
-            fallbackNamespaces,
+            fallbackNamespaces
         ) {
             var resourceTypes: MutableList<String> = mutableListOf()
             if (pods) resourceTypes.add("pod")
@@ -130,9 +126,6 @@ class MirrordExecDialog(
         /**
          * Return a list of targets according to resource type filters, either by retrieving them from the stored
          * HashMap (`self.targets`) or, if not present, by executing a call to the mirrord ls command.
-         *
-         * In cases where the mirrord CLI does not support the `-t type` argument, new targets will not be fetched as
-         * all target types are fetched when FetchedTargets is initialised.
          */
         fun getTargetsStoredOrFetch(
             getTargets: (String?, List<String>) -> MirrordApi.MirrordLsOutput,
@@ -150,7 +143,6 @@ class MirrordExecDialog(
                 } else {
                     missingResourceTypes.add("pod")
                 }
-
             }
             if (deployments) {
                 if (this.targets.containsKey("deployment")) {
