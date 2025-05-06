@@ -1,0 +1,1 @@
+Changed target selection dialog to fetch types of target lazily with recent versions of mirrord.
