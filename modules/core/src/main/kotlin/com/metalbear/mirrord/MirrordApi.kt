@@ -295,10 +295,10 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetTypes: List<String>): MirrordLsOutput {
         val envVars: MutableMap<String, String> = projectEnvVars.orEmpty().toMutableMap()
         envVars[MIRRORD_LS_RICH_OUTPUT_ENV] = "true"
-        if (targetTypes.isNotEmpty()) {
-            val gson = Gson()
-            val targetTypesJson = gson.toJson(targetTypes).orEmpty()
-            if (targetTypesJson.isNotEmpty()) envVars[MIRRORD_LS_TARGET_TYPES_ENV] = targetTypesJson
+        targetTypes.takeIf { it.isNotEmpty() }?.let {
+            Gson().toJson(it)
+        }?.takeIf { it.isNotEmpty() }?.also { targetTypesJson: String ->
+            envVars[MIRRORD_LS_TARGET_TYPES_ENV] = targetTypesJson
         }
 
         val task = MirrordLsTask(cli, envVars.toMap()).apply {

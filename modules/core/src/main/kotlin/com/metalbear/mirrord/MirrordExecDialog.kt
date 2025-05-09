@@ -136,26 +136,13 @@ class MirrordExecDialog(
             val targets: MutableList<FoundTarget> = mutableListOf()
             val missingResourceTypes: MutableList<String> = mutableListOf()
 
-            // retrieve the targets from storage, or add them to the list of types to be listed
-            if (pods) {
-                if (this.targets.containsKey("pod")) {
-                    targets.addAll(this.targets.get("pod") ?: listOf())
+            // retrieve the desired targets from storage, or add them to the list of types to be listed
+            val resourcesZipped = listOf(pods, deployments, rollouts) zip listOf("pod", "deployment", "rollout")
+            resourcesZipped.filter { (isSelected, _) -> isSelected }.forEach { (_, typeLabel) ->
+                if (this.targets.containsKey(typeLabel)) {
+                    targets.addAll(this.targets.get(typeLabel) ?: listOf())
                 } else {
-                    missingResourceTypes.add("pod")
-                }
-            }
-            if (deployments) {
-                if (this.targets.containsKey("deployment")) {
-                    targets.addAll(this.targets.get("deployment") ?: listOf())
-                } else {
-                    missingResourceTypes.add("deployment")
-                }
-            }
-            if (rollouts) {
-                if (this.targets.containsKey("rollout")) {
-                    targets.addAll(this.targets.get("rollout") ?: listOf())
-                } else {
-                    missingResourceTypes.add("rollout")
+                    missingResourceTypes.add(typeLabel)
                 }
             }
 
