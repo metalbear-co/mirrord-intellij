@@ -153,6 +153,11 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 private const val MIRRORD_LS_RICH_OUTPUT_ENV = "MIRRORD_LS_RICH_OUTPUT"
 
 /**
+ * Name of the environment variable used to specify which resource types to list with `mirrord ls`
+ */
+private const val MIRRORD_LS_TARGET_TYPES_ENV = "MIRRORD_LS_TARGET_TYPES"
+
+/**
  * Interact with mirrord CLI using this API.
  */
 class MirrordApi(private val service: MirrordProjectService, private val projectEnvVars: Map<String, String>?) {
@@ -231,7 +236,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
          */
         val currentNamespace: String?,
         /**
-         * All namespaces avaiable to the user.
+         * All namespaces available to the user.
          */
         val namespaces: List<String>?
     )
@@ -282,14 +287,21 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     /**
-     * Runs `mirrord ls` to get the list of available targets.
+     * Runs `mirrord ls`, optionally with ` -t <targetType>`, to get the list of available targets.
      * Displays a modal progress dialog.
      *
      * @return available targets
      */
-    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
-        val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
-        val task = MirrordLsTask(cli, envVars).apply {
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetTypes: List<String>): MirrordLsOutput {
+        val envVars: MutableMap<String, String> = projectEnvVars.orEmpty().toMutableMap()
+        envVars[MIRRORD_LS_RICH_OUTPUT_ENV] = "true"
+        targetTypes.takeIf { it.isNotEmpty() }?.let {
+            Gson().toJson(it)
+        }?.takeIf { it.isNotEmpty() }?.also { targetTypesJson: String ->
+            envVars[MIRRORD_LS_TARGET_TYPES_ENV] = targetTypesJson
+        }
+
+        val task = MirrordLsTask(cli, envVars.toMap()).apply {
             this.namespace = namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution
