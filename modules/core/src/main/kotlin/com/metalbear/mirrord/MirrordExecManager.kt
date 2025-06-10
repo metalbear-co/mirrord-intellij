@@ -19,6 +19,12 @@ import com.intellij.openapi.util.SystemInfo
  */
 class MirrordExecManager(private val service: MirrordProjectService) {
     /**
+     * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
+     * This is used to show a specific help popup in the case that listing targets took too long.
+     */
+    class InitListingTargetsCancelledException(cause: Throwable? = null) : ProcessCanceledException("Initial mirrord target listing was cancelled")
+
+    /**
      * Attempts to show the target selection dialog and allow user to select the mirrord target.
      *
      * @return target chosen by the user
@@ -32,12 +38,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
-        val getTargets = { namespace: String? -> mirrordApi.listTargets(cli, config, wslDistribution, namespace) }
+        val getTargets = { namespace: String?, targetTypes: List<String> -> mirrordApi.listTargets(cli, config, wslDistribution, namespace, targetTypes) }
         val application = ApplicationManager.getApplication()
 
         val selected = if (application.isDispatchThread) {
             MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
-            MirrordExecDialog(service.project, getTargets).showAndGetSelection()
+            val dialog = try {
+                MirrordExecDialog(service.project, getTargets)
+            } catch (e: ProcessCanceledException) {
+                throw InitListingTargetsCancelledException(e)
+            }
+            dialog.showAndGetSelection()
         } else if (!application.isReadAccessAllowed) {
             MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
             var target: MirrordExecDialog.UserSelection? = null
@@ -182,6 +193,31 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     /**
+     * Checks for env vars that might've been left behind by some previous execution of mirrord.
+     *
+     * Sometimes a crash or under weird circumstances, the IDE doesn't clear the launch config env vars of the ones we've
+     * added, so this performs a check and spits out a warning to the user, even when mirrord is **disabled**!
+     *
+     * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
+     */
+    @Throws(MirrordError::class)
+    private fun checkForSuspiciousEnvVars(
+        projectEnvVars: Map<String, String>?
+    ) {
+        val suspiciousMap = projectEnvVars?.filter {
+            it.key == "MIRRORD_RESOLVED_CONFIG" || ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains("libmirrord"))
+        }
+
+        if (suspiciousMap?.isEmpty() == false) {
+            MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
+            throw MirrordError(
+                "Detected mirrord environment variables that were probably left behind by a previous execution: ${suspiciousMap.keys}!" +
+                    " Please check your project launch configuration and remove environment variables that you do not recognize."
+            )
+        }
+    }
+
+    /**
      * Starts mirrord, shows dialog for selecting pod if target is not set and returns env to set.
      *
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
@@ -195,6 +231,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordExecution? {
+        checkForSuspiciousEnvVars(projectEnvVars)
+
         val mirrordApi = service.mirrordApi(projectEnvVars)
         val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
         val cli = cliPath(wslDistribution, product)
@@ -249,6 +287,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
+                throw e
+            } catch (e: InitListingTargetsCancelledException) {
+                manager.service.notifier.notifySimple("mirrord was cancelled: if listing targets took too long, you can specify the target in the mirrord config", NotificationType.WARNING)
                 throw e
             } catch (e: ProcessCanceledException) {
                 manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)

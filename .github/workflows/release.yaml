@@ -65,7 +65,7 @@ jobs:
 
       # Consider to add changelog generation..
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: metalbear-co/action-gh-release@ab50eebb6488051c6788d97fa95232267c6a4e23
         with:
           files: /tmp/release/**
 

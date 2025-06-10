@@ -75,4 +75,19 @@ go to [localhost:8082](http://localhost:8082) and choose the elements you want t
 - To run the tests locally from scratch run, `./gradlew test` which download the latest stable pycharm IDE. 
 
 
+## Converting screen recordings to gifs
 
+On our plugin page (generated from README.md), we have a gif showing the usage of the plugin.
+On MacOS, this is how I was able to convert the screen recording to a gif that's not weird:
+
+```
+ffmpeg -i path-to-screen-recording.mov -r 16 -lavfi '[0]split[a][b];[a]palettegen[p];[b][p]paletteuse' usage.gif && gifsicle -O3 usage.gif -o usage.gif
+```
+
+Alternatively, you can use [Image Magick](https://imagemagick.org/) to create higher quality (but
+much larger in terms of filesize) gifs from a screen recording, using `-layers Optimize` to slightly
+reduce the filesize:
+
+```
+magick path-to-screen-recording.mov -layers Optimize usage.gif
+```
