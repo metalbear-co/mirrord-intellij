@@ -48,7 +48,7 @@ class MirrordExecDialog(private val project: Project, private val getTargets: (S
          * Dummy label we use in the dialog to allow the user for explicitly selecting the targetless mode.
          * There can be no clash with real target labels, because each of those starts with a target type, e.g `pod/`.
          */
-        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targeteless\")"
+        private const val TARGETLESS_SELECTION_LABEL = "No Target (\"targetless\")"
 
         /**
          * Placeholder value for the target filter.
