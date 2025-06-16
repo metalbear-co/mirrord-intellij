@@ -17,6 +17,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
@@ -605,6 +606,21 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             }
 
             args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
+
+            project.guessProjectDir()?.let {
+                val process =
+                    Runtime.getRuntime().exec(arrayOf("git", "-C", it.canonicalPath, "branch", "--show-current"))
+
+                if (process.waitFor() == 0) {
+                    val branchName = process.inputStream.bufferedReader().use { it.readText() }.trim()
+                    if (branchName.length > 0) {
+                        environment["MIRRORD_BRANCH_NAME"] = branchName
+                    }
+                } else {
+                    val stderrOutput = process.errorStream.bufferedReader().use { it.readText() }
+                    MirrordLogger.logger.debug("error retrieving git branch: $stderrOutput")
+                }
+            }
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
