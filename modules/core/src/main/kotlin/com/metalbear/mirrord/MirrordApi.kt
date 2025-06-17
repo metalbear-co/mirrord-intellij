@@ -611,9 +611,9 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 val process =
                     Runtime.getRuntime().exec(arrayOf("git", "-C", it.canonicalPath, "branch", "--show-current"))
 
-                if (process.waitFor() == 0) {
+                if (process.waitFor(10, TimeUnit.SECONDS) && process.exitValue() == 0) {
                     val branchName = process.inputStream.bufferedReader().use { it.readText() }.trim()
-                    if (branchName.length > 0) {
+                    if (branchName.isNotEmpty()) {
                         environment["MIRRORD_BRANCH_NAME"] = branchName
                     }
                 } else {
