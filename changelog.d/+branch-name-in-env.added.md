@@ -1,0 +1,1 @@
+Retrieve the current git branch name and set into env for launching mirrord to allow for Jira integration.
