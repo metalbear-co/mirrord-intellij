@@ -134,9 +134,9 @@ private class SafeParser {
 private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
 
 /**
- * How many times mirrord can be run before inviting the user to Discord.
+ * How many times mirrord can be run before inviting the user to Slack.
  */
-private const val DISCORD_COUNTER_INVITE_AFTER = 10
+private const val SLACK_COUNTER_INVITE_AFTER = 10
 
 /**
  * How many times mirrord can be run before inviting the user to mirrord for Teams **for the first time**.
@@ -524,7 +524,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
     /**
      * Increments the mirrord run counter.
-     * Can display some notifications (asking for feedback, discord invite, mirrord for Teams invite).
+     * Can display some notifications (asking for feedback, slack invite, mirrord for Teams invite).
      */
     private fun bumpRunCounter() {
         val previousRuns = MirrordSettingsState.instance.mirrordState.runsCounter
@@ -537,8 +537,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
         }
 
-        if (currentRuns == DISCORD_COUNTER_INVITE_AFTER) {
-            service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
+        if (currentRuns == SLACK_COUNTER_INVITE_AFTER) {
+            service.notifier.notification("Need any help with mirrord? Come chat with our team on Slack!", NotificationType.INFORMATION).withLink("Join us", "https://metalbear.co/slack").withDontShowAgain(MirrordSettingsState.NotificationId.SLACK_INVITE).fire()
         }
 
         if (previousRuns >= MIRRORD_FOR_TEAMS_INVITE_AFTER && !operatorUsed) {
