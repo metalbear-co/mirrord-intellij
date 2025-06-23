@@ -18,9 +18,9 @@ import com.intellij.util.ui.JBDimension
 import java.util.*
 import javax.swing.JComponent
 
-const val DISCORD_URL = "https://discord.gg/metalbear"
 const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/?utm_medium=intellij&utm_source=ui_action"
 const val DOCS_URL = "https://mirrord.dev/docs/using-mirrord/intellij-plugin/?utm_medium=intellij&utm_source=ui_action"
+const val SLACK_URL = "https://metalbear.co/slack"
 
 /**
  * Copied from internal [com.intellij.execution.ui.TogglePopupAction].
@@ -166,9 +166,9 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
-    private class DiscordAction : AnAction("Get Help on Discord") {
+    private class SlackAction : AnAction("Get Help on Slack") {
         override fun actionPerformed(e: AnActionEvent) {
-            BrowserUtil.browse(DISCORD_URL)
+            BrowserUtil.browse(SLACK_URL)
         }
     }
 
@@ -198,7 +198,7 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
 
             addSeparator("Help")
             add(DocsAction())
-            add(DiscordAction())
+            add(SlackAction())
         }
     }
 
