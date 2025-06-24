@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.68.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.0) - 2025-06-24
+
+
+### Changed
+
+- Update README with new layout and content.
+  [#338](https://github.com/metalbear-co/mirrord-intellij/issues/338)
+- Change target selection dialog to fetch types of target lazily with recent
+  versions of mirrord.
+
+
+### Fixed
+
+- Fix links in the README.
+
 ## [3.67.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.2) - 2025-03-18
 
 
