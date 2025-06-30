@@ -14,6 +14,6 @@ intellij {
 
 dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.github.zafarkhaja:java-semver:0.9.0")
+    implementation("com.github.zafarkhaja:java-semver:0.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")
 }
