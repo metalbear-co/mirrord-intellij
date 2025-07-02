@@ -21,8 +21,8 @@ import com.intellij.openapi.project.guessProjectDir
 import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
-// TODO: newsletter url
-const val NEWSLETTER_SIGNUP_URL = "https://en.wikipedia.org/wiki/Special:Random" + "?utm_medium=intellij&utm_source=newslttr"
+
+const val NEWSLETTER_SIGNUP_URL = "https://metalbear.co/newsletter" + "?utm_medium=intellij&utm_source=newslttr"
 
 /**
  * The message types we get from mirrord-cli.
@@ -533,7 +533,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
     /**
      * Increments the mirrord run counter.
-     * Can display some notifications (asking for feedback, slack invite, mirrord for Teams invite).
+     * Can display some notifications (asking for feedback, slack invite, mirrord for Teams invite, newsletter signup).
      */
     private fun bumpRunCounter() {
         val previousRuns = MirrordSettingsState.instance.mirrordState.runsCounter
