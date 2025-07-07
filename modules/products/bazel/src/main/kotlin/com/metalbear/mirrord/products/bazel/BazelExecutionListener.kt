@@ -1,5 +1,6 @@
 package com.metalbear.mirrord.products.bazel
 
+import com.google.idea.blaze.base.bazel.BuildSystem
 import com.google.idea.blaze.base.run.BlazeCommandRunConfiguration
 import com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState
 import com.google.idea.blaze.base.scope.BlazeContext
@@ -61,10 +62,39 @@ class BazelExecutionListener : ExecutionListener {
                 it
             } ?: run {
                 // Bazel binary path may be missing from the config.
-                // This is the logic that Bazel plugin uses to find global Bazel binary.
-                val global = Blaze.getBuildSystemProvider(env.project).buildSystem.getBuildInvoker(env.project, BlazeContext.create()).binaryPath
-                MirrordLogger.logger.debug("[${this.javaClass.name} processStartScheduled: found global Bazel binary path: $global")
-                global
+                // This is the logic that Bazel plugin uses to find global Bazel binary
+
+                val buildSystem = Blaze.getBuildSystemProvider(env.project).buildSystem
+                val methods = buildSystem.javaClass.methods.filter { it.name == "getBuildInvoker" }
+                var buildInvoker: BuildSystem.BuildInvoker? = null
+                var usedSignature: String? = null
+                for (method in methods) {
+                    try {
+                        val params = method.parameterTypes
+                        val result = when {
+                            params.size == 2 && params[0].name.contains("Project") && params[1].name.contains("BlazeContext") -> {
+                                usedSignature = "getBuildInvoker(Project, BlazeContext)"
+                                method.invoke(buildSystem, env.project, BlazeContext.create())
+                            }
+                            params.size == 1 && params[0].name.contains("Project") -> {
+                                usedSignature = "getBuildInvoker(Project)"
+                                method.invoke(buildSystem, env.project)
+                            }
+                            else -> null // Only support the two signatures above
+                        }
+                        buildInvoker = result as BuildSystem.BuildInvoker?
+                        if (buildInvoker != null) break
+                    } catch (e: Exception) {
+                        // Try next signature
+                    }
+                }
+                if (buildInvoker == null) {
+                    MirrordLogger.logger.debug("[${this.javaClass.name}] Reflection: getBuildInvoker method not found or all invocations failed!")
+                    null
+                } else {
+                    MirrordLogger.logger.debug("[${this.javaClass.name}] Reflection: Using signature: $usedSignature")
+                    buildInvoker.binaryPath
+                }
             }
         } else {
             null
