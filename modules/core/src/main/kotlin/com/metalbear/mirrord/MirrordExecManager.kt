@@ -64,8 +64,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 .notifier
                 .notification(
                     "Due to a known IntelliJ platform limitation, " +
-                            "mirrord plugin was unable to display the target selection dialog. " +
-                            "You can set it manually in the configuration file.",
+                        "mirrord plugin was unable to display the target selection dialog. " +
+                        "You can set it manually in the configuration file.",
                     NotificationType.WARNING
                 )
                 .apply {
