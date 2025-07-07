@@ -17,6 +17,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
@@ -133,9 +134,9 @@ private class SafeParser {
 private const val FEEDBACK_COUNTER_REVIEW_AFTER = 100
 
 /**
- * How many times mirrord can be run before inviting the user to Discord.
+ * How many times mirrord can be run before inviting the user to Slack.
  */
-private const val DISCORD_COUNTER_INVITE_AFTER = 10
+private const val SLACK_COUNTER_INVITE_AFTER = 10
 
 /**
  * How many times mirrord can be run before inviting the user to mirrord for Teams **for the first time**.
@@ -151,6 +152,11 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
  * Name of the environment variable used to trigger rich output of `mirrord ls`.
  */
 private const val MIRRORD_LS_RICH_OUTPUT_ENV = "MIRRORD_LS_RICH_OUTPUT"
+
+/**
+ * Name of the environment variable used to specify which resource types to list with `mirrord ls`
+ */
+private const val MIRRORD_LS_TARGET_TYPES_ENV = "MIRRORD_LS_TARGET_TYPES"
 
 /**
  * Interact with mirrord CLI using this API.
@@ -231,7 +237,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
          */
         val currentNamespace: String?,
         /**
-         * All namespaces avaiable to the user.
+         * All namespaces available to the user.
          */
         val namespaces: List<String>?
     )
@@ -282,14 +288,21 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     /**
-     * Runs `mirrord ls` to get the list of available targets.
+     * Runs `mirrord ls`, optionally with ` -t <targetType>`, to get the list of available targets.
      * Displays a modal progress dialog.
      *
      * @return available targets
      */
-    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?): MirrordLsOutput {
-        val envVars = projectEnvVars.orEmpty() + (MIRRORD_LS_RICH_OUTPUT_ENV to "true")
-        val task = MirrordLsTask(cli, envVars).apply {
+    fun listTargets(cli: String, configFile: String?, wslDistribution: WSLDistribution?, namespace: String?, targetTypes: List<String>): MirrordLsOutput {
+        val envVars: MutableMap<String, String> = projectEnvVars.orEmpty().toMutableMap()
+        envVars[MIRRORD_LS_RICH_OUTPUT_ENV] = "true"
+        targetTypes.takeIf { it.isNotEmpty() }?.let {
+            Gson().toJson(it)
+        }?.takeIf { it.isNotEmpty() }?.also { targetTypesJson: String ->
+            envVars[MIRRORD_LS_TARGET_TYPES_ENV] = targetTypesJson
+        }
+
+        val task = MirrordLsTask(cli, envVars.toMap()).apply {
             this.namespace = namespace
             this.configFile = configFile
             this.wslDistribution = wslDistribution
@@ -511,7 +524,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
     /**
      * Increments the mirrord run counter.
-     * Can display some notifications (asking for feedback, discord invite, mirrord for Teams invite).
+     * Can display some notifications (asking for feedback, slack invite, mirrord for Teams invite).
      */
     private fun bumpRunCounter() {
         val previousRuns = MirrordSettingsState.instance.mirrordState.runsCounter
@@ -524,8 +537,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             service.notifier.notification("Enjoying mirrord? Don't forget to leave a review or star us on GitHub!", NotificationType.INFORMATION).withLink("Review", "https://plugins.jetbrains.com/plugin/19772-mirrord/reviews").withLink("Star us on GitHub", GITHUB_URL).withDontShowAgain(MirrordSettingsState.NotificationId.PLUGIN_REVIEW).fire()
         }
 
-        if (currentRuns == DISCORD_COUNTER_INVITE_AFTER) {
-            service.notifier.notification("Need any help with mirrord? Come chat with our team on Discord!", NotificationType.INFORMATION).withLink("Join us", "https://discord.gg/metalbear").withDontShowAgain(MirrordSettingsState.NotificationId.DISCORD_INVITE).fire()
+        if (currentRuns == SLACK_COUNTER_INVITE_AFTER) {
+            service.notifier.notification("Need any help with mirrord? Come chat with our team on Slack!", NotificationType.INFORMATION).withLink("Join us", "https://metalbear.co/slack").withDontShowAgain(MirrordSettingsState.NotificationId.SLACK_INVITE).fire()
         }
 
         if (previousRuns >= MIRRORD_FOR_TEAMS_INVITE_AFTER && !operatorUsed) {
@@ -593,6 +606,25 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             }
 
             args?.let { extraArgs -> extraArgs.forEach { addParameter(it) } }
+
+            project.guessProjectDir()?.let {
+                try {
+                    val process =
+                        Runtime.getRuntime().exec(arrayOf("git", "-C", it.canonicalPath, "branch", "--show-current"))
+
+                    if (process.waitFor(10, TimeUnit.SECONDS) && process.exitValue() == 0) {
+                        val branchName = process.inputStream.bufferedReader().use { it.readText() }.trim()
+                        if (branchName.isNotEmpty()) {
+                            environment["MIRRORD_BRANCH_NAME"] = branchName
+                        }
+                    } else {
+                        val stderrOutput = process.errorStream.bufferedReader().use { it.readText() }
+                        MirrordLogger.logger.debug("error retrieving git branch: $stderrOutput")
+                    }
+                } catch (e: Exception) {
+                    MirrordLogger.logger.debug("exception while running git command, Jira integration metrics will not be recorded: $e")
+                }
+            }
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"

@@ -117,8 +117,8 @@ class MirrordNotifier(private val service: MirrordProjectService) {
     fun notifyRichError(message: String) {
         ApplicationManager.getApplication().invokeLater {
             notification(message, NotificationType.ERROR)
-                .withAction("Get support on Discord") { _, n ->
-                    BrowserUtil.browse("https://discord.gg/metalbear")
+                .withAction("Get support on Slack") { _, n ->
+                    BrowserUtil.browse("https://metalbear.co/slack")
                     n.expire()
                 }
                 .withAction("Report on GitHub") { _, n ->

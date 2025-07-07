@@ -8,6 +8,57 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.68.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.0) - 2025-06-24
+
+
+### Changed
+
+- Update README with new layout and content.
+  [#338](https://github.com/metalbear-co/mirrord-intellij/issues/338)
+- Change target selection dialog to fetch types of target lazily with recent
+  versions of mirrord.
+
+
+### Fixed
+
+- Fix links in the README.
+
+## [3.67.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.2) - 2025-03-18
+
+
+### Fixed
+
+- Fix dirty env remaining in Tomcat run configurations after hot reload.
+  [#328](https://github.com/metalbear-co/mirrord-intellij/issues/328)
+- mirrord no longer injects duplicate environment variables into Tomcat run
+  configurations.
+  [#336](https://github.com/metalbear-co/mirrord-intellij/issues/336)
+
+
+### Internal
+
+- Added use of Image Magick to the gif section of the contribution guide.
+- Switched to our own fork of the changed-files GitHub Action.
+
+## [3.67.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.1) - 2025-03-07
+
+
+### Changed
+
+- JetBrains marketplace plugin page (part of README.md). New gif, small text
+  changes. [#39](https://github.com/metalbear-co/mirrord-intellij/issues/39)
+- Warn the user if we detect some left-over mirrord environment 
+  in their run configuration (even when mirrord is disabled).
+  [#329](https://github.com/metalbear-co/mirrord-intellij/issues/329)
+- Added an action to unset the active mirrord config.
+  [#3109](https://github.com/metalbear-co/mirrord-intellij/issues/3109)
+
+
+### Internal
+
+- Add to the contribution guide documentation of how to convert videos to
+  non-weird gifs, for the usage gif.
+
 ## [3.67.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.0) - 2025-01-29
 
 

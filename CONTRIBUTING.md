@@ -1,7 +1,7 @@
 # Contributing
 
 Before submitting pull request features, please discuss them with us first by opening an issue or a discussion.
-We welcome new/junior/starting developers. Feel free to join to our [Discord channel](https://discord.gg/metalbear) for help and guidance.
+We welcome new/junior/starting developers. Feel free to join to our [Slack](https://metalbear.co/slack) for help and guidance.
 
 If you would like to start working on an issue, please comment on the issue on GitHub, so that we can assign you to that
 issue.
@@ -79,7 +79,15 @@ go to [localhost:8082](http://localhost:8082) and choose the elements you want t
 
 On our plugin page (generated from README.md), we have a gif showing the usage of the plugin.
 On MacOS, this is how I was able to convert the screen recording to a gif that's not weird:
+
 ```
 ffmpeg -i path-to-screen-recording.mov -r 16 -lavfi '[0]split[a][b];[a]palettegen[p];[b][p]paletteuse' usage.gif && gifsicle -O3 usage.gif -o usage.gif
 ```
 
+Alternatively, you can use [Image Magick](https://imagemagick.org/) to create higher quality (but
+much larger in terms of filesize) gifs from a screen recording, using `-layers Optimize` to slightly
+reduce the filesize:
+
+```
+magick path-to-screen-recording.mov -layers Optimize usage.gif
+```

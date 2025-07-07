@@ -1,23 +1,26 @@
-<p align="center">
-  <img src="images/icon.png" width="20%">
-</p>
-<h1 align="center">mirrord</h1>
+# mirrord for JetBrains IntelliJ
 
-[![Discord](https://img.shields.io/discord/933706914808889356?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/metalbear)
+[![Community Slack](https://img.shields.io/badge/Join-e5f7f7?logo=slack&label=Community%20Slack)](https://metalbear.co/slack)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
+[![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-e6005c)](https://plugins.jetbrains.com/plugin/19772-mirrord)
 
-This repository is for the IntelliJ plugin of mirrord.
-The main mirrord repository can be found [here](https://github.com/metalbear-co/mirrord).
+This repository is for the IntelliJ plugin.
+mirrord's main repository can be found [here](https://github.com/metalbear-co/mirrord).
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/usage.gif"
+  alt="A gif showing mirrord being used to mirror traffic from a kubernetes cluster in the IntelliJ UI">
+</p>
 
 <!-- Plugin description -->
 
 mirrord lets developers [run local processes in the context of their cloud environment](https://mirrord.dev).
-It provides the benefits of running your service on a cloud environment (e.g. staging) without actually
-going through the hassle of deploying it there, and without disrupting the environment by deploying untested code.
-There is a mirrord CLI tool, this IntelliJ plugin, and there is also a Visual Studio Code extension.
-You can read more about mirrord [in the documentation](https://mirrord.dev/docs/overview/introduction/).
+It provides the benefits of running your service on a cloud environment (e.g. staging) without going through the
+hassle of deploying it there, and without disrupting the environment by deploying untested code.
+It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool.
+You can read more about what mirrord does [in our official docs](https://mirrord.dev/docs/overview/introduction/).
 Both the [core mirrord repository](https://github.com/metalbear-co/mirrord) and
 [this plugin's code](https://github.com/metalbear-co/mirrord-intellij) can be found on GitHub.
 
@@ -28,60 +31,65 @@ Both the [core mirrord repository](https://github.com/metalbear-co/mirrord) and
 - Choose a pod to impersonate or choose to run in the "targetless" mode
 - The debugged process will be plugged into the selected pod or into the cluster environment by mirrord
 
-## Settings
+## Configuring mirrord for IntelliJ
 
-mirrord allows for rich configuration of the environment it provides. The schema for it is documented [here](https://mirrord.dev/docs/reference/configuration/).
-This plugin supports configuration specified in `json` files.
+mirrord allows for rich configuration of the environment it provides.
+The schema for it is documented [here](https://mirrord.dev/docs/reference/configuration/).
+The extension supports autocomplete for `json` files, but you can also use `toml` or `yaml` format.
 
-mirrord reads its configuration from the following locations:
-
-1. Active config can be set for the whole workspace using the `Select Active Config` button from the dropdown menu.
-   If active config is set, mirrord always uses it.
-2. If active config is not set, mirrord searches process environment (specified in run configuration) for `MIRRORD_CONFIG_FILE` variable.
-3. If no config is specified, mirrord looks for a default project config file in the `.mirrord` directory with a name ending with `mirrord.json`.
-   If there is no default config file, mirrord uses default configuration values for everything.
-4. If there are many candidates for the default config file, mirrord sorts them alphabetically and uses the first one.
-
-You can use the `Settings` button in the dropdown menu to quickly edit detected configs.
+_Quick start: the easiest way to start configuring mirrord is to choose_ "Settings" _from the dropdown menu,
+which will open a new `mirrord.json`._
 
 <!-- Plugin description end -->
 
 ## Installation
 
-- Using IDE built-in plugin system:
+- From the IDE:
   
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "mirrord-intellij-plugin"</kbd> >
   <kbd>Install Plugin</kbd>
   
 - Manually:
 
-  Download the latest release and install it manually using
+  Download [the latest release](https://github.com/metalbear-co/mirrord-intellij/releases) and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
+## Screenshots
+
 <p align="center">
-  <img src="./src/main/resources/META-INF/usage.gif">
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/enable_mirrord.gif"
+  width="50%" alt="A gif showing mirrord being enabled via a click in the IntelliJ UI">
 </p>
 
-## FAQ
+> Enable mirrord
 
-Our FAQ is available [here](https://mirrord.dev/docs/faq/general).
-If you have a question that's not on there, feel free to ask in our [Discussions](https://github.com/metalbear-co/mirrord/discussions)
-or on [Discord](https://discord.gg/metalbear).
+<p align="center">
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/target_selection_dialog.png"
+  width="50%" alt="A screenshot of mirrord's target selection dialog in the IntelliJ UI">
+</p>
 
-## Contributing
+> Target selection dialog
 
-Contributions are very welcome. Start by checking out our [open issues](https://github.com/metalbear-co/mirrord-intellij/issues),
-and by going through our [contributing guide](CONTRIBUTING.md).
-We're available on [Discord](https://discord.gg/metalbear) for any questions.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/metalbear-co/mirrord-intellij/main/src/main/resources/META-INF/settings_from_dropdown.png"
+  width="50%" alt="A screenshot of mirrord's dropdown menu in the IntelliJ UI, with 'Settings' highlighted">
+</p>
 
-## Help and Community
+> Settings option in the dropdown menu
 
-Join our [Discord Server](https://discord.gg/metalbear) for questions, support and fun.
+## Helpful Links
 
-## Code of Conduct
+- [Official documentation for this extension](https://mirrord.dev/docs/using-mirrord/intellij-plugin/)
+- [Official language-specific guides for debugging](https://metalbear.co/guides/)
+- [Frequently Asked Questions](https://mirrord.dev/docs/faq/general)
 
-We take our community seriously and we are dedicated to providing a safe and welcoming environment for everyone.
-Please take a few minutes to review our [Code of Conduct](./CODE_OF_CONDUCT.md).
+## Contributions, feature requests, issues and support
+
+- Feel free to join to our [Slack](https://metalbear.co/slack) if you need help using mirrord,
+or if you encounter an issue while using the extension.
+- Check our open issues for [the IntelliJ extension](https://github.com/metalbear-co/mirrord-intellij/issues)
+and [mirrord's core code](https://github.com/metalbear-co/mirrord/issues), and 👍 react to any that you would like to see addressed.
+- Before submitting a pull request for new features, please take a look at [mirrord's contributing guide](https://github.com/metalbear-co/mirrord/blob/main/CONTRIBUTING.md).
 
 ## License
 
