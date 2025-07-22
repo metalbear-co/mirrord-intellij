@@ -22,7 +22,7 @@ import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
 
-const val NEWSLETTER_SIGNUP_URL = "https://metalbear.co/newsletter" + "?utm_medium=intellij&utm_source=newslttr"
+const val NEWSLETTER_SIGNUP_URL = "https://metalbear.co/newsletter" + "?utm_medium=intellij&utm_source=newsletter"
 
 /**
  * The message types we get from mirrord-cli.
@@ -153,9 +153,9 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 /**
  * How many times mirrord can be run before inviting the user to sign up to the newsletter with corresponding message.
  */
-private const val NEWSLETTER_INVITE_AFTER_FIRST = 5
-private const val NEWSLETTER_INVITE_AFTER_SECOND = 20
-private const val NEWSLETTER_INVITE_AFTER_THIRD = 100
+private const val NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST = 5
+private const val NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND = 20
+private const val NEWSLETTER_COUNTER_PROMPT_AFTER_THIRD = 100
 
 /**
  * Name of the environment variable used to trigger rich output of `mirrord ls`.
@@ -556,15 +556,14 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             }
         }
 
-        if (currentRuns == NEWSLETTER_INVITE_AFTER_FIRST || currentRuns == NEWSLETTER_INVITE_AFTER_SECOND || currentRuns == NEWSLETTER_INVITE_AFTER_THIRD) {
-            val messageString = when (currentRuns) {
-                NEWSLETTER_INVITE_AFTER_FIRST -> "Join thousands of devs using mirrord!\nGet the latest updates, tutorials, and insider info from our team."
-                NEWSLETTER_INVITE_AFTER_SECOND -> "Liking what mirrord can do?\nStay in the loop with updates, tips & tricks straight from the team."
-                NEWSLETTER_INVITE_AFTER_THIRD -> "Looks like you're doing some serious work with mirrord!\nWant to hear about advanced features, upcoming releases, and cool use cases?"
-                else -> ""
-            }
+        when (currentRuns) {
+            NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST -> "Join thousands of devs using mirrord!\nGet the latest updates, tutorials, and insider info from our team."
+            NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND -> "Liking what mirrord can do?\nStay in the loop with updates, tips & tricks straight from the team."
+            NEWSLETTER_COUNTER_PROMPT_AFTER_THIRD -> "Looks like you're doing some serious work with mirrord!\nWant to hear about advanced features, upcoming releases, and cool use cases?"
+            else -> null
+        }?.let {
             service.notifier.notification(
-                messageString,
+                it,
                 NotificationType.INFORMATION
             ).withLink("Subscribe to the mirrord newsletter", NEWSLETTER_SIGNUP_URL + "$currentRuns")
                 .withDontShowAgain(MirrordSettingsState.NotificationId.NEWSLETTER_SIGNUP).fire()
