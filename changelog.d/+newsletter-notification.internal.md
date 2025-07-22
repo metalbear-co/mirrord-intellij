@@ -1,0 +1,1 @@
+Added notification to invite users to mirrord newsletter sign-up page.

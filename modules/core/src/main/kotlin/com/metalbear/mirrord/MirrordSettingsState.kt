@@ -33,8 +33,10 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         ACTIVE_CONFIG_MOVED("active mirrord config is moved"),
         AGENT_VERSION_MISMATCH("agent version does not match version of the local mirrord installation"),
         PLUGIN_REVIEW("mirrord occasionally asks for plugin review"),
+        DISCORD_INVITE("mirrord offers a Discord server invitation"),
         SLACK_INVITE("mirrord offers a Slack server invitation"),
-        MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams")
+        MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams"),
+        NEWSLETTER_SIGNUP("mirrord occasionally informs about the mirrord newsletter")
     }
 
     class MirrordState {
