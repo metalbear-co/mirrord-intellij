@@ -8,7 +8,26 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.68.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.1) - 2025-08-08
+
+
+### Changed
+
+- Changed the message inside the notification shown when the plugin is not able
+  to show the target selection dialog.
+
+
+### Internal
+
+- Added notification to invite users to mirrord newsletter sign-up page.
+
 ## [3.68.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.0) - 2025-06-24
+
+
+### Added
+
+- Retrieve the current git branch name and set into env for launching mirrord
+  to allow for Jira integration.
 
 
 ### Changed
@@ -17,11 +36,17 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
   [#338](https://github.com/metalbear-co/mirrord-intellij/issues/338)
 - Change target selection dialog to fetch types of target lazily with recent
   versions of mirrord.
+- Remove Discord from README, link only to Slack.
 
 
 ### Fixed
 
 - Fix links in the README.
+
+
+### Internal
+
+- Add a badge for the community Slack to README.
 
 ## [3.67.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.67.2) - 2025-03-18
 
