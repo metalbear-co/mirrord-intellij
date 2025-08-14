@@ -1,9 +1,5 @@
 package com.metalbear.mirrord.products.bazel
 
-import com.google.idea.blaze.base.run.BlazeCommandRunConfiguration
-import com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState
-import com.google.idea.blaze.base.scope.BlazeContext
-import com.google.idea.blaze.base.settings.Blaze
 import com.intellij.execution.ExecutionListener
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -11,10 +7,10 @@ import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
-import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.String
 
 data class SavedConfigData(val envVars: Map<String, String>, val bazelPath: String?)
 
@@ -23,51 +19,40 @@ class BazelExecutionListener : ExecutionListener {
      * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)
      */
     private val savedEnvs: ConcurrentHashMap<String, SavedConfigData> = ConcurrentHashMap()
-
-    /**
-     * Tries to unwrap Bazel-specific state from generic execution environment.
-     */
-    private fun getBlazeConfigurationState(env: ExecutionEnvironment): BlazeCommandRunConfigurationCommonState? {
-        val runProfile = env.runProfile as? BlazeCommandRunConfiguration ?: return null
-        val state = runProfile.handler.state as? BlazeCommandRunConfigurationCommonState
-        return state
-    }
+    private val bazelBinaryExecutionPlans: ConcurrentHashMap<String, BinaryExecutionPlan> = ConcurrentHashMap()
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
 
-        val state = getBlazeConfigurationState(env) ?: run {
+        val binaryProvider = try {
+            BazelBinaryProvider.fromExecutionEnv(env)
+        } catch (e: BuildExecPlanError) {
+            service
+                .notifier
+                .notifyRichError("mirrord plugin: ${e.message}")
+            super.processStartScheduled(executorId, env)
+            return
+        }
+
+        val bazelBinaryRunPlan = binaryProvider.provideTargetBinaryExecPlan(executorId) ?: run {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: Bazel not detected")
             super.processStartScheduled(executorId, env)
             return
         }
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got config state $state")
+        bazelBinaryExecutionPlans.put(executorId, bazelBinaryRunPlan)
+
+        val originalEnv = bazelBinaryRunPlan.getOriginalEnv()  //userEnvVarsState.data.envs
+        val binaryToPatch = bazelBinaryRunPlan.getBinaryToPatch()
+
+        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got run plan $bazelBinaryRunPlan")
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
         @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
         val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
-        }
-
-        val originalEnv = state.userEnvVarsState.data.envs
-        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found ${originalEnv.size} original env variables")
-
-        val binaryToPatch = if (SystemInfo.isMac) {
-            state.blazeBinaryState.blazeBinary?.let {
-                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $it")
-                it
-            } ?: run {
-                // Bazel binary path may be missing from the config.
-                // This is the logic that Bazel plugin uses to find global Bazel binary.
-                val global = Blaze.getBuildSystemProvider(env.project).buildSystem.getBuildInvoker(env.project, BlazeContext.create()).binaryPath
-                MirrordLogger.logger.debug("[${this.javaClass.name} processStartScheduled: found global Bazel binary path: $global")
-                global
-            }
-        } else {
-            null
         }
 
         try {
@@ -82,20 +67,21 @@ class BazelExecutionListener : ExecutionListener {
                         !envToUnset.contains(it.key)
                     }
                 }
-                state.userEnvVarsState.setEnvVars(envVars)
 
-                val originalBinary = state.blazeBinaryState.blazeBinary
-                if (SystemInfo.isMac) {
-                    executionInfo.patchedPath?.let {
-                        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
-                        state.blazeBinaryState.blazeBinary = it
-                    } ?: run {
-                        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, but not patching SIP (no patched path returned by the CLI).")
-                    }
+                bazelBinaryRunPlan.addToEnv(envVars)
+
+                try {
+                    val originalBinary = bazelBinaryRunPlan.checkExecution(executionInfo)
+                    savedEnvs[executorId] = SavedConfigData(originalEnv, originalBinary)
+                } catch (e: ExecutionCheckFailed) {
+                    MirrordLogger.logger.error(
+                        "[${this.javaClass.name}] execution check failed, exec info : ${executionInfo}",
+                        e
+                    )
                 }
 
-                savedEnvs[executorId] = SavedConfigData(originalEnv, originalBinary)
             }
+
         } catch (e: Throwable) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: exception catched: ", e)
             // Error notifications were already fired.
@@ -109,35 +95,24 @@ class BazelExecutionListener : ExecutionListener {
         super.processStartScheduled(executorId, env)
     }
 
-    /**
-     * Restores original configuration after Bazel run has ended.
-     */
-    private fun restoreConfig(executorId: String, configState: BlazeCommandRunConfigurationCommonState) {
-        MirrordLogger.logger.debug("[${this.javaClass.name}] restoreEnv: $executorId $configState")
-
-        val saved = savedEnvs.remove(executorId) ?: run {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: no saved env found")
-            return
-        }
-
-        MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found ${saved.envVars.size} saved original variables")
-        configState.userEnvVarsState.setEnvVars(saved.envVars)
-
-        if (SystemInfo.isMac) {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved original Bazel path ${saved.bazelPath}")
-            configState.blazeBinaryState.blazeBinary = saved.bazelPath
-        }
-    }
-
     override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
         MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: $executorId $env $handler")
 
-        val state = getBlazeConfigurationState(env) ?: run {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: Bazel not detected")
+        val bazelBinaryExecutionPlan = this.bazelBinaryExecutionPlans[executorId]?.let {
+            val saved = savedEnvs.remove(executorId) ?: run {
+                MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: no saved env found")
+                return
+            }
+            MirrordLogger.logger.debug("[${this.javaClass.name}] removing bazel binary execution plan for $executorId, execution plan : $bazelBinaryExecutionPlans")
+            this.bazelBinaryExecutionPlans.remove(executorId)
+            it.restoreConfig(saved)
+        }?.run {
+            MirrordLogger.logger
+                .debug("[${this.javaClass.name}] processTerminating: no execution plan found, Bazel is not detected")
             return
         }
 
-        restoreConfig(executorId, state)
+        bazelBinaryExecutionPlan
 
         super.processTerminating(executorId, env, handler)
     }
