@@ -91,7 +91,7 @@ fun getPropertyByName(obj: Any, propertyName: String) : Any? {
     return currentObj
 }
 
-fun setPropertyFromName(obj: Any, propertyName: String, value: Any?) : Any? {
+fun setPropertyByName(obj: Any, propertyName: String, value: Any?) : Any? {
 
     val propertyNames = propertyName.split(".").toMutableList();
     val lastProperty = propertyNames.removeLast()

@@ -43,7 +43,7 @@ class BazelExecutionListener : ExecutionListener {
         }
         bazelBinaryExecutionPlans.put(executorId, bazelBinaryRunPlan)
 
-        val originalEnv = bazelBinaryRunPlan.getOriginalEnv()  //userEnvVarsState.data.envs
+        val originalEnv = bazelBinaryRunPlan.getOriginalEnv()
         val binaryToPatch = bazelBinaryRunPlan.getBinaryToPatch()
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: got run plan $bazelBinaryRunPlan")
@@ -98,7 +98,7 @@ class BazelExecutionListener : ExecutionListener {
     override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
         MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: $executorId $env $handler")
 
-        val bazelBinaryExecutionPlan = this.bazelBinaryExecutionPlans[executorId]?.let {
+        this.bazelBinaryExecutionPlans[executorId]?.let {
             val saved = savedEnvs.remove(executorId) ?: run {
                 MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: no saved env found")
                 return
@@ -111,8 +111,6 @@ class BazelExecutionListener : ExecutionListener {
                 .debug("[${this.javaClass.name}] processTerminating: no execution plan found, Bazel is not detected")
             return
         }
-
-        bazelBinaryExecutionPlan
 
         super.processTerminating(executorId, env, handler)
     }
