@@ -17,7 +17,12 @@ tasks {
 
 intellij {
     version.set(properties("platformVersion"))
-    plugins.set(listOf("com.google.idea.bazel.ijwb:2024.09.24.0.2-api-version-241"))
+    plugins.set(
+        listOf(
+            "com.google.idea.bazel.ijwb:2024.09.24.0.2-api-version-241",
+            //"com.google.idea.bazel.ijwb:2025.07.24.0.1-api-version-252"
+        )
+    )
 }
 
 dependencies {
