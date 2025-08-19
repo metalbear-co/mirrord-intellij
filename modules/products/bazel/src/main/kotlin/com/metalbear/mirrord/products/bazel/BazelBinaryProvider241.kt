@@ -11,16 +11,16 @@ import kotlin.reflect.KClass
 
 class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvider {
 
-    class BinaryExecutionPlan241(val state: Any, val binaryToPatch: String?) : BinaryExecutionPlan {
+    class BinaryExecutionPlan241(private val state: Any, private val binaryToPatch: String?) : BinaryExecutionPlan {
 
         override fun getOriginalEnv(): ImmutableMap<String, String> {
-            val env = getPropertyByName(state, "userEnvVarsState.data.envs") as Map<String, String>
+            val env = ReflectUtils.getPropertyByName(state, "userEnvVarsState.data.envs") as Map<String, String>
             return env.toImmutableMap()
         }
 
         override fun addToEnv(map: Map<String, String>) {
-            val env = getPropertyByName(state, "userEnvVarsState")
-            callFunction(env!!, "setEnvVars", map)
+            val env = ReflectUtils.getPropertyByName(state, "userEnvVarsState")
+            ReflectUtils.callFunction(env!!, "setEnvVars", map)
         }
 
         override fun getBinaryToPatch(): String? {
@@ -28,11 +28,11 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
         }
 
         override fun checkExecution(executionInfo: MirrordExecution): String {
-            val originalBinary = getPropertyByName(state, "blazeBinaryState.blazeBinary") as String
+            val originalBinary = ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary") as String
             if (SystemInfo.isMac) {
                 executionInfo.patchedPath ?: let {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
-                    setPropertyByName(state, "blazeBinaryState.blazeBinary", it )
+                    ReflectUtils.setPropertyByName(state, "blazeBinaryState.blazeBinary", it )
                 } ?: run {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, but not patching SIP (no patched path returned by the CLI).")
                 }
@@ -42,12 +42,12 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
 
         override fun restoreConfig(savedConfigData: SavedConfigData) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found ${savedConfigData.envVars.size} saved original variables")
-            val userEnvVarState = getPropertyByName(state, "userEnvVarsState")
-            callFunction(userEnvVarState!!, "setEnvVars", savedConfigData.envVars)
+            val userEnvVarState = ReflectUtils.getPropertyByName(state, "userEnvVarsState")
+            ReflectUtils.callFunction(userEnvVarState!!, "setEnvVars", savedConfigData.envVars)
             if (SystemInfo.isMac) {
                 val originalBlazeBinary = savedConfigData.bazelPath
                 MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved original Bazel path ${originalBlazeBinary}")
-                setPropertyByName(state, "blazeBinaryState.blazeBinary", originalBlazeBinary)
+                ReflectUtils.setPropertyByName(state, "blazeBinaryState.blazeBinary", originalBlazeBinary)
             }
         }
 
@@ -61,10 +61,10 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
 
     override fun provideTargetBinaryExecPlan(executorId: String) : BinaryExecutionPlan? {
 
-        val state = castFromClassName(this.env.runProfile, "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration") ?:
+        val state = ReflectUtils.castFromClassName(this.env.runProfile, "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration") ?:
             let {
-                val uncastedState = getPropertyByName(it, "handler.state")
-                castFromClassName(uncastedState, "com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState")
+                val uncastedState = ReflectUtils.getPropertyByName(it, "handler.state")
+                ReflectUtils.castFromClassName(uncastedState, "com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState")
             }
             .run {
                 MirrordLogger.logger.debug("[${javaClass.name}] processStartScheduled: Bazel not detected")
@@ -72,18 +72,18 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
             }
 
         val binaryToPatch = if (SystemInfo.isMac) {
-            getPropertyByName(state, "blazeBinaryState.blazeBinary") ?. let {
+            ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary") ?. let {
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $it")
                 it as String
             } ?: run {
                 val blaze = Class.forName("com.google.idea.blaze.base.settings.Blaze")
-                val buildSystemProvider = callFunction(blaze, "getBuildSystemProvider", env.project)!!
-                val buildSystem = getPropertyByName(buildSystemProvider, "buildSystem")!!
+                val buildSystemProvider = ReflectUtils.callFunction(blaze, "getBuildSystemProvider", env.project)!!
+                val buildSystem = ReflectUtils.getPropertyByName(buildSystemProvider, "buildSystem")!!
 
                 val blazeContextClass = Class.forName("com.google.idea.blaze.base.scope.BlazeContext")
-                val blazeContext = callFunction(blazeContextClass, "create" )
-                val buildInvoker =  callFunction(buildSystem, "getBuildInvoker", env.project, blazeContext)!!
-                getPropertyByName(buildInvoker, "binaryPath") as String?
+                val blazeContext = ReflectUtils.callFunction(blazeContextClass, "create" )
+                val buildInvoker =  ReflectUtils.callFunction(buildSystem, "getBuildInvoker", env.project, blazeContext)!!
+                ReflectUtils.getPropertyByName(buildInvoker, "binaryPath") as String?
             }
         } else {
             null
