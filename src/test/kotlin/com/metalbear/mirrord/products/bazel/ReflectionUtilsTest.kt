@@ -2,7 +2,6 @@ package com.metalbear.mirrord.products.bazel
 
 import groovy.lang.Tuple2
 import org.junit.jupiter.api.Test
-import kotlin.reflect.typeOf
 
 class ReflectionUtilsTest {
 
@@ -85,7 +84,7 @@ class ReflectionUtilsTest {
         val exceptionThrown = try {
             ReflectUtils.setPropertyByName(tuple, "propertyThatNonExist", 3)
             false
-        } catch (_ : Exception) {
+        } catch (_ : Throwable) {
             true
         }
 
