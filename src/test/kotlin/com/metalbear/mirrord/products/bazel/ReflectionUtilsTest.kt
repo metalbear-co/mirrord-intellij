@@ -3,6 +3,55 @@ package com.metalbear.mirrord.products.bazel
 import groovy.lang.Tuple2
 import org.junit.jupiter.api.Test
 
+open class A {
+
+    open fun methodA(): String {
+        return "A"
+    }
+
+}
+
+open class B : A() {
+
+    override fun methodA(): String {
+        return "B"
+    }
+
+}
+
+class C : A() {
+
+    override fun methodA(): String {
+        return "C"
+    }
+
+}
+
+class D : B() {
+
+    override fun methodA(): String {
+        return "D"
+    }
+
+}
+
+class Client : A() {
+
+    fun callAfun(a: A) : String {
+        return a.methodA()
+    }
+
+    fun callAfun(b: B) : String {
+        return b.methodA()
+    }
+
+    fun callAfun() : String {
+        return ""
+    }
+
+}
+
+
 class ReflectionUtilsTest {
 
     @Test
@@ -12,18 +61,18 @@ class ReflectionUtilsTest {
         hashMap["key"] = "value"
 
         // downcast
-        val downcastedMap = ReflectUtils.castFromClassName( hashMap, "java.util.Map") as Map<String, String>
+        val downcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.Map") as Map<String, String>
         assert(downcastedMap["key"] == "value")
 
         // upcast
-        val upcastedMap = ReflectUtils.castFromClassName( hashMap, "java.util.HashMap") as HashMap<String, String>
+        val upcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.HashMap") as HashMap<String, String>
         assert(upcastedMap["key"] == "value")
 
         // bad cast
         val exceptionThrown = try {
-            ReflectUtils.castFromClassName(hashMap, "java.lang.String" )
+            ReflectUtils.castFromClassName(hashMap, "java.lang.String")
             false
-        } catch (_ : ClassCastException) {
+        } catch (_: ClassCastException) {
             true
         }
 
@@ -34,17 +83,18 @@ class ReflectionUtilsTest {
     @Test
     fun callFunctionTest() {
         val hashMap = HashMap<String, String>()
-        ReflectUtils.callFunction( hashMap, "put", "key", "value")
+        ReflectUtils.callFunction(hashMap, "put", "key", "value")
         assert(hashMap["key"] == "value")
 
         val exceptionThrown = try {
-            ReflectUtils.callFunction( hashMap, "functionThatNonExist", "key", "value")
+            ReflectUtils.callFunction(hashMap, "functionThatNonExist", "key", "value")
             false
-        } catch (_ : Throwable) {
+        } catch (_: Throwable) {
             true
         }
 
         assert(exceptionThrown)
+
     }
 
     @Test
@@ -62,7 +112,7 @@ class ReflectionUtilsTest {
         val exceptionThrown = try {
             ReflectUtils.getPropertyByName(hashMap, "propertyThatNonExist")
             false
-        } catch (_ : Throwable) {
+        } catch (_: Throwable) {
             true
         }
 
@@ -72,19 +122,19 @@ class ReflectionUtilsTest {
 
     @Test
     fun setPropertyByNameTest() {
-        var tuple = Tuple2(1,2)
+        var tuple = Tuple2(1, 2)
         ReflectUtils.setPropertyByName(tuple, "v1", 3)
         assert(tuple.v1 == 3)
 
         // works without mutability check
-        val tuple2 = Tuple2(1,2)
+        val tuple2 = Tuple2(1, 2)
         ReflectUtils.setPropertyByName(tuple2, "v1", 4)
         assert(tuple2.v1 == 4)
 
         val exceptionThrown = try {
             ReflectUtils.setPropertyByName(tuple, "propertyThatNonExist", 3)
             false
-        } catch (_ : Throwable) {
+        } catch (_: Throwable) {
             true
         }
 

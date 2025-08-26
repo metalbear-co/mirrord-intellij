@@ -53,12 +53,6 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
 
     }
 
-    companion object Factory {
-        fun fromExecutionEnv(env : ExecutionEnvironment) : BazelBinaryProvider241 {
-            return BazelBinaryProvider241(env)
-        }
-    }
-
     override fun provideTargetBinaryExecPlan(executorId: String) : BinaryExecutionPlan? {
 
         val state = ReflectUtils.castFromClassName(this.env.runProfile, "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration") ?:

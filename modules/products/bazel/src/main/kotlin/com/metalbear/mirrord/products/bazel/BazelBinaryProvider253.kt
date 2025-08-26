@@ -6,6 +6,8 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.products.bazel.BazelBinaryProvider241.BinaryExecutionPlan241
 import kotlinx.collections.immutable.ImmutableMap
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KClass
 
 class BazelBinaryProvider253(var env : ExecutionEnvironment): BazelBinaryProvider {
@@ -54,7 +56,8 @@ class BazelBinaryProvider253(var env : ExecutionEnvironment): BazelBinaryProvide
                 val buildSystemProvider = ReflectUtils.callFunction(blaze, "getBuildSystemProvider", env.project)!!
                 val buildSystem = ReflectUtils.getPropertyByName(buildSystemProvider, "buildSystem")!!
                 val buildInvoker =  ReflectUtils.callFunction(buildSystem, "getBuildInvoker", env.project)!!
-                ReflectUtils.getPropertyByName(buildInvoker, "binaryPath") as String?
+                ReflectUtils.callFunction(buildInvoker, "getBinaryPath") as String?
+
             }
         } else {
             null

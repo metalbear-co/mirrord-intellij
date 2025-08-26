@@ -5,8 +5,13 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import kotlinx.collections.immutable.ImmutableMap
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.KType
 import kotlin.reflect.full.functions
+import kotlin.reflect.full.isSubtypeOf
+import kotlin.reflect.full.isSupertypeOf
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.jvm.isAccessible
 
 /**
@@ -48,7 +53,7 @@ interface BinaryExecutionPlan {
      *
      * @return the env obtained before the execution starts
      */
-    fun getOriginalEnv() : ImmutableMap<String, String>
+    fun getOriginalEnv(): ImmutableMap<String, String>
 
     /**
      * Add a list of env variables to the current env, before the execution
@@ -60,7 +65,7 @@ interface BinaryExecutionPlan {
      *
      * @return the path of the target executable to patch
      */
-    fun getBinaryToPatch() : String?
+    fun getBinaryToPatch(): String?
 
     /**
      * Check whether the state is coherent for an execution, it returns the original bazel executable used for building
@@ -70,7 +75,7 @@ interface BinaryExecutionPlan {
      * @throws ExecutionCheckFailed
      */
     @Throws(ExecutionCheckFailed::class)
-    fun checkExecution(executionInfo : MirrordExecution) : String
+    fun checkExecution(executionInfo: MirrordExecution): String
 
     /**
      * Restore the environment after an execution, this method should fail if something make the old configuration
@@ -88,22 +93,35 @@ interface BinaryExecutionPlan {
 /**
  * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)
  */
-interface BazelBinaryProvider{
-    fun provideTargetBinaryExecPlan(executorId: String) : BinaryExecutionPlan?;
+interface BazelBinaryProvider {
+    fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan?;
 
-    fun getBinaryExecPlanClass() : KClass<out BinaryExecutionPlan>;
+    fun getBinaryExecPlanClass(): KClass<out BinaryExecutionPlan>;
 
     companion object Factory {
 
-        fun fromExecutionEnv(env : ExecutionEnvironment) : BazelBinaryProvider  {
+        fun fromExecutionEnv(env: ExecutionEnvironment): BazelBinaryProvider {
             try {
                 val clazz = Class.forName("com.google.idea.blaze.base.bazel.BuildSystem")
-                val getBuildInvokerExist = clazz.getMethod("getBuildInvoker") != null;
-                if(getBuildInvokerExist) {
-                    return BazelBinaryProvider241.fromExecutionEnv(env)
-                }else{
+                val getBuildInvokers = clazz.methods.filter { method -> method.name == "getBuildInvoker" }
+                val method253Exist =
+                    getBuildInvokers.find { method -> method.parameters.size == 1 && method.parameters[0].type.name == "Project" } != null
+                val method241Exist = getBuildInvokers.find { method ->
+                    method.parameters.size == 2 && method.parameters[0].type.name == "Project" && method.parameters[1].type.name == "BlazeContext"
+                } != null
+
+
+                if (method253Exist && method241Exist) {
+                    throw BuildExecPlanError("Unable to determine  the right bazel API version")
+                } else if (method253Exist) {
+                    return BazelBinaryProvider253(env)
+                } else if (method241Exist) {
+                    return BazelBinaryProvider241(env)
+                } else {
                     throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version")
                 }
+
+
             } catch (e: ClassNotFoundException) {
                 MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
                 throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version", e)
@@ -132,21 +150,22 @@ class ReflectUtils {
         /**
          * call a method from an object using the function name and pasting the arguments
          */
-        fun callFunction(obj: Any, functionName: String, vararg args : Any?) : Any? {
-            obj::class.functions.find { it.name == functionName }?.let {
+        fun callFunction(obj: Any, functionName: String, vararg args: Any?): Any? {
+
+            val matchingFunc = findMatchingFunction(obj, functionName, *args)
+            matchingFunc?.let {
                 return it.call(obj, *args)
-            } .run {
-                MirrordLogger
-                    .logger
-                    .error("[REFLECTION] Function $functionName not found in ${obj::class.qualifiedName}")
-                throw RuntimeException("Function $functionName not found in ${obj::class.qualifiedName}")
+            }.run {
+                MirrordLogger.logger.error("[REFLECTION] Function $functionName not found in ${obj::class.qualifiedName}")
+                val argsTypes = args.mapNotNull { arg -> arg?.let { it::class } }
+                throw RuntimeException("Function $functionName not found in ${obj::class.qualifiedName} with args $argsTypes")
             }
         }
 
         /**
          * get a property from an object using the property name, works with nested properties
          */
-        fun getPropertyByName(obj: Any, propertyName: String) : Any? {
+        fun getPropertyByName(obj: Any, propertyName: String): Any? {
 
             val propertyNames = propertyName.split(".");
             var currentObj: Any? = obj;
@@ -160,7 +179,7 @@ class ReflectUtils {
         /**
          * set a property from an object using the property name, works with nested properties
          */
-        fun setPropertyByName(obj: Any, propertyName: String, value: Any?) : Any? {
+        fun setPropertyByName(obj: Any, propertyName: String, value: Any?): Any? {
 
             val propertyNames = propertyName.split(".").toMutableList();
             val lastProperty = propertyNames.removeLast()
@@ -174,28 +193,51 @@ class ReflectUtils {
             return currentObj
         }
 
+        private fun findMatchingFunction(obj: Any, functionName: String, vararg args: Any?): KFunction<*>? {
+
+            val matchingFunctions =
+                obj::class.functions.filter { function -> function.name == functionName && function.parameters.size == args.size };
+
+            val exactMatch = matchingFunctions
+                .filter { function ->
+                    function.parameters.all { parameter -> args[parameter.index] == null || parameter.type == args[parameter.index]!!::class }
+                }
+
+            return if (exactMatch.size > 1) {
+                throw RuntimeException("Multiple exact matching functions $functionName found in ${obj::class.qualifiedName} with args $args")
+            } else if (exactMatch.size == 1) {
+                exactMatch[0]
+            } else {
+                matchingFunctions.find { function -> function.parameters.all { parameter -> isTypeCompatible(parameter.type,args[parameter.index]) } }
+            }
+
+        }
+
+        private fun isTypeCompatible(type: KType, value: Any?): Boolean {
+            return value?.let {
+                it::class.starProjectedType.isSubtypeOf(type)
+            } ?: run {
+                type.isMarkedNullable
+            }
+        }
+
         private fun getFieldValue(obj: Any, fieldName: String): Any? {
             return try {
-                val field = obj::class.memberProperties.find { it.name == fieldName }
-                if (field == null) {
-                        throw RuntimeException("Field $fieldName not found in ${obj::class.qualifiedName}")
+                val field = obj::class.memberProperties.find { it.name == fieldName } ?: run {
+                    throw RuntimeException("Field $fieldName not found in ${obj::class.qualifiedName}")
                 }
                 field.let {
                     it.isAccessible = true
                     it.getter.call(obj)
                 }
-            } catch (e: Exception) {
-                MirrordLogger
-                    .logger
-                    .debug("[REFLECTION] reflection error, fallback from kotlin reflection to java reflection: failed to get field value for $fieldName in $obj: $e")
+            } catch (e: Throwable) {
+                MirrordLogger.logger.debug("[REFLECTION] reflection error, fallback from kotlin reflection to java reflection: failed to get field value for $fieldName in $obj: $e")
                 try {
                     val field = obj.javaClass.getDeclaredField(fieldName)
                     field.isAccessible = true
                     field.get(obj)
-                } catch (e: Exception) {
-                    MirrordLogger
-                        .logger
-                        .error("[REFLECTION] reflection error: failed to get field value for $fieldName in $obj: $e")
+                } catch (e: Throwable) {
+                    MirrordLogger.logger.error("[REFLECTION] reflection error: failed to get field value for $fieldName in $obj: $e")
                     throw e
                 }
             }
@@ -214,11 +256,12 @@ class ReflectUtils {
                         field.isAccessible = true
                         field.set(obj, value)
                     }
+                } ?: run {
+                    throw RuntimeException("Field $fieldName not found in ${obj::class.qualifiedName}")
                 }
-            } catch (e: Exception) {
-                MirrordLogger
-                    .logger
-                    .debug("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
+            } catch (e: Throwable) {
+                MirrordLogger.logger.debug("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
+                throw e
             }
         }
 
