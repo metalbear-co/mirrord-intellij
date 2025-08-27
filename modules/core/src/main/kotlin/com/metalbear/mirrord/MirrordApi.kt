@@ -258,6 +258,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
+                MirrordLogger.logger.error(processStdError)
                 throw MirrordError.fromStdErr(processStdError)
             }
 
@@ -374,6 +375,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
+                MirrordLogger.logger.error(processStdError)
                 throw MirrordError.fromStdErr(processStdError)
             } else {
                 throw MirrordError("invalid output of the mirrord binary")
@@ -434,6 +436,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
+                MirrordLogger.logger.error(processStdError)
                 throw MirrordError.fromStdErr(processStdError)
             } else {
                 throw MirrordError("invalid output of the mirrord binary")
@@ -453,6 +456,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
+                MirrordLogger.logger.error(processStdError)
                 throw MirrordError.fromStdErr(processStdError)
             }
 
