@@ -1,6 +1,5 @@
 package com.metalbear.mirrord.products.bazel
 
-
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordExecution
@@ -46,15 +45,13 @@ class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvide
             ReflectUtils.callFunction(userEnvVarState!!, "setEnvVars", savedConfigData.envVars)
             if (SystemInfo.isMac) {
                 val originalBlazeBinary = savedConfigData.bazelPath
-                MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved original Bazel path ${originalBlazeBinary}")
+                MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found saved original Bazel path $originalBlazeBinary")
                 ReflectUtils.setPropertyByName(state, "blazeBinaryState.blazeBinary", originalBlazeBinary)
             }
         }
-
     }
 
     override fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan? {
-
         val state = ReflectUtils.castFromClassName(
             this.env.runProfile,
             "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration"
@@ -94,11 +91,9 @@ class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvide
         }
 
         return BinaryExecutionPlan241(state, binaryToPatch)
-
     }
 
     override fun getBinaryExecPlanClass(): KClass<out BinaryExecutionPlan> {
         return BinaryExecutionPlan241::class
     }
-
 }

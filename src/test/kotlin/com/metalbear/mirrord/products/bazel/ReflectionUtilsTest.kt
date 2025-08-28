@@ -16,14 +16,12 @@ open class A {
     fun callAfun(i1: Int, i2: Int): String {
         return "$i1,$i2"
     }
-
 }
 
 class ReflectionUtilsTest {
 
     @Test
     fun castFromClassNameTest() {
-
         val hashMap = HashMap<String, String>()
         hashMap["key"] = "value"
 
@@ -44,7 +42,6 @@ class ReflectionUtilsTest {
         }
 
         assert(exceptionThrown)
-
     }
 
     @Test
@@ -52,7 +49,6 @@ class ReflectionUtilsTest {
         val hashMap = HashMap<String, String>()
         ReflectUtils.callFunction(hashMap, "put", "key", "value")
         assert(hashMap["key"] == "value")
-
 
         val exceptionThrown = try {
             ReflectUtils.callFunction(hashMap, "functionThatNonExist", "key", "value")
@@ -75,7 +71,6 @@ class ReflectionUtilsTest {
 
         val overloadedCallWithTwoParams = ReflectUtils.callFunction(anObj, "callAfun(Int,Int)", 1, 2) as String
         assert(overloadedCallWithTwoParams == "1,2")
-
     }
 
     @Test
@@ -98,7 +93,6 @@ class ReflectionUtilsTest {
         }
 
         assert(exceptionThrown)
-
     }
 
     @Test
@@ -121,5 +115,4 @@ class ReflectionUtilsTest {
 
         assert(exceptionThrown)
     }
-
 }

@@ -5,12 +5,8 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import kotlinx.collections.immutable.ImmutableMap
 import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
-import kotlin.reflect.KType
 import kotlin.reflect.full.functions
-import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.isAccessible
 
@@ -87,16 +83,15 @@ interface BinaryExecutionPlan {
      */
     @Throws(RestoreFailed::class)
     fun restoreConfig(savedConfigData: SavedConfigData)
-
 }
 
 /**
  * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)
  */
 interface BazelBinaryProvider {
-    fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan?;
+    fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan?
 
-    fun getBinaryExecPlanClass(): KClass<out BinaryExecutionPlan>;
+    fun getBinaryExecPlanClass(): KClass<out BinaryExecutionPlan>
 
     companion object Factory {
 
@@ -117,7 +112,6 @@ interface BazelBinaryProvider {
                     ).last() == "BlazeContext"
                 } != null
 
-
                 val binaryProvider = if (method253Exist && method241Exist) {
                     throw BuildExecPlanError("Unable to determine  the right bazel API version")
                 } else if (method253Exist) {
@@ -130,14 +124,12 @@ interface BazelBinaryProvider {
                 }
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: built Bazel binary execution plan for ${env.executor.id}, ${binaryProvider.getBinaryExecPlanClass()}")
                 return binaryProvider
-
             } catch (e: ClassNotFoundException) {
                 MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
                 throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version", e)
             }
         }
     }
-
 }
 
 /**
@@ -164,7 +156,6 @@ class ReflectUtils {
          *      overloaded method: callFunction(obj, "myOverloadedMethod<A>(ParamType1, ParamType2)", param1, param2)
          */
         fun callFunction(obj: Any, functionName: String, vararg args: Any?): Any? {
-
             val functionPattern = """(\w+)(?:<(.+?)>)?(?:\((.+?)\))?""".toRegex()
             val trimmedFunctionName = functionName.trim()
 
@@ -182,21 +173,20 @@ class ReflectUtils {
                 MirrordLogger.logger.debug("[REFLECTION] search for an overloaded function $fName with value params $valueParams and generics $genericParams")
 
                 val matchingFunctions = obj::class.functions.filter { function ->
-                        function.name == fName && function.valueParameters.size == valueParams?.size && function.typeParameters.size == genericParams?.size
-                    }.filter { function ->
-                        function.valueParameters.withIndex().all { param ->
-                                val paramTypeName = (param.value.type.classifier as? KClass<*>)?.qualifiedName
-                                paramTypeName == valueParams?.get(param.index) || paramTypeName?.split(".")
-                                    ?.last() == valueParams?.get(param.index)
-                            }
+                    function.name == fName && function.valueParameters.size == valueParams?.size && function.typeParameters.size == genericParams?.size
+                }.filter { function ->
+                    function.valueParameters.withIndex().all { param ->
+                        val paramTypeName = (param.value.type.classifier as? KClass<*>)?.qualifiedName
+                        paramTypeName == valueParams?.get(param.index) || paramTypeName?.split(".")
+                            ?.last() == valueParams?.get(param.index)
                     }
+                }
 
                 if (matchingFunctions.size == 1) {
                     matchingFunctions.first()
                 } else {
                     throw RuntimeException("[REFLECTION] found ${matchingFunctions.size} functions matching $functionName")
                 }
-
             }
 
             matchingFunc?.let {
@@ -206,16 +196,14 @@ class ReflectUtils {
                 val argsTypes = args.mapNotNull { arg -> arg?.let { it::class } }
                 throw RuntimeException("Function $functionName not found in ${obj::class.qualifiedName} with args $argsTypes")
             }
-
         }
 
         /**
          * get a property from an object using the property name, works with nested properties
          */
         fun getPropertyByName(obj: Any, propertyName: String): Any? {
-
-            val propertyNames = propertyName.split(".");
-            var currentObj: Any? = obj;
+            val propertyNames = propertyName.split(".")
+            var currentObj: Any? = obj
 
             propertyNames.forEach { name ->
                 currentObj = getFieldValue(currentObj!!, name)
@@ -227,10 +215,9 @@ class ReflectUtils {
          * set a property from an object using the property name, works with nested properties
          */
         fun setPropertyByName(obj: Any, propertyName: String, value: Any?): Any? {
-
-            val propertyNames = propertyName.split(".").toMutableList();
+            val propertyNames = propertyName.split(".").toMutableList()
             val lastProperty = propertyNames.removeLast()
-            var currentObj: Any? = obj;
+            var currentObj: Any? = obj
 
             propertyNames.forEach { name ->
                 currentObj = getFieldValue(currentObj!!, name)
@@ -280,8 +267,5 @@ class ReflectUtils {
                 throw e
             }
         }
-
     }
 }
-
-

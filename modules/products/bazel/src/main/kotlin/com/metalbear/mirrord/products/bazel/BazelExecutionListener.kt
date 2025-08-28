@@ -29,9 +29,7 @@ class BazelExecutionListener : ExecutionListener {
         val binaryProvider = try {
             BazelBinaryProvider.fromExecutionEnv(env)
         } catch (e: BuildExecPlanError) {
-            service
-                .notifier
-                .notifyRichError("mirrord plugin: ${e.message}")
+            service.notifier.notifyRichError("mirrord plugin: ${e.message}")
             super.processStartScheduled(executorId, env)
             return
         }
@@ -75,13 +73,11 @@ class BazelExecutionListener : ExecutionListener {
                     savedEnvs[executorId] = SavedConfigData(originalEnv, originalBinary)
                 } catch (e: ExecutionCheckFailed) {
                     MirrordLogger.logger.error(
-                        "[${this.javaClass.name}] execution check failed, exec info : ${executionInfo}",
+                        "[${this.javaClass.name}] execution check failed, exec info : $executionInfo",
                         e
                     )
                 }
-
             }
-
         } catch (e: Throwable) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: exception catched: ", e)
             // Error notifications were already fired.
@@ -107,8 +103,7 @@ class BazelExecutionListener : ExecutionListener {
             this.bazelBinaryExecutionPlans.remove(executorId)
             it.restoreConfig(saved)
         }?.run {
-            MirrordLogger.logger
-                .debug("[${this.javaClass.name}] processTerminating: no execution plan found, Bazel is not detected")
+            MirrordLogger.logger.debug("[${this.javaClass.name}] processTerminating: no execution plan found, Bazel is not detected")
             return
         }
 

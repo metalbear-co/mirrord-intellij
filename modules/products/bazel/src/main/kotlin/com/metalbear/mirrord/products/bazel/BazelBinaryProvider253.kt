@@ -6,8 +6,6 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.products.bazel.BazelBinaryProvider241.BinaryExecutionPlan241
 import kotlinx.collections.immutable.ImmutableMap
-import java.util.Optional
-import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KClass
 
 class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvider {
@@ -34,7 +32,6 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
         override fun restoreConfig(savedConfigData: SavedConfigData) {
             plan.restoreConfig(savedConfigData)
         }
-
     }
 
     override fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan? {
@@ -47,11 +44,10 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
                 uncastedState,
                 "com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState"
             )
+        }.run {
+            MirrordLogger.logger.debug("[${javaClass.name}] processStartScheduled: Bazel not detected")
+            throw BuildExecPlanError("Bazel not detected")
         }
-            .run {
-                MirrordLogger.logger.debug("[${javaClass.name}] processStartScheduled: Bazel not detected")
-                throw BuildExecPlanError("Bazel not detected")
-            }
 
         val binaryToPatch = if (SystemInfo.isMac) {
             ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary")?.let {
@@ -64,7 +60,6 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
                 val buildInvoker = ReflectUtils.callFunction(buildSystem, "getBuildInvoker(Project)", env.project)!!
                 // take a look at this function since seems that should be replaced in next versions of blaze api, probably will be moved on the Runner
                 ReflectUtils.callFunction(buildInvoker, "getBinaryPath") as String?
-
             }
         } else {
             null
