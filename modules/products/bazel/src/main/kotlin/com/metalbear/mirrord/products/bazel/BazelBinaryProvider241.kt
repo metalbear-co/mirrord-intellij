@@ -9,7 +9,7 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableMap
 import kotlin.reflect.KClass
 
-class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvider {
+class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvider {
 
     class BinaryExecutionPlan241(private val state: Any, private val binaryToPatch: String?) : BinaryExecutionPlan {
 
@@ -32,7 +32,7 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
             if (SystemInfo.isMac) {
                 executionInfo.patchedPath ?: let {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
-                    ReflectUtils.setPropertyByName(state, "blazeBinaryState.blazeBinary", it )
+                    ReflectUtils.setPropertyByName(state, "blazeBinaryState.blazeBinary", it)
                 } ?: run {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, but not patching SIP (no patched path returned by the CLI).")
                 }
@@ -53,20 +53,25 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
 
     }
 
-    override fun provideTargetBinaryExecPlan(executorId: String) : BinaryExecutionPlan? {
+    override fun provideTargetBinaryExecPlan(executorId: String): BinaryExecutionPlan? {
 
-        val state = ReflectUtils.castFromClassName(this.env.runProfile, "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration") ?:
-            let {
-                val uncastedState = ReflectUtils.getPropertyByName(it, "handler.state")
-                ReflectUtils.castFromClassName(uncastedState, "com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState")
-            }
+        val state = ReflectUtils.castFromClassName(
+            this.env.runProfile,
+            "com.google.idea.blaze.base.run.BlazeCommandRunConfiguration"
+        ) ?: let {
+            val uncastedState = ReflectUtils.getPropertyByName(it, "handler.state")
+            ReflectUtils.castFromClassName(
+                uncastedState,
+                "com.google.idea.blaze.base.run.state.BlazeCommandRunConfigurationCommonState"
+            )
+        }
             .run {
                 MirrordLogger.logger.debug("[${javaClass.name}] processStartScheduled: Bazel not detected")
                 throw BuildExecPlanError("Bazel not detected")
             }
 
         val binaryToPatch = if (SystemInfo.isMac) {
-            ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary") ?. let {
+            ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary")?.let {
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $it")
                 it as String
             } ?: run {
@@ -75,15 +80,20 @@ class BazelBinaryProvider241(var env : ExecutionEnvironment) : BazelBinaryProvid
                 val buildSystem = ReflectUtils.getPropertyByName(buildSystemProvider, "buildSystem")!!
 
                 val blazeContextClass = Class.forName("com.google.idea.blaze.base.scope.BlazeContext")
-                val blazeContext = ReflectUtils.callFunction(blazeContextClass, "create" )
-                val buildInvoker =  ReflectUtils.callFunction(buildSystem, "getBuildInvoker", env.project, blazeContext)!!
+                val blazeContext = ReflectUtils.callFunction(blazeContextClass, "create")
+                val buildInvoker = ReflectUtils.callFunction(
+                    buildSystem,
+                    "getBuildInvoker(Project,BlazeContext)",
+                    env.project,
+                    blazeContext
+                )!!
                 ReflectUtils.getPropertyByName(buildInvoker, "binaryPath") as String?
             }
         } else {
             null
         }
 
-        return BinaryExecutionPlan241(state,binaryToPatch)
+        return BinaryExecutionPlan241(state, binaryToPatch)
 
     }
 

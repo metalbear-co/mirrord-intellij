@@ -5,52 +5,19 @@ import org.junit.jupiter.api.Test
 
 open class A {
 
-    open fun methodA(): String {
-        return "A"
+    fun callAfun(): String {
+        return "Afun"
+    }
+
+    fun callAfun(i: Int): String {
+        return "$i"
+    }
+
+    fun callAfun(i1: Int, i2: Int): String {
+        return "$i1,$i2"
     }
 
 }
-
-open class B : A() {
-
-    override fun methodA(): String {
-        return "B"
-    }
-
-}
-
-class C : A() {
-
-    override fun methodA(): String {
-        return "C"
-    }
-
-}
-
-class D : B() {
-
-    override fun methodA(): String {
-        return "D"
-    }
-
-}
-
-class Client : A() {
-
-    fun callAfun(a: A) : String {
-        return a.methodA()
-    }
-
-    fun callAfun(b: B) : String {
-        return b.methodA()
-    }
-
-    fun callAfun() : String {
-        return ""
-    }
-
-}
-
 
 class ReflectionUtilsTest {
 
@@ -86,6 +53,7 @@ class ReflectionUtilsTest {
         ReflectUtils.callFunction(hashMap, "put", "key", "value")
         assert(hashMap["key"] == "value")
 
+
         val exceptionThrown = try {
             ReflectUtils.callFunction(hashMap, "functionThatNonExist", "key", "value")
             false
@@ -94,6 +62,19 @@ class ReflectionUtilsTest {
         }
 
         assert(exceptionThrown)
+
+        // call overloaded function
+
+        val anObj = A()
+
+        val simpleCall = ReflectUtils.callFunction(anObj, "callAfun()") as String
+        assert(simpleCall == "Afun")
+
+        val overloadedCall = ReflectUtils.callFunction(anObj, "callAfun(Int)", 1) as String
+        assert(overloadedCall == "1")
+
+        val overloadedCallWithTwoParams = ReflectUtils.callFunction(anObj, "callAfun(Int,Int)", 1, 2) as String
+        assert(overloadedCallWithTwoParams == "1,2")
 
     }
 

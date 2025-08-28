@@ -9,9 +9,9 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KType
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.isSubtypeOf
-import kotlin.reflect.full.isSupertypeOf
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.isAccessible
 
 /**
@@ -104,23 +104,32 @@ interface BazelBinaryProvider {
             try {
                 val clazz = Class.forName("com.google.idea.blaze.base.bazel.BuildSystem")
                 val getBuildInvokers = clazz.methods.filter { method -> method.name == "getBuildInvoker" }
-                val method253Exist =
-                    getBuildInvokers.find { method -> method.parameters.size == 1 && method.parameters[0].type.name == "Project" } != null
+                val method253Exist = getBuildInvokers.find { method ->
+                    method.parameters.size == 1 && method.parameters[0].type.name.split(
+                        "."
+                    ).last() == "Project"
+                } != null
                 val method241Exist = getBuildInvokers.find { method ->
-                    method.parameters.size == 2 && method.parameters[0].type.name == "Project" && method.parameters[1].type.name == "BlazeContext"
+                    method.parameters.size == 2 && method.parameters[0].type.name.split(
+                        "."
+                    ).last() == "Project" && method.parameters[1].type.name.split(
+                        "."
+                    ).last() == "BlazeContext"
                 } != null
 
 
-                if (method253Exist && method241Exist) {
+                val binaryProvider = if (method253Exist && method241Exist) {
                     throw BuildExecPlanError("Unable to determine  the right bazel API version")
                 } else if (method253Exist) {
-                    return BazelBinaryProvider253(env)
+                    BazelBinaryProvider253(env)
                 } else if (method241Exist) {
-                    return BazelBinaryProvider241(env)
+                    BazelBinaryProvider241(env)
                 } else {
+                    MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
                     throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version")
                 }
-
+                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: built Bazel binary execution plan for ${env.executor.id}, ${binaryProvider.getBinaryExecPlanClass()}")
+                return binaryProvider
 
             } catch (e: ClassNotFoundException) {
                 MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
@@ -148,11 +157,48 @@ class ReflectUtils {
         }
 
         /**
-         * call a method from an object using the function name and pasting the arguments
+         * call a method from an object using the function name and pasting the arguments; to make it work with
+         * overloaded methods you need to provide the exact signature of the method you want to call as functionName
+         *  eg:
+         *      not overloaded method: callFunction(obj, "myMethod", param1, param2)
+         *      overloaded method: callFunction(obj, "myOverloadedMethod<A>(ParamType1, ParamType2)", param1, param2)
          */
         fun callFunction(obj: Any, functionName: String, vararg args: Any?): Any? {
 
-            val matchingFunc = findMatchingFunction(obj, functionName, *args)
+            val functionPattern = """(\w+)(?:<(.+?)>)?(?:\((.+?)\))?""".toRegex()
+            val trimmedFunctionName = functionName.trim()
+
+            val groups = functionPattern.find(trimmedFunctionName)
+                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+            val fName = groups.groupValues.getOrNull(1)
+                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+            val genericParams =
+                groups.groupValues.getOrNull(2)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            val valueParams = groups.groupValues.getOrNull(3)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+
+            val matchingFunc = if (fName == trimmedFunctionName) {
+                obj::class.functions.find { function -> function.name == fName }
+            } else {
+                MirrordLogger.logger.debug("[REFLECTION] search for an overloaded function $fName with value params $valueParams and generics $genericParams")
+
+                val matchingFunctions = obj::class.functions.filter { function ->
+                        function.name == fName && function.valueParameters.size == valueParams?.size && function.typeParameters.size == genericParams?.size
+                    }.filter { function ->
+                        function.valueParameters.withIndex().all { param ->
+                                val paramTypeName = (param.value.type.classifier as? KClass<*>)?.qualifiedName
+                                paramTypeName == valueParams?.get(param.index) || paramTypeName?.split(".")
+                                    ?.last() == valueParams?.get(param.index)
+                            }
+                    }
+
+                if (matchingFunctions.size == 1) {
+                    matchingFunctions.first()
+                } else {
+                    throw RuntimeException("[REFLECTION] found ${matchingFunctions.size} functions matching $functionName")
+                }
+
+            }
+
             matchingFunc?.let {
                 return it.call(obj, *args)
             }.run {
@@ -160,6 +206,7 @@ class ReflectUtils {
                 val argsTypes = args.mapNotNull { arg -> arg?.let { it::class } }
                 throw RuntimeException("Function $functionName not found in ${obj::class.qualifiedName} with args $argsTypes")
             }
+
         }
 
         /**
@@ -193,34 +240,6 @@ class ReflectUtils {
             return currentObj
         }
 
-        private fun findMatchingFunction(obj: Any, functionName: String, vararg args: Any?): KFunction<*>? {
-
-            val matchingFunctions =
-                obj::class.functions.filter { function -> function.name == functionName && function.parameters.size == args.size };
-
-            val exactMatch = matchingFunctions
-                .filter { function ->
-                    function.parameters.all { parameter -> args[parameter.index] == null || parameter.type == args[parameter.index]!!::class }
-                }
-
-            return if (exactMatch.size > 1) {
-                throw RuntimeException("Multiple exact matching functions $functionName found in ${obj::class.qualifiedName} with args $args")
-            } else if (exactMatch.size == 1) {
-                exactMatch[0]
-            } else {
-                matchingFunctions.find { function -> function.parameters.all { parameter -> isTypeCompatible(parameter.type,args[parameter.index]) } }
-            }
-
-        }
-
-        private fun isTypeCompatible(type: KType, value: Any?): Boolean {
-            return value?.let {
-                it::class.starProjectedType.isSubtypeOf(type)
-            } ?: run {
-                type.isMarkedNullable
-            }
-        }
-
         private fun getFieldValue(obj: Any, fieldName: String): Any? {
             return try {
                 val field = obj::class.memberProperties.find { it.name == fieldName } ?: run {
@@ -243,9 +262,6 @@ class ReflectUtils {
             }
         }
 
-        /**
-         * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)
-         */
         private fun setFieldValue(obj: Any, fieldName: String, value: Any?): Any? {
             return try {
                 obj::class.memberProperties.find { it.name == fieldName }?.let {
