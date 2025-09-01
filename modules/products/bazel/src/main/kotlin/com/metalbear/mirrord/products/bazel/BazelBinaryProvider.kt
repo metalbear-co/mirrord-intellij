@@ -99,17 +99,18 @@ interface BazelBinaryProvider {
             try {
                 val clazz = Class.forName("com.google.idea.blaze.base.bazel.BuildSystem")
                 val getBuildInvokers = clazz.methods.filter { method -> method.name == "getBuildInvoker" }
+
                 val method253Exist = getBuildInvokers.find { method ->
-                    method.parameters.size == 1 && method.parameters[0].type.name.split(
-                        "."
-                    ).last() == "Project"
-                } != null
-                val method241Exist = getBuildInvokers.find { method ->
                     method.parameters.size == 2 && method.parameters[0].type.name.split(
                         "."
                     ).last() == "Project" && method.parameters[1].type.name.split(
                         "."
                     ).last() == "BlazeContext"
+                } != null
+                val method241Exist = getBuildInvokers.find { method ->
+                    method.parameters.size == 1 && method.parameters[0].type.name.split(
+                        "."
+                    ).last() == "Project"
                 } != null
 
                 val binaryProvider = if (method253Exist && method241Exist) {
@@ -149,6 +150,63 @@ class ReflectUtils {
         }
 
         /**
+         * call a static method from a class using the function name and pasting the arguments; to make it work with
+         * overloaded methods you need to provide the exact signature of the method you want to call as functionName
+         *  eg:
+         *      not overloaded method: callStaticFunction(className, "myMethod", param1, param2)
+         *      overloaded method: callStaticFunction(className, "myOverloadedMethod<A>(ParamType1, ParamType2)", param1, param2)
+         */
+        fun callStaticFunction(className: String, functionName: String, vararg args: Any?): Any? {
+            val functionPattern = """(\w+)(?:<(.+?)>)?(?:\((.+?)\))?""".toRegex()
+            val trimmedFunctionName = functionName.trim()
+
+            val groups = functionPattern.find(trimmedFunctionName)
+                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+            val fName = groups.groupValues.getOrNull(1)
+                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+            val genericParams =
+                groups.groupValues.getOrNull(2)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            val valueParams = groups.groupValues.getOrNull(3)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+
+            val clazz = Class.forName(className)
+
+            val matchingFunc = if (fName == trimmedFunctionName) {
+                clazz.methods.find { function -> function.name == fName && function.parameters.size == args.size }
+            } else {
+                MirrordLogger.logger.debug("[REFLECTION] search for an overloaded static function $fName with value params $valueParams and generics $genericParams")
+
+                val matchingFunctions = clazz.methods.filter { function ->
+                    function.name == fName && function.parameters.size == valueParams?.size && function.typeParameters.size == genericParams?.size
+                }.filter { function ->
+                    function.parameters.withIndex().all { param ->
+                        val paramTypeName = param.value.type.canonicalName
+                        paramTypeName == valueParams?.get(param.index) || paramTypeName?.split(".")
+                            ?.last() == valueParams?.get(param.index)
+                    }
+                }
+
+                if (matchingFunctions.size == 1) {
+                    matchingFunctions.first()
+                } else {
+                    throw RuntimeException("[REFLECTION] found ${matchingFunctions.size} functions matching $functionName")
+                }
+            }
+
+            matchingFunc?.let {
+                it.isAccessible = true
+                return if (args.isEmpty()) {
+                    it.invoke(null)
+                } else {
+                    it.invoke(null, *args)
+                }
+            }.run {
+                MirrordLogger.logger.error("[REFLECTION] static function $functionName not found in $functionName")
+                val argsTypes = args.mapNotNull { arg -> arg?.let { it::class } }
+                throw RuntimeException("Function $functionName not found in $functionName with args $argsTypes")
+            }
+        }
+
+        /**
          * call a method from an object using the function name and pasting the arguments; to make it work with
          * overloaded methods you need to provide the exact signature of the method you want to call as functionName
          *  eg:
@@ -168,7 +226,7 @@ class ReflectUtils {
             val valueParams = groups.groupValues.getOrNull(3)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
 
             val matchingFunc = if (fName == trimmedFunctionName) {
-                obj::class.functions.find { function -> function.name == fName }
+                obj::class.functions.find { function -> function.name == fName && function.valueParameters.size == args.size }
             } else {
                 MirrordLogger.logger.debug("[REFLECTION] search for an overloaded function $fName with value params $valueParams and generics $genericParams")
 
@@ -190,7 +248,12 @@ class ReflectUtils {
             }
 
             matchingFunc?.let {
-                return it.call(obj, *args)
+                it.isAccessible = true
+                return if (args.isEmpty()) {
+                    it.call(obj)
+                } else {
+                    it.call(obj, *args)
+                }
             }.run {
                 MirrordLogger.logger.error("[REFLECTION] Function $functionName not found in ${obj::class.qualifiedName}")
                 val argsTypes = args.mapNotNull { arg -> arg?.let { it::class } }

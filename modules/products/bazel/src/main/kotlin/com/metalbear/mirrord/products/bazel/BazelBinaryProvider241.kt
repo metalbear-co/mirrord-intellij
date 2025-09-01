@@ -10,7 +10,7 @@ import kotlin.reflect.KClass
 
 class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvider {
 
-    class BinaryExecutionPlan241(private val state: Any, private val binaryToPatch: String?) : BinaryExecutionPlan {
+    class BinaryExecutionPlan241(val state: Any, private val binaryToPatch: String?) : BinaryExecutionPlan {
 
         override fun getOriginalEnv(): ImmutableMap<String, String> {
             val env = ReflectUtils.getPropertyByName(state, "userEnvVarsState.data.envs") as Map<String, String>
@@ -72,12 +72,10 @@ class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvide
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $it")
                 it as String
             } ?: run {
-                val blaze = Class.forName("com.google.idea.blaze.base.settings.Blaze")
-                val buildSystemProvider = ReflectUtils.callFunction(blaze, "getBuildSystemProvider", env.project)!!
+                val buildSystemProvider = ReflectUtils.callStaticFunction("com.google.idea.blaze.base.settings.Blaze", "getBuildSystemProvider", env.project)!!
                 val buildSystem = ReflectUtils.getPropertyByName(buildSystemProvider, "buildSystem")!!
 
-                val blazeContextClass = Class.forName("com.google.idea.blaze.base.scope.BlazeContext")
-                val blazeContext = ReflectUtils.callFunction(blazeContextClass, "create")
+                val blazeContext = ReflectUtils.callStaticFunction("com.google.idea.blaze.base.scope.BlazeContext", "create")
                 val buildInvoker = ReflectUtils.callFunction(
                     buildSystem,
                     "getBuildInvoker(Project,BlazeContext)",
