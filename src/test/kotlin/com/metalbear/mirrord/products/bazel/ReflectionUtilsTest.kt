@@ -74,6 +74,22 @@ class ReflectionUtilsTest {
     }
 
     @Test
+    fun callStaticFunctionTest() {
+        val time = ReflectUtils.callStaticFunction("java.lang.System", "currentTimeMillis")
+        assert(time is Long)
+        assert(time != null)
+
+        val exceptionThrown = try {
+            ReflectUtils.callStaticFunction("function.that.not.exist", "functionThatNonExist")
+            false
+        } catch (_: Throwable) {
+            true
+        }
+
+        assert(exceptionThrown)
+    }
+
+    @Test
     fun getPropertyByNameTest() {
         val hashMap = HashMap<String, String>()
         hashMap.entries.size
