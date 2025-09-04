@@ -26,8 +26,8 @@ class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvide
             return binaryToPatch
         }
 
-        override fun checkExecution(executionInfo: MirrordExecution): String {
-            val originalBinary = ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary") as String
+        override fun checkExecution(executionInfo: MirrordExecution): String? {
+            val originalBinary = ReflectUtils.getPropertyByName(state, "blazeBinaryState.blazeBinary") as String?
             if (SystemInfo.isMac) {
                 executionInfo.patchedPath ?: let {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")

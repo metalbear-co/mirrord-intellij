@@ -71,7 +71,7 @@ interface BinaryExecutionPlan {
      * @throws ExecutionCheckFailed
      */
     @Throws(ExecutionCheckFailed::class)
-    fun checkExecution(executionInfo: MirrordExecution): String
+    fun checkExecution(executionInfo: MirrordExecution): String?
 
     /**
      * Restore the environment after an execution, this method should fail if something make the old configuration
