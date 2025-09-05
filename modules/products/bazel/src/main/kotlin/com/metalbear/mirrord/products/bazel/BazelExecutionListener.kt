@@ -14,6 +14,19 @@ import kotlin.String
 
 data class SavedConfigData(val envVars: Map<String, String>, val bazelPath: String?)
 
+/**
+ * The bazel execution listener is responsible for intercepting the execution of Bazel commands and
+ * injecting mirrord into the process. It is also responsible for restoring the original environment
+ * after the execution has finished. This is necessary because Bazel runs multiple processes, and
+ * we need to make sure that the mirrord environment is only applied to the main Bazel process. It makes
+ * massive use of reflection to access internal Bazel classes since they are gathered from the
+ * classpath. This extreme measure is necessary because we cannot target a specific Bazel version
+ * due to the fact that we need to support multiple versions of the Bazel plugin and this is not
+ * possible. Newer version of the Blaze API are not compatible with the current Idea api version
+ * targeted by the plugin. Moreover some of the API have been renamed in newer versions of Bazel,
+ * so we need to be careful not to break the plugin on future versions.Essentially since we need to
+ * be compatible with multiple versions of Bazel, we need to use reflection to access the internal
+ */
 class BazelExecutionListener : ExecutionListener {
     /**
      * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)

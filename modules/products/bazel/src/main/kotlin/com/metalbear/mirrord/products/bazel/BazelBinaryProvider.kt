@@ -114,20 +114,20 @@ interface BazelBinaryProvider {
                 } != null
 
                 val binaryProvider = if (method253Exist && method241Exist) {
-                    throw BuildExecPlanError("Unable to determine  the right bazel API version")
+                    throw BuildExecPlanError("Unable to determine the current bazel API version")
                 } else if (method253Exist) {
                     BazelBinaryProvider253(env)
                 } else if (method241Exist) {
                     BazelBinaryProvider241(env)
                 } else {
                     MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
-                    throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version")
+                    throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the one in the range v2024.x - v2025.07.24.0.1")
                 }
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: built Bazel binary execution plan for ${env.executor.id}, ${binaryProvider.getBinaryExecPlanClass()}")
                 return binaryProvider
             } catch (e: ClassNotFoundException) {
                 MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
-                throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version", e)
+                throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the one in the range v2024.x - v2025.07.24.0.1", e)
             }
         }
     }
@@ -161,9 +161,9 @@ class ReflectUtils {
             val trimmedFunctionName = functionName.trim()
 
             val groups = functionPattern.find(trimmedFunctionName)
-                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+                ?: throw RuntimeException("Invalid function name $functionName")
             val fName = groups.groupValues.getOrNull(1)
-                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+                ?: throw RuntimeException("Invalid function name $functionName")
             val genericParams =
                 groups.groupValues.getOrNull(2)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
             val valueParams = groups.groupValues.getOrNull(3)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
@@ -188,7 +188,7 @@ class ReflectUtils {
                 if (matchingFunctions.size == 1) {
                     matchingFunctions.first()
                 } else {
-                    throw RuntimeException("[REFLECTION] found ${matchingFunctions.size} functions matching $functionName")
+                    throw RuntimeException("found ${matchingFunctions.size} functions matching $functionName")
                 }
             }
 
@@ -218,9 +218,9 @@ class ReflectUtils {
             val trimmedFunctionName = functionName.trim()
 
             val groups = functionPattern.find(trimmedFunctionName)
-                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+                ?: throw RuntimeException("Invalid function name $functionName")
             val fName = groups.groupValues.getOrNull(1)
-                ?: throw RuntimeException("[REFLECTION] Invalid function name $functionName")
+                ?: throw RuntimeException("Invalid function name $functionName")
             val genericParams =
                 groups.groupValues.getOrNull(2)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
             val valueParams = groups.groupValues.getOrNull(3)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
@@ -243,7 +243,7 @@ class ReflectUtils {
                 if (matchingFunctions.size == 1) {
                     matchingFunctions.first()
                 } else {
-                    throw RuntimeException("[REFLECTION] found ${matchingFunctions.size} functions matching $functionName")
+                    throw RuntimeException("found ${matchingFunctions.size} functions matching $functionName")
                 }
             }
 
@@ -326,7 +326,7 @@ class ReflectUtils {
                     throw RuntimeException("Field $fieldName not found in ${obj::class.qualifiedName}")
                 }
             } catch (e: Throwable) {
-                MirrordLogger.logger.debug("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
+                MirrordLogger.logger.error("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
                 throw e
             }
         }
