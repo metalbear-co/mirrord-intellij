@@ -40,7 +40,7 @@ class RestoreFailed(message: String) : Exception(message) {
 }
 
 /**
- * BinaryExecutionPlan is used to group the datas needed for an execution with mirrord
+ * BinaryExecutionPlan is used to group the data needed for an execution with mirrord
  */
 interface BinaryExecutionPlan {
 
