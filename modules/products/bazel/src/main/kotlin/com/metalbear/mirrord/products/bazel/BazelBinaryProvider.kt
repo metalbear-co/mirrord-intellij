@@ -127,7 +127,7 @@ interface BazelBinaryProvider {
                 return binaryProvider
             } catch (e: ClassNotFoundException) {
                 MirrordLogger.logger.error("[${this.javaClass.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
-                throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the one in the range v2024.x - v2025.07.24.0.1", e)
+                throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the ones in the range v2024.x - v2025.07.24.0.1", e)
             }
         }
     }
