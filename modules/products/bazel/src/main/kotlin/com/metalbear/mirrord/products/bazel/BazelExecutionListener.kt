@@ -15,18 +15,18 @@ import kotlin.String
 data class SavedConfigData(val envVars: Map<String, String>, val bazelPath: String?)
 
 /**
- * The bazel execution listener is responsible for intercepting the execution of Bazel commands and
- * injecting mirrord into the process. It is also responsible for restoring the original environment
- * after the execution has finished. This is necessary because Bazel runs multiple processes, and
- * we need to make sure that the mirrord environment is only applied to the main Bazel process. It makes
- * massive use of reflection to access internal Bazel classes since they are gathered from the
- * classpath. This extreme measure is necessary because we cannot target a specific Bazel version
- * due to the fact that we need to support multiple versions of the Bazel plugin and this is not
- * possible. Newer version of the Blaze API are not compatible with the current Idea api version
- * targeted by the plugin. Moreover some of the API have been renamed in newer versions of Bazel,
- * so we need to be careful not to break the plugin on future versions.Essentially since we need to
- * be compatible with multiple versions of Bazel, we need to use reflection to access the internal
- */
+ * The Bazel execution listener is responsible for intercepting Bazel command executions and injecting mirrord into the
+ * main process. Once execution finishes, it also restores the original environment. This is required because Bazel spawns
+ * multiple processes, and we need to ensure that the mirrord environment is applied only to the main Bazel process, not to
+ * its child processes.
+ * To achieve this, the listener makes heavy use of reflection, accessing Bazel’s internal classes directly from the classpath.
+ * While this approach may seem extreme, it is necessary for several reasons:
+ * - the plugin must support multiple Bazel versions, so it cannot depend on a single fixed API version;
+ * - newer versions of the Bazel (Blaze) API are not compatible with the IntelliJ API version currently targeted by the plugin;
+ * - some APIs have been renamed or changed across Bazel versions, which risks breaking compatibility.
+ * In short, since we must remain compatible with a wide range of Bazel versions, the only robust solution is to use
+ * reflection to access internal APIs, avoiding direct dependencies that would otherwise break with version changes.
+ * */
 class BazelExecutionListener : ExecutionListener {
     /**
      * Preserves original configuration for active Bazel runs (user environment variables and Bazel binary path)

@@ -38,7 +38,7 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
             if (SystemInfo.isMac) {
                 executionInfo.patchedPath ?: let {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
-                    ReflectUtils.setPropertyByName(plan.state, "handler.state.blazeBinary", it)
+                    ReflectUtils.setPropertyByName(plan.state, "handler.state.blazeBinary.blazeBinary", it)
                 } ?: run {
                     MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, but not patching SIP (no patched path returned by the CLI).")
                 }
@@ -48,7 +48,7 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
 
         override fun restoreConfig(savedConfigData: SavedConfigData) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] restoreConfig: found ${savedConfigData.envVars.size} saved original variables")
-            val oldEnvFile = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvironmentFile") as String
+            val oldEnvFile = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvironmentFile") as String?
             val oldPassParentEnvs = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myPassParentEnvs") as Boolean
             val newEnv = EnvironmentVariablesData.create(savedConfigData.envVars, oldPassParentEnvs, oldEnvFile)
             ReflectUtils.setPropertyByName(plan.state, "handler.state.envVars.data", newEnv)
