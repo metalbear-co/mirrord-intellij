@@ -8,6 +8,24 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.68.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.2) - 2025-09-23
+
+
+### Changed
+
+- Added more error logs.
+
+
+### Fixed
+
+- Fixed bad interaction with the Bazel plugin.
+
+
+### Internal
+
+- refactor of BazelExecutionListener for backward compatibility
+  [#bazel-exec-listener-refactor](https://github.com/metalbear-co/mirrord-intellij/issues/bazel-exec-listener-refactor)
+
 ## [3.68.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.1) - 2025-08-08
 
 
