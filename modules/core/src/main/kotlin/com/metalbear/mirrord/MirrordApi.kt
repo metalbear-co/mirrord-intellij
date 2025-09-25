@@ -657,7 +657,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             }
 
             // for config explanation to be printed out
-            environment["MIRRORD_EXT_PRINT_CONFIG"] = "TRUE";
+            environment["MIRRORD_EXT_PRINT_CONFIG"] = "TRUE"
 
             configFile?.let {
                 val formattedPath = wslDistribution?.getWslPath(it) ?: it

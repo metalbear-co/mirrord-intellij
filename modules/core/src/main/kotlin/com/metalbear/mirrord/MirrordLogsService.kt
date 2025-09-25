@@ -6,7 +6,6 @@ import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -45,7 +44,6 @@ class MirrordLogsService(private val project: Project) {
         logMessage("[ERROR] $message", ConsoleViewContentType.LOG_ERROR_OUTPUT)
     }
 
-
     fun onMirrordExecutionStart() {
         logInfo("mirrord execution started...")
         showToolWindow()
@@ -54,7 +52,6 @@ class MirrordLogsService(private val project: Project) {
     fun onMirrordExecutionEnd() {
         logInfo("mirrord execution finished.")
     }
-
 
     private fun showToolWindow() {
         ApplicationManager.getApplication().invokeLater {
