@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.69.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.69.0) - 2025-09-26
+
+
+### Added
+
+- Added logs widget for mirrord and moved all "spammy" notifications there for
+  better UX and debugging.
+
 ## [3.68.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.68.2) - 2025-09-23
 
 
