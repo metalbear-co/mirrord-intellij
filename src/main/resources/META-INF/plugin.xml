@@ -25,6 +25,10 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService
                 serviceImplementation="com.metalbear.mirrord.MirrordSettingsState"/>
+        <toolWindow id="mirrord Logs"
+                   icon="/icons/mirrord_dark.svg"
+                   anchor="bottom"
+                   factoryClass="com.metalbear.mirrord.MirrordLogsToolWindowFactory"/>
     </extensions>
 
     <projectListeners>
