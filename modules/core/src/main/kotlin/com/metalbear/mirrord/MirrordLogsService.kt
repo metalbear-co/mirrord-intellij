@@ -12,8 +12,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.swing.JComponent
 
+private const val windowName = "mirrord Logs"
+
 @Service(Service.Level.PROJECT)
-class MirrordLogsService(private val project: Project): Disposable {
+class MirrordLogsService(private val project: Project) : Disposable {
     private var consoleView: ConsoleView? = null
 
     fun createConsoleComponent(): JComponent {
@@ -57,7 +59,7 @@ class MirrordLogsService(private val project: Project): Disposable {
     private fun showToolWindow() {
         ApplicationManager.getApplication().invokeLater {
             val toolWindowManager = ToolWindowManager.getInstance(project)
-            val toolWindow = toolWindowManager.getToolWindow("mirrord Logs")
+            val toolWindow = toolWindowManager.getToolWindow(windowName)
             toolWindow?.let {
                 if (!it.isVisible) {
                     it.activate(null)

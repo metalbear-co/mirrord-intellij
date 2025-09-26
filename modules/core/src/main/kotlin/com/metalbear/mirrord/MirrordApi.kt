@@ -31,7 +31,29 @@ const val MIRRORD_CONTAINER_STARTING_MESSAGE = "mirrord container execution star
 const val MIRRORD_CONTAINER_RUNNING_MESSAGE = "mirrord container is running"
 const val MIRRORD_VERIFYING_CONFIG_MESSAGE = "mirrord is verifying the config options..."
 
+// Error message constants
+private fun getTargetListingFailedError(processStdError: String) = "Target listing failed: $processStdError"
+private fun getProcessFailedStderrError(processStdError: String) = "Process failed with stderr: $processStdError"
+private fun getContainerProcessFailedStderrError(processStdError: String) = "Container process failed with stderr: $processStdError"
+private fun getConfigVerificationFailedError(processStdError: String) = "Config verification failed: $processStdError"
 
+/**
+ * Helper function to log errors to both MirrordLogger and logsService
+ */
+private fun logErrorToBoth(logsService: MirrordLogsService, errorMessage: String) {
+    MirrordLogger.logger.error(errorMessage)
+    logsService.logError(errorMessage)
+}
+
+// Additional error message helper functions
+private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) = "mirrord task failed: ${error.message ?: error.toString()}"
+private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) = "mirrord background task failed: ${error.message ?: error.toString()}"
+private fun getMirrordTaskTimedOutError(commandLine: String) = "mirrord task timed out: $commandLine"
+private fun getMirrordTaskTimedOutUnderReadLockError(commandLine: String) = "mirrord task timed out under read lock: $commandLine"
+
+// Cancellation message helper functions
+private fun getMirrordTaskCancelledMessage(commandLine: String) = "mirrord task was cancelled: $commandLine"
+private fun getMirrordBackgroundTaskCancelledMessage(commandLine: String) = "mirrord background task was cancelled: $commandLine"
 
 /**
  * The message types we get from mirrord-cli.
@@ -270,8 +292,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
-                MirrordLogger.logger.error(processStdError)
-                logsService.logError("Target listing failed: $processStdError")
+                val errorMessage = getTargetListingFailedError(processStdError)
+                logErrorToBoth(logsService, errorMessage)
                 throw MirrordError.fromStdErr(processStdError)
             }
 
@@ -386,7 +408,6 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
                             val service = project.service<MirrordProjectService>()
                             ideMessage?.handleIdeMessage(service)
-
                         }
                     }
 
@@ -404,8 +425,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
-                MirrordLogger.logger.error(processStdError)
-                logsService.logError("Process failed with stderr: $processStdError")
+                val errorMessage = getProcessFailedStderrError(processStdError)
+                logErrorToBoth(logsService, errorMessage)
                 logsService.onMirrordExecutionEnd()
                 throw MirrordError.fromStdErr(processStdError)
             } else {
@@ -483,8 +504,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
-                MirrordLogger.logger.error(processStdError)
-                logsService.logError("Container process failed with stderr: $processStdError")
+                val errorMessage = getContainerProcessFailedStderrError(processStdError)
+                logErrorToBoth(logsService, errorMessage)
                 logsService.onMirrordExecutionEnd()
                 throw MirrordError.fromStdErr(processStdError)
             } else {
@@ -511,8 +532,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             process.waitFor()
             if (process.exitValue() != 0) {
                 val processStdError = process.errorStream.bufferedReader().readText()
-                MirrordLogger.logger.error(processStdError)
-                logsService.logError("Config verification failed: $processStdError")
+                val errorMessage = getConfigVerificationFailedError(processStdError)
+                logErrorToBoth(logsService, errorMessage)
                 throw MirrordError.fromStdErr(processStdError)
             }
 
@@ -788,14 +809,15 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 }
 
                 override fun onCancel() {
-                    MirrordLogger.logger.info("mirrord task `${commandLine.commandLineString}` was cancelled")
-                    logsService.logWarning("mirrord task was cancelled: ${commandLine.commandLineString}")
+                    val cancelMessage = getMirrordTaskCancelledMessage(commandLine.commandLineString)
+                    MirrordLogger.logger.warn(cancelMessage)
+                    logsService.logWarning(cancelMessage)
                     process.destroy()
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString}` failed", error)
-                    logsService.logError("mirrord task failed: ${error.message ?: error.toString()}")
+                    val errorMessage = getMirrordTaskFailedError(commandLine.commandLineString, error)
+                    logErrorToBoth(logsService, errorMessage)
                     process.destroy()
                 }
             })
@@ -809,15 +831,16 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 }
 
                 override fun onCancel() {
-                    MirrordLogger.logger.info("mirrord task `${commandLine.commandLineString}` was cancelled")
-                    logsService.logWarning("mirrord background task was cancelled: ${commandLine.commandLineString}")
+                    val cancelMessage = getMirrordBackgroundTaskCancelledMessage(commandLine.commandLineString)
+                    MirrordLogger.logger.info(cancelMessage)
+                    logsService.logWarning(cancelMessage)
                     process.destroy()
                     env.cancel(true)
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString}` failed", error)
-                    logsService.logError("mirrord background task failed: ${error.message ?: error.toString()}")
+                    val errorMessage = getMirrordBackgroundTaskFailedError(commandLine.commandLineString, error)
+                    logErrorToBoth(logsService, errorMessage)
                     process.destroy()
                     env.completeExceptionally(error)
                 }
@@ -831,8 +854,8 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
                 throw ProcessCanceledException(e)
             } catch (e: TimeoutException) {
                 process.destroy()
-                MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString} timed out", e)
-                logsService.logError("mirrord task timed out: ${commandLine.commandLineString}")
+                val errorMessage = getMirrordTaskTimedOutError(commandLine.commandLineString)
+                logErrorToBoth(logsService, errorMessage)
                 throw MirrordError("mirrord process timed out")
             }
         } else {
@@ -845,8 +868,8 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             } catch (e: ProcessCanceledException) {
                 // In this case, process is canceled only after a timeout.
                 process.destroy()
-                MirrordLogger.logger.error("mirrord task `${commandLine.commandLineString} timed out", e)
-                logsService.logError("mirrord task timed out under read lock: ${commandLine.commandLineString}")
+                val errorMessage = getMirrordTaskTimedOutUnderReadLockError(commandLine.commandLineString)
+                logErrorToBoth(logsService, errorMessage)
                 throw MirrordError("mirrord process timed out")
             }
         }
