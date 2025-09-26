@@ -38,7 +38,6 @@ private fun getProcessFailedStderrError(processStdError: String) = "Process fail
 private fun getContainerProcessFailedStderrError(processStdError: String) = "Container process failed with stderr: $processStdError"
 private fun getConfigVerificationFailedError(processStdError: String) = "Config verification failed: $processStdError"
 
-
 private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) = "mirrord task failed: ${error.message ?: error.toString()}"
 private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) = "mirrord background task failed: ${error.message ?: error.toString()}"
 private fun getMirrordTaskTimedOutError(commandLine: String) = "mirrord task timed out: $commandLine"
@@ -53,7 +52,6 @@ private fun logErrorToBoth(logsService: MirrordLogsService, errorMessage: String
     MirrordLogger.logger.error(errorMessage)
     logsService.logError(errorMessage)
 }
-
 
 /**
  * The message types we get from mirrord-cli.
@@ -545,7 +543,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                 logErrorToBoth(logsService, "Config verification stderr: $stderrText")
             }
 
-            logsService.logInfo(MIRRORD_VERIFIED_CONFIG_MESSAGE);
+            logsService.logInfo(MIRRORD_VERIFIED_CONFIG_MESSAGE)
             return bufferedReader.readText()
         }
     }
