@@ -24,6 +24,15 @@ const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
 
 const val NEWSLETTER_SIGNUP_URL = "https://metalbear.co/newsletter" + "?utm_medium=intellij&utm_source=newsletter"
 
+const val MIRRORD_LISTING_TARGETS_MESSAGE = "mirrord is listing targets..."
+const val MIRRORD_STARTING_MESSAGE = "mirrord is starting..."
+const val MIRRORD_RUNNING_MESSAGE = "mirrord is running"
+const val MIRRORD_CONTAINER_STARTING_MESSAGE = "mirrord container execution starting..."
+const val MIRRORD_CONTAINER_RUNNING_MESSAGE = "mirrord container is running"
+const val MIRRORD_VERIFYING_CONFIG_MESSAGE = "mirrord is verifying the config options..."
+
+
+
 /**
  * The message types we get from mirrord-cli.
  *
@@ -255,8 +264,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordLsOutput {
             val logsService = project.service<MirrordLogsService>()
 
-            setText("mirrord is listing targets...")
-            logsService.logInfo("mirrord is listing targets...")
+            setText(MIRRORD_LISTING_TARGETS_MESSAGE)
+            logsService.logInfo(MIRRORD_LISTING_TARGETS_MESSAGE)
 
             process.waitFor()
             if (process.exitValue() != 0) {
@@ -337,8 +346,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             logsService.onMirrordExecutionStart()
 
-            setText("mirrord is starting...")
-            logsService.logInfo("mirrord is starting...")
+            setText(MIRRORD_STARTING_MESSAGE)
+            logsService.logInfo(MIRRORD_STARTING_MESSAGE)
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -350,8 +359,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             val innerMessage = message.message
                                 ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage as String, MirrordExecution::class.java)
-                            setText("mirrord is running")
-                            logsService.logInfo("mirrord is running")
+                            setText(MIRRORD_RUNNING_MESSAGE)
+                            logsService.logInfo(MIRRORD_RUNNING_MESSAGE)
                             return executionInfo
                         }
                     }
@@ -373,10 +382,11 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
                     message.type == MessageType.IdeMessage -> {
                         message.message?.run {
+                            logsService.logInfo("IDE Message: $this")
                             val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
                             val service = project.service<MirrordProjectService>()
                             ideMessage?.handleIdeMessage(service)
-                            logsService.logInfo("IDE Message: ${ideMessage?.text ?: "Unknown message"}")
+
                         }
                     }
 
@@ -416,8 +426,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             logsService.onMirrordExecutionStart()
 
-            setText("mirrord is starting...")
-            logsService.logInfo("mirrord container execution starting...")
+            setText(MIRRORD_CONTAINER_STARTING_MESSAGE)
+            logsService.logInfo(MIRRORD_CONTAINER_STARTING_MESSAGE)
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -429,8 +439,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             val innerMessage = message.message
                                 ?: throw MirrordError("invalid message received from the mirrord binary")
                             val executionInfo = parser.parse(innerMessage as String, MirrordContainerExecution::class.java)
-                            setText("mirrord is running")
-                            logsService.logInfo("mirrord container is running")
+                            setText(MIRRORD_CONTAINER_RUNNING_MESSAGE)
+                            logsService.logInfo(MIRRORD_CONTAINER_RUNNING_MESSAGE)
                             return executionInfo
                         }
                     }
@@ -495,8 +505,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
             val logsService = project.service<MirrordLogsService>()
 
-            setText("mirrord is verifying the config options...")
-            logsService.logInfo("mirrord is verifying the config options...")
+            setText(MIRRORD_VERIFYING_CONFIG_MESSAGE)
+            logsService.logInfo(MIRRORD_VERIFYING_CONFIG_MESSAGE)
 
             process.waitFor()
             if (process.exitValue() != 0) {

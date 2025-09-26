@@ -3,6 +3,7 @@ package com.metalbear.mirrord
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
@@ -12,7 +13,7 @@ import java.time.format.DateTimeFormatter
 import javax.swing.JComponent
 
 @Service(Service.Level.PROJECT)
-class MirrordLogsService(private val project: Project) {
+class MirrordLogsService(private val project: Project): Disposable {
     private var consoleView: ConsoleView? = null
 
     fun createConsoleComponent(): JComponent {
@@ -65,7 +66,7 @@ class MirrordLogsService(private val project: Project) {
         }
     }
 
-    fun dispose() {
+    override fun dispose() {
         consoleView?.dispose()
         consoleView = null
     }
