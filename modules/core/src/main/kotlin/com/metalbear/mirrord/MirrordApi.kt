@@ -30,12 +30,21 @@ const val MIRRORD_RUNNING_MESSAGE = "mirrord is running"
 const val MIRRORD_CONTAINER_STARTING_MESSAGE = "mirrord container execution starting..."
 const val MIRRORD_CONTAINER_RUNNING_MESSAGE = "mirrord container is running"
 const val MIRRORD_VERIFYING_CONFIG_MESSAGE = "mirrord is verifying the config options..."
+const val MIRRORD_VERIFIED_CONFIG_MESSAGE = "Config verification completed successfully"
 
 // Error message constants
 private fun getTargetListingFailedError(processStdError: String) = "Target listing failed: $processStdError"
 private fun getProcessFailedStderrError(processStdError: String) = "Process failed with stderr: $processStdError"
 private fun getContainerProcessFailedStderrError(processStdError: String) = "Container process failed with stderr: $processStdError"
 private fun getConfigVerificationFailedError(processStdError: String) = "Config verification failed: $processStdError"
+
+
+private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) = "mirrord task failed: ${error.message ?: error.toString()}"
+private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) = "mirrord background task failed: ${error.message ?: error.toString()}"
+private fun getMirrordTaskTimedOutError(commandLine: String) = "mirrord task timed out: $commandLine"
+private fun getMirrordTaskTimedOutUnderReadLockError(commandLine: String) = "mirrord task timed out under read lock: $commandLine"
+private fun getMirrordTaskCancelledMessage(commandLine: String) = "mirrord task was cancelled: $commandLine"
+private fun getMirrordBackgroundTaskCancelledMessage(commandLine: String) = "mirrord background task was cancelled: $commandLine"
 
 /**
  * Helper function to log errors to both MirrordLogger and logsService
@@ -45,15 +54,6 @@ private fun logErrorToBoth(logsService: MirrordLogsService, errorMessage: String
     logsService.logError(errorMessage)
 }
 
-// Additional error message helper functions
-private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) = "mirrord task failed: ${error.message ?: error.toString()}"
-private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) = "mirrord background task failed: ${error.message ?: error.toString()}"
-private fun getMirrordTaskTimedOutError(commandLine: String) = "mirrord task timed out: $commandLine"
-private fun getMirrordTaskTimedOutUnderReadLockError(commandLine: String) = "mirrord task timed out under read lock: $commandLine"
-
-// Cancellation message helper functions
-private fun getMirrordTaskCancelledMessage(commandLine: String) = "mirrord task was cancelled: $commandLine"
-private fun getMirrordBackgroundTaskCancelledMessage(commandLine: String) = "mirrord background task was cancelled: $commandLine"
 
 /**
  * The message types we get from mirrord-cli.
@@ -542,10 +542,10 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             val stderrText = stderr.readText()
             MirrordLogger.logger.debug(stderrText)
             if (stderrText.isNotBlank()) {
-                logsService.logInfo("Config verification stderr: $stderrText")
+                logErrorToBoth(logsService, "Config verification stderr: $stderrText")
             }
 
-            logsService.logInfo("Config verification completed successfully")
+            logsService.logInfo(MIRRORD_VERIFIED_CONFIG_MESSAGE);
             return bufferedReader.readText()
         }
     }
