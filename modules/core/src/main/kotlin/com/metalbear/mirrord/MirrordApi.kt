@@ -832,7 +832,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
                 override fun onCancel() {
                     val cancelMessage = getMirrordBackgroundTaskCancelledMessage(commandLine.commandLineString)
-                    MirrordLogger.logger.info(cancelMessage)
+                    MirrordLogger.logger.warn(cancelMessage)
                     logsService.logWarning(cancelMessage)
                     process.destroy()
                     env.cancel(true)
