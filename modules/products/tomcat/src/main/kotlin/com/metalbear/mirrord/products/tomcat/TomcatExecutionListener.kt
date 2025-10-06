@@ -27,6 +27,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 private const val DEFAULT_TOMCAT_SERVER_PORT: String = "8005"
 
+var TASK_RAN: Boolean = false
+
 private fun getTomcatServerPort(): String {
     return System.getenv("MIRRORD_TOMCAT_SERVER_PORT") ?: DEFAULT_TOMCAT_SERVER_PORT
 }
@@ -147,6 +149,7 @@ class TomcatExecutionListener : ExecutionListener {
      */
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
+        TASK_RAN = false
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
 
@@ -181,6 +184,11 @@ class TomcatExecutionListener : ExecutionListener {
         }
 
         config.second.beforeRunTasks = config.second.beforeRunTasks + TomcatBeforeRunTaskProvider.TomcatBeforeRunTask {
+            if (TASK_RAN) {
+                return@TomcatBeforeRunTask
+            }
+            TASK_RAN = true
+
             val savedData = SavedConfigData()
             // Always inject `SavedConfigData` early.
             // This allows for removing `TomcatBeforeRunTask` from the run configuration,
