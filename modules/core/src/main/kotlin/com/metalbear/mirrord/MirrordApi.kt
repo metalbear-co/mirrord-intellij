@@ -670,7 +670,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
      * Returns command line for execution.
      */
     private fun prepareCommandLine(project: Project): GeneralCommandLine {
-        return GeneralCommandLine(cli, command).apply {
+        val commandLine = GeneralCommandLine(cli, command).apply {
             // Merge our `environment` vars with what's set in the current launch run configuration.
             if (projectEnvVars != null) {
                 environment.putAll(projectEnvVars)
@@ -736,6 +736,8 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
         }
+        project.service<MirrordLogsService>().logInfo("Executing mirrord command: ${commandLine.commandLineString}")
+        return commandLine
     }
 
     /**
@@ -794,7 +796,6 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
         val logsService = project.service<MirrordLogsService>()
 
         MirrordLogger.logger.info("running mirrord task with following command line: ${commandLine.commandLineString}")
-        logsService.logInfo("Executing mirrord command: ${commandLine.commandLineString}")
 
         val process = commandLine.toProcessBuilder().redirectOutput(ProcessBuilder.Redirect.PIPE).redirectError(ProcessBuilder.Redirect.PIPE).start()
 
