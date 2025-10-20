@@ -180,52 +180,56 @@ class TomcatExecutionListener : ExecutionListener {
             null
         }
 
-        config.second.beforeRunTasks = config.second.beforeRunTasks + TomcatBeforeRunTaskProvider.TomcatBeforeRunTask {
-            val savedData = SavedConfigData()
-            // Always inject `SavedConfigData` early.
-            // This allows for removing `TomcatBeforeRunTask` from the run configuration,
-            // even if mirrord is disabled, or we throw an exception in `MirrordExecManager`.
-            if (savedEnvs[executorId] == null) {
-                // On a hot redeploy, do not record the new saved env (it contains all the mirrord env)
-                savedEnvs[executorId] = savedData
-            }
+        val alreadyContainsInitTask = config.second.beforeRunTasks.any { it is TomcatBeforeRunTaskProvider.TomcatBeforeRunTask }
 
-            val envVarsMap = originalEnvVars.associate { it.NAME to it.VALUE }
-            service.execManager.wrapper("tomcat", envVarsMap).apply {
-                this.wsl = wsl
-                this.executable = scriptAndArgs?.command
-            }.start()?.let { executionInfo ->
-                // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
-                // even if `outgoing` feature is enabled.
-                val mirrordEnv = executionInfo.environment + mapOf(
-                    Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"),
-                    Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort())
-                )
+        if (!alreadyContainsInitTask) {
+            config.second.beforeRunTasks = config.second.beforeRunTasks + TomcatBeforeRunTaskProvider.TomcatBeforeRunTask {
+                val savedData = SavedConfigData()
+                // Always inject `SavedConfigData` early.
+                // This allows for removing `TomcatBeforeRunTask` from the run configuration,
+                // even if mirrord is disabled, or we throw an exception in `MirrordExecManager`.
+                if (savedEnvs[executorId] == null) {
+                    // On a hot redeploy, do not record the new saved env (it contains all the mirrord env)
+                    savedEnvs[executorId] = savedData
+                }
 
-                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: saving ${originalEnvVars.size} original environment variables")
-                savedData.envVars = originalEnvVars.toList()
+                val envVarsMap = originalEnvVars.associate { it.NAME to it.VALUE }
+                service.execManager.wrapper("tomcat", envVarsMap).apply {
+                    this.wsl = wsl
+                    this.executable = scriptAndArgs?.command
+                }.start()?.let { executionInfo ->
+                    // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app
+                    // even if `outgoing` feature is enabled.
+                    val mirrordEnv = executionInfo.environment + mapOf(
+                        Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"),
+                        Pair("MIRRORD_IGNORE_DEBUGGER_PORTS", getTomcatServerPort())
+                    )
 
-                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${mirrordEnv.size} environment variables")
-                val finalEnvVars = originalEnvVars.associateBy { it.NAME } +
-                    mirrordEnv.mapValues { (key, value) -> EnvironmentVariable(key, value, false) } -
-                    executionInfo.envToUnset.orEmpty().toSet()
-                config.first.setEnvironmentVariables(finalEnvVars.values.toList())
+                    MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: saving ${originalEnvVars.size} original environment variables")
+                    savedData.envVars = originalEnvVars.toList()
 
-                if (SystemInfo.isMac) {
-                    MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, patching SIP.")
-                    executionInfo.patchedPath?.let {
-                        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
-                        savedData.scriptInfo = startupInfo
-                        if (config.first.startupInfo.USE_DEFAULT) {
-                            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: using default - handling SIP by replacing config.startupInfo")
-                            val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
-                            val startupInfoField =
-                                RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
-                            startupInfoField.isAccessible = true
-                            startupInfoField.set(config.first, patchedStartupInfo)
-                        } else {
-                            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: NOT using default - patching by changing the non-default script")
-                            config.first.startupInfo.SCRIPT = it
+                    MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${mirrordEnv.size} environment variables")
+                    val finalEnvVars = originalEnvVars.associateBy { it.NAME } +
+                        mirrordEnv.mapValues { (key, value) -> EnvironmentVariable(key, value, false) } -
+                        executionInfo.envToUnset.orEmpty().toSet()
+                    config.first.setEnvironmentVariables(finalEnvVars.values.toList())
+
+                    if (SystemInfo.isMac) {
+                        MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: isMac, patching SIP.")
+                        executionInfo.patchedPath?.let {
+                            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: patchedPath is not null: $it, meaning original was SIP")
+                            savedData.scriptInfo = startupInfo
+                            if (config.first.startupInfo.USE_DEFAULT) {
+                                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: using default - handling SIP by replacing config.startupInfo")
+                                val patchedStartupInfo = patchedScriptFromScript(startupInfo, it, scriptAndArgs?.args)
+                                val startupInfoField =
+                                    RunnerSpecificLocalConfigurationBit::class.java.getDeclaredField("myStartupInfo")
+                                startupInfoField.isAccessible = true
+                                startupInfoField.set(config.first, patchedStartupInfo)
+                            } else {
+                                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: NOT using default - patching by changing the non-default script")
+                                config.first.startupInfo.SCRIPT = it
+                            }
                         }
                     }
                 }
