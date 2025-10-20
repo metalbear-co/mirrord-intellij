@@ -182,7 +182,7 @@ class TomcatExecutionListener : ExecutionListener {
 
         val alreadyContainsInitTask = config.second.beforeRunTasks.any { it is TomcatBeforeRunTaskProvider.TomcatBeforeRunTask }
 
-        if (alreadyContainsInitTask) {
+        if (!alreadyContainsInitTask) {
             config.second.beforeRunTasks = config.second.beforeRunTasks + TomcatBeforeRunTaskProvider.TomcatBeforeRunTask {
                 val savedData = SavedConfigData()
                 // Always inject `SavedConfigData` early.
