@@ -16,3 +16,5 @@ bin/
 
 # Artifacts from e2e tests
 /video/
+
+libmirrord_layer.*
