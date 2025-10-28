@@ -62,6 +62,9 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 executionInfo.patchedPath?.let {
                     cmdLine.exePath = it
                 }
+                // asdf-ruby compiles the ruby interpreter locally and so doesn't any special SIP handling because the
+                // binary isn't signed at all
+                val isAsdf = cmdLine.exePath.contains("/.asdf/")
                 // TODO: would be nice to have a more robust RVM detection mechanism.
                 val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
                 if (isRvm) {
@@ -70,9 +73,9 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                     path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
                     cmdLine.exePath = path.pathString
                     path.toFile().setExecutable(true)
-                } else {
+                } else if (!isAsdf) {
                     val e = MirrordError(
-                        "At the moment, only RVM Rubies are supported by mirrord on RubyMine on macOS, due to SIP.",
+                        "At the moment, only RVM and ASDF ruby installs are supported by mirrord on RubyMine on macOS, due to SIP.",
                         "Support for other Rubies is tracked on " +
                             "https://github.com/metalbear-co/mirrord-intellij/issues/134."
                     )
