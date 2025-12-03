@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.70.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.0) - 2025-12-03
+
+
+### Fixed
+
+- fix for multiple execution of service wrapper in TomcatBeforeRunTaskProvider,
+  now only one for debug session is executed
+  [#344](https://github.com/metalbear-co/mirrord-intellij/issues/344)
+- Log mirrord command line always instead of in some scenarios
+
+
+### Internal
+
+- Bump gradle version to fix build.
+
 ## [3.69.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.69.0) - 2025-09-26
 
 
