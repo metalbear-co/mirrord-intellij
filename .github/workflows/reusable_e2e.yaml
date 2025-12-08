@@ -23,7 +23,7 @@ jobs:
     steps:
 
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: metalbear-co/free-disk-space@main
         with:
           # this might remove tools that are actually needed,
           # if set to "true", frees about 6 GB
