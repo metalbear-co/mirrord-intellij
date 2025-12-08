@@ -11,6 +11,13 @@ jobs:
   release:
     runs-on: ubuntu-24.04
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: metalbear-co/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true", frees about 6 GB
+          tool-cache: false
+
       - uses: actions/checkout@v4
         id: version
       - name: get custom delve
