@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.70.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.1) - 2025-12-07
+
+
+### Internal
+
+- Added an action to free runner space.
+  [#ci-runner-space](https://github.com/metalbear-co/mirrord-intellij/issues/ci-runner-space)
+
 ## [3.70.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.0) - 2025-12-03
 
 
