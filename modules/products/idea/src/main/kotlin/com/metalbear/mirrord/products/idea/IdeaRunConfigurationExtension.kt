@@ -20,6 +20,13 @@ import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * For overriding the `isApplicableFor` check on run configurations.
+ * Set MIRRORD_FORCE_RUN=true to ensure we consider the run configuration able to run with mirrord.
+ * NOTE: mirrord must _still be enabled_ to run on the run configuration.
+ */
+const val FORCE_RUN_ENV_NAME: String = "MIRRORD_FORCE_RUN"
+
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * mirrord env set in ExternalRunConfigurations. Used for cleanup the configuration after the execution has ended.
@@ -30,7 +37,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
         val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration")
                 && configuration.name.contains("build", ignoreCase = true)
-        val applicable = !(skipTomcat || skipGradleBuild)
+
+        val forceRunMirrord = getForceRunMirrord(configuration)
+
+        // if the env override is set for this run configuration, always return `applicable = true`
+        // otherwise, return `applicable = true` when the configuration is NOT a Tomcat or Gradle build
+        val applicable = forceRunMirrord || !(skipTomcat || skipGradleBuild)
 
         if (!applicable) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -44,6 +56,15 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?
     ): Boolean {
         return true
+    }
+
+    private fun <T : RunConfigurationBase<*>> getForceRunMirrord(configuration: T): Boolean {
+        if (configuration is ExternalSystemRunConfiguration) {
+            val ext = configuration as ExternalSystemRunConfiguration
+            return ext.settings.env[FORCE_RUN_ENV_NAME].toBoolean()
+        } else {
+            return false
+        }
     }
 
     private fun <T : RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
