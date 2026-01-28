@@ -27,7 +27,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
-        val applicable = !configuration.name.startsWith("Build ") && !configuration.name.startsWith("Tomcat")
+        val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
+        val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration")
+                && configuration.name.contains("build", ignoreCase = true)
+        val applicable = !(skipTomcat || skipGradleBuild)
 
         if (!applicable) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
