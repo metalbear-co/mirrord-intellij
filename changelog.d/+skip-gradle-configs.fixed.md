@@ -1,0 +1,1 @@
+The plugin will now skip running on Gradle run configurations with "build" (case insensitive) in the name. To override this behaviour, set `MIRRORD_FORCE_RUN=true` in the run configuration's env vars. *NOTE: mirrord must still be enabled to run.*

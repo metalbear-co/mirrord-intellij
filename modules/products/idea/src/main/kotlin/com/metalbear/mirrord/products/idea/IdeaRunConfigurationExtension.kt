@@ -35,8 +35,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
         val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
-        val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration")
-                && configuration.name.contains("build", ignoreCase = true)
+        val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration") &&
+            configuration.name.contains("build", ignoreCase = true)
 
         val forceRunMirrord = getForceRunMirrord(configuration)
 
