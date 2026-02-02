@@ -1,0 +1,1 @@
+Removed setup-xvfb step.
