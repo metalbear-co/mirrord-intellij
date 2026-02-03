@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.71.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.0) - 2026-02-03
+
+
+### Fixed
+
+- The plugin will now skip running on Gradle run configurations with "build"
+  (case-insensitive) in the name. To override this behaviour, set
+  `MIRRORD_FORCE_RUN=true` in the run configuration's env vars. *NOTE: mirrord
+  must still be enabled to run.*
+
+
+### Internal
+
+- Free runner space for release workflow.
+
 ## [3.70.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.1) - 2025-12-07
 
 
