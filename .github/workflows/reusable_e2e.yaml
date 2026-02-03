@@ -102,25 +102,29 @@ jobs:
           ./gradlew buildPlugin
 
       - name: Run intellij e2e in headless state
-        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
           MIRRORD_AGENT_IMAGE: "test"
-        with:
-          run: |
-            ./gradlew test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
+          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
+          wait -n
 
       - name: Run intellij e2e in headless state
-        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ !inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
-        with:
-          run: |
-            ./gradlew test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
+          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
+          wait -n
 
       - name: Save the failure video
         continue-on-error: true
