@@ -73,15 +73,21 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
-    fun dumbAware(timeout: Duration = Duration.ofMinutes(5), function: () -> Unit) {
+    fun dumbAware(
+        timeout: Duration = Duration.ofMinutes(5),
+        waitAfter: Boolean = true,
+        function: () -> Unit
+    ) {
         step("Wait for smart mode") {
             waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
                 runCatching { isDumbMode().not() }.getOrDefault(false)
             }
             function()
-            step("..wait for smart mode again") {
-                waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
-                    isDumbMode().not()
+            if (waitAfter) {
+                step("..wait for smart mode again") {
+                    waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
+                        isDumbMode().not()
+                    }
                 }
             }
         }

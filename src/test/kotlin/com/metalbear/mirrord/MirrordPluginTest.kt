@@ -200,8 +200,19 @@ internal class MirrordPluginTest {
                     startDebugging.isShowing
                 }
                 enableMirrord.click()
-                dumbAware {
+                dumbAware(waitAfter = false) {
                     startDebugging.click()
+                }
+                step("Select target if prompted") {
+                    val targetDialog = tryDialogContains("Target", ofSeconds(5))
+                    if (targetDialog != null) {
+                        val handled =
+                            runCatching { targetDialog.button("OK").click(); true }.getOrDefault(false) ||
+                                runCatching { targetDialog.button("Continue").click(); true }.getOrDefault(false)
+                        if (!handled) {
+                            error("Target selection dialog found but no OK/Continue button")
+                        }
+                    }
                 }
                 step("Select pod to mirror traffic from") {
                     dialog("mirrord", ofSeconds(120)) {
