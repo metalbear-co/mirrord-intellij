@@ -13,8 +13,10 @@ class BazelBinaryProvider241(var env: ExecutionEnvironment) : BazelBinaryProvide
     class BinaryExecutionPlan241(val state: Any, private val binaryToPatch: String?) : BinaryExecutionPlan {
 
         override fun getOriginalEnv(): ImmutableMap<String, String> {
-            val env = ReflectUtils.getPropertyByName(state, "userEnvVarsState.data.envs") as Map<String, String>
-            return env.toImmutableMap()
+            val env = ReflectUtils.getPropertyByName(state, "userEnvVarsState.data.envs") as Map<*, *>
+            return env.mapNotNull { (key, value) ->
+                if (key is String && value is String) key to value else null
+            }.toMap().toImmutableMap()
         }
 
         override fun addToEnv(map: Map<String, String>) {
