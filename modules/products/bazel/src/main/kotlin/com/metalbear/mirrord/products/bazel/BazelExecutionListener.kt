@@ -35,6 +35,11 @@ class BazelExecutionListener : ExecutionListener {
     private val bazelBinaryExecutionPlans: ConcurrentHashMap<String, BinaryExecutionPlan> = ConcurrentHashMap()
 
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
+        if (!env.runProfile.javaClass.name.endsWith("BlazeCommandRunConfiguration")) {
+            MirrordLogger.logger.debug("irrelevant target ${env.runProfile.javaClass.name}")
+            return
+        }
+
         val service = env.project.service<MirrordProjectService>()
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: $executorId $env")
