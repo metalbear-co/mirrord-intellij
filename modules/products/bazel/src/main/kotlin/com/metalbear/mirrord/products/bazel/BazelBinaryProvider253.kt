@@ -21,9 +21,11 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
 
         override fun addToEnv(map: Map<String, String>) {
             val oldEnv = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvs") as Map<*, *>
-            val newEnvMap = HashMap(oldEnv.mapNotNull { (key, value) ->
-                if (key is String && value is String) key to value else null
-            }.toMap())
+            val newEnvMap = HashMap(
+                oldEnv.mapNotNull { (key, value) ->
+                    if (key is String && value is String) key to value else null
+                }.toMap()
+            )
             newEnvMap.putAll(map)
             val oldEnvFile = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvironmentFile") as String?
             val oldPassParentEnvs = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myPassParentEnvs") as Boolean
