@@ -25,10 +25,12 @@ fun ContainerFixture.tryDialogContains(
     timeout: Duration = Duration.ofSeconds(5),
     function: DialogFixture.() -> Unit = {}
 ): DialogFixture? = step("Search for dialog containing title $title") {
-    val dialog = waitFor<DialogFixture?>(timeout) {
-        val match = findAll<DialogFixture>(DialogFixture.byTitleContains(title)).firstOrNull()
-        Pair(match != null, match)
-    }
+    val dialog = runCatching {
+        waitFor<DialogFixture?>(timeout) {
+            val match = findAll<DialogFixture>(DialogFixture.byTitleContains(title)).firstOrNull()
+            Pair(match != null, match)
+        }
+    }.getOrNull()
     dialog?.apply(function)
 }
 

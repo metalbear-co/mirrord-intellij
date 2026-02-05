@@ -8,6 +8,7 @@ import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
 import com.intellij.remoterobot.launcher.Os
+import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.steps.CommonSteps
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
@@ -206,12 +207,31 @@ internal class MirrordPluginTest {
                 step("Select target if prompted") {
                     val targetDialog = tryDialogContains("Target", ofSeconds(5))
                     if (targetDialog != null) {
-                        val handled =
-                            runCatching { targetDialog.button("OK").click(); true }.getOrDefault(false) ||
-                                runCatching { targetDialog.button("Continue").click(); true }.getOrDefault(false)
-                        if (!handled) {
-                            error("Target selection dialog found but no OK/Continue button")
-                        }
+                        runCatching {
+                            val item =
+                                targetDialog.findAll<ContainerFixture>(
+                                    byXpath(".//div[@class='SimpleColoredComponent']")
+                                ).firstOrNull()
+                            item?.click()
+                        }.getOrNull()
+                        runCatching { targetDialog.button("OK").click() }.getOrNull()
+                        runCatching { targetDialog.button("Continue").click() }.getOrNull()
+                    } else {
+                        runCatching {
+                            val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                                .firstOrNull { it.isShowing }
+                            if (list != null) {
+                                val item =
+                                    list.findAll<ContainerFixture>(
+                                        byXpath(".//div[@class='SimpleColoredComponent']")
+                                    ).firstOrNull()
+                                if (item != null) {
+                                    item.click()
+                                } else {
+                                    list.click()
+                                }
+                            }
+                        }.getOrNull()
                     }
                 }
                 step("Select pod to mirror traffic from") {
