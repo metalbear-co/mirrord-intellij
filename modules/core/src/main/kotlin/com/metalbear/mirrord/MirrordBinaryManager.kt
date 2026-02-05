@@ -261,7 +261,7 @@ class MirrordBinaryManager {
     companion object {
         @Suppress("DEPRECATION")
         private fun wslPath(wslDistribution: WSLDistribution, path: String): String =
-            wslDistribution.getWslPath(path)
+            wslDistribution.getWslPath(path) ?: path
     }
 
     /**
