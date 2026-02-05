@@ -249,6 +249,7 @@ tasks {
             showStandardStreams = true
             events("passed", "skipped", "failed")
         }
+    }
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
