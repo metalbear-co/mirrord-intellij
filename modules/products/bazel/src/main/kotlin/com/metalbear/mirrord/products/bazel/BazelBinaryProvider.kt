@@ -120,13 +120,13 @@ interface BazelBinaryProvider {
                 } else if (method241Exist) {
                     BazelBinaryProvider241(env)
                 } else {
-                    MirrordLogger.logger.error("[${Factory::class.java.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
+                    MirrordLogger.logger.error("[${this::class.java.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
                     throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the ones in the range v2024.x - v2025.07.24.0.1")
                 }
-                MirrordLogger.logger.debug("[${Factory::class.java.name}] processStartScheduled: built Bazel binary execution plan for ${env.executor.id}, ${binaryProvider.getBinaryExecPlanClass()}")
+                MirrordLogger.logger.debug("[${this::class.java.name}] processStartScheduled: built Bazel binary execution plan for ${env.executor.id}, ${binaryProvider.getBinaryExecPlanClass()}")
                 return binaryProvider
             } catch (e: ClassNotFoundException) {
-                MirrordLogger.logger.error("[${Factory::class.java.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
+                MirrordLogger.logger.error("[${this::class.java.name}] processStartScheduled: usable binary execution plan not available for current bazel version")
                 throw BuildExecPlanError("Bazel binary execution plan not available for current bazel version, supported versions are the ones in the range v2024.x - v2025.07.24.0.1", e)
             }
         }
