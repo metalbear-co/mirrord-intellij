@@ -204,18 +204,14 @@ internal class MirrordPluginTest {
                 dumbAware(waitAfter = false) {
                     startDebugging.click()
                 }
-                step("Select target if prompted") {
-                    val targetDialog = tryDialogContains("Target", ofSeconds(5))
-                    if (targetDialog != null) {
-                        runCatching {
-                            val item =
-                                targetDialog.findAll<ContainerFixture>(
-                                    byXpath(".//div[@class='SimpleColoredComponent']")
-                                ).firstOrNull()
-                            item?.click()
-                        }.getOrNull()
-                        runCatching { targetDialog.button("OK").click() }.getOrNull()
-                        runCatching { targetDialog.button("Continue").click() }.getOrNull()
+                step("Select pod to mirror traffic from") {
+                    val podToSelect = System.getenv("POD_TO_SELECT")
+                    val dialog =
+                        tryDialogContains("mirrord", ofSeconds(120)) ?: tryDialogContains("Target", ofSeconds(120))
+                    if (dialog != null) {
+                        runCatching { dialog.findText(podToSelect).click() }.getOrNull()
+                        runCatching { dialog.button("OK").click() }.getOrNull()
+                        runCatching { dialog.button("Continue").click() }.getOrNull()
                     } else {
                         runCatching {
                             val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
@@ -224,7 +220,7 @@ internal class MirrordPluginTest {
                                 val item =
                                     list.findAll<ContainerFixture>(
                                         byXpath(".//div[@class='SimpleColoredComponent']")
-                                    ).firstOrNull()
+                                    ).firstOrNull { it.hasText(podToSelect) }
                                 if (item != null) {
                                     item.click()
                                 } else {
@@ -232,13 +228,6 @@ internal class MirrordPluginTest {
                                 }
                             }
                         }.getOrNull()
-                    }
-                }
-                step("Select pod to mirror traffic from") {
-                    dialog("mirrord", ofSeconds(120)) {
-                        val podToSelect = System.getenv("POD_TO_SELECT")
-                        findText(podToSelect).click()
-                        button("OK").click()
                     }
                 }
                 runnerTabDebugger.click()
