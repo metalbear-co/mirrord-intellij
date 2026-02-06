@@ -84,7 +84,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             }
             function()
             if (waitAfter) {
-                step("..wait for smart mode again") {
+                step("...wait for smart mode again") {
                     waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
                         isDumbMode().not()
                     }
