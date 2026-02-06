@@ -22,7 +22,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
      * This is used to show a specific help popup in the case that listing targets took too long.
      */
-    class InitListingTargetsCancelledException(cause: Throwable? = null) : ProcessCanceledException("Initial mirrord target listing was cancelled")
+    class InitListingTargetsCancelledException(cause: Throwable? = null) :
+        ProcessCanceledException("Initial mirrord target listing was cancelled") {
+        init {
+            cause?.let { initCause(it) }
+        }
+    }
 
     /**
      * Attempts to show the target selection dialog and allow user to select the mirrord target.
@@ -92,8 +97,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
         val path = service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
-        return wslDistribution?.getWslPath(path) ?: path
+        return wslPath(wslDistribution, path)
     }
+
+    @Suppress("DEPRECATION")
+    private fun wslPath(wslDistribution: WSLDistribution?, path: String): String =
+        wslDistribution?.getWslPath(path) ?: path
 
     /**
      * Starts a plugin version check in a background thread.
@@ -169,7 +178,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
-                mirrordApi.verifyConfig(cli, wslDistribution?.getWslPath(it) ?: it, wslDistribution)
+                mirrordApi.verifyConfig(cli, wslPath(wslDistribution, it), wslDistribution)
             MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
             MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
                 MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")

@@ -20,8 +20,12 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
         }
 
         override fun addToEnv(map: Map<String, String>) {
-            val oldEnv = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvs") as Map<String, String>
-            val newEnvMap = HashMap(oldEnv)
+            val oldEnv = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvs") as Map<*, *>
+            val newEnvMap = HashMap(
+                oldEnv.mapNotNull { (key, value) ->
+                    if (key is String && value is String) key to value else null
+                }.toMap()
+            )
             newEnvMap.putAll(map)
             val oldEnvFile = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myEnvironmentFile") as String?
             val oldPassParentEnvs = ReflectUtils.getPropertyByName(plan.state, "handler.state.envVars.data.myPassParentEnvs") as Boolean
@@ -76,10 +80,10 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
         }
 
         val binaryToPatch = if (SystemInfo.isMac) {
-            val binaryFromHandler = ReflectUtils.getPropertyByName(state, "handler.state.blazeBinary")?.let { blazeBinary ->
-                val blazeBinary = ReflectUtils.callFunction(blazeBinary, "getBlazeBinary")
-                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $blazeBinary")
-                blazeBinary as String?
+            val binaryFromHandler = ReflectUtils.getPropertyByName(state, "handler.state.blazeBinary")?.let { blazeBinaryObject ->
+                val blazeBinaryPath = ReflectUtils.callFunction(blazeBinaryObject, "getBlazeBinary")
+                MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: found Bazel binary path in the config: $blazeBinaryPath")
+                blazeBinaryPath as String?
             }
 
             val binaryPath = binaryFromHandler ?: let {
@@ -95,9 +99,12 @@ class BazelBinaryProvider253(var env: ExecutionEnvironment) : BazelBinaryProvide
             null
         }
 
-        val originalEnv = ReflectUtils.getPropertyByName(state, "handler.state.envVars.data.myEnvs") as Map<String, String>
+        val originalEnv = ReflectUtils.getPropertyByName(state, "handler.state.envVars.data.myEnvs") as Map<*, *>
+        val originalEnvStringMap = originalEnv.mapNotNull { (key, value) ->
+            if (key is String && value is String) key to value else null
+        }.toMap()
         MirrordLogger.logger.debug("[${javaClass.name}] found binary to patch path: $binaryToPatch")
-        return BinaryExecutionPlan253(BinaryExecutionPlan241(state, binaryToPatch), originalEnv)
+        return BinaryExecutionPlan253(BinaryExecutionPlan241(state, binaryToPatch), originalEnvStringMap)
     }
 
     override fun getBinaryExecPlanClass(): KClass<out BinaryExecutionPlan> {

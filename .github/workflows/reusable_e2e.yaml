@@ -53,6 +53,11 @@ jobs:
           distribution: zulu
           java-version: 17
 
+      - name: build plugin
+        run: |
+          ./gradlew buildPlugin
+
+
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
@@ -96,10 +101,6 @@ jobs:
           path: /tmp
       - run: minikube image load /tmp/test.tar
         if: ${{ inputs.mirrord_release_branch }}
-
-      - name: build plugin
-        run: |
-          ./gradlew buildPlugin
 
       - name: Run intellij e2e in headless state
         if: ${{ inputs.mirrord_release_branch }}

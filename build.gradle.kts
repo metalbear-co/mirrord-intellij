@@ -251,3 +251,10 @@ tasks {
         }
     }
 }
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        // Treat all warnings as errors
+        allWarningsAsErrors = true
+    }
+}

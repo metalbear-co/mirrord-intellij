@@ -242,7 +242,7 @@ class MirrordBinaryManager {
 
         init {
             version = if (wslDistribution != null) {
-                val command = wslDistribution.getWslPath(command)
+                val command = wslPath(wslDistribution, command)
                 val output = wslDistribution.executeOnWsl(5000, command, "--version")
                 output.stdout.split(' ')[1].trim()
             } else {
@@ -256,6 +256,12 @@ class MirrordBinaryManager {
                 child.inputReader().readLine().split(' ')[1].trim()
             }
         }
+    }
+
+    companion object {
+        @Suppress("DEPRECATION")
+        private fun wslPath(wslDistribution: WSLDistribution, path: String): String =
+            wslDistribution.getWslPath(path) ?: path
     }
 
     /**
