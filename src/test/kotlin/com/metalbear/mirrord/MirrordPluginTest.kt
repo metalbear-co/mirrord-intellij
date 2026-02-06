@@ -8,6 +8,7 @@ import com.intellij.remoterobot.launcher.Ide
 import com.intellij.remoterobot.launcher.IdeDownloader
 import com.intellij.remoterobot.launcher.IdeLauncher
 import com.intellij.remoterobot.launcher.Os
+import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.steps.CommonSteps
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
@@ -200,14 +201,33 @@ internal class MirrordPluginTest {
                     startDebugging.isShowing
                 }
                 enableMirrord.click()
-                dumbAware {
+                dumbAware(waitAfter = false) {
                     startDebugging.click()
                 }
                 step("Select pod to mirror traffic from") {
-                    dialog("mirrord", ofSeconds(120)) {
-                        val podToSelect = System.getenv("POD_TO_SELECT")
-                        findText(podToSelect).click()
-                        button("OK").click()
+                    val podToSelect = System.getenv("POD_TO_SELECT")
+                    val dialog =
+                        tryDialogContains("mirrord", ofSeconds(120)) ?: tryDialogContains("Target", ofSeconds(120))
+                    if (dialog != null) {
+                        runCatching { dialog.findText(podToSelect).click() }.getOrNull()
+                        runCatching { dialog.button("OK").click() }.getOrNull()
+                        runCatching { dialog.button("Continue").click() }.getOrNull()
+                    } else {
+                        runCatching {
+                            val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                                .firstOrNull { it.isShowing }
+                            if (list != null) {
+                                val item =
+                                    list.findAll<ContainerFixture>(
+                                        byXpath(".//div[@class='SimpleColoredComponent']")
+                                    ).firstOrNull { it.hasText(podToSelect) }
+                                if (item != null) {
+                                    item.click()
+                                } else {
+                                    list.click()
+                                }
+                            }
+                        }.getOrNull()
                     }
                 }
                 runnerTabDebugger.click()
