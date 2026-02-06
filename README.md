@@ -1,7 +1,7 @@
 # mirrord for JetBrains IntelliJ
 
 [![Community Slack](https://img.shields.io/badge/Join-e5f7f7?logo=slack&label=Community%20Slack)](https://metalbear.co/slack)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/metalbear-co/mirrord-intellij/blob/main/LICENSE)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
 [![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
 [![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-e6005c)](https://plugins.jetbrains.com/plugin/19772-mirrord)
