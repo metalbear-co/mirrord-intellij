@@ -2,8 +2,8 @@
 
 package com.metalbear.mirrord.products.idea
 
-import com.intellij.execution.RunConfigurationExtension
 import com.intellij.execution.CommonProgramRunConfigurationParameters
+import com.intellij.execution.RunConfigurationExtension
 import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunnerSettings
