@@ -3,21 +3,16 @@
 package com.metalbear.mirrord.products.idea
 
 import com.intellij.execution.RunConfigurationExtension
+import com.intellij.execution.CommonProgramRunConfigurationParameters
 import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
-import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordLogger
-import com.metalbear.mirrord.MirrordProjectService
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -27,22 +22,40 @@ import java.util.concurrent.ConcurrentHashMap
  */
 const val FORCE_RUN_ENV_NAME: String = "MIRRORD_FORCE_RUN"
 
+internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigurationBase<*>): Boolean {
+    val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
+    val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration") &&
+        configuration.name.contains("build", ignoreCase = true)
+
+    val forceRunMirrord = getForceRunMirrord(configuration)
+
+    return forceRunMirrord || !(skipTomcat || skipGradleBuild)
+}
+
+internal fun getIdeaConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> {
+    return when (configuration) {
+        is ExternalSystemRunConfiguration -> configuration.settings.env
+        is CommonProgramRunConfigurationParameters -> configuration.envs
+        else -> emptyMap()
+    }
+}
+
+private fun getForceRunMirrord(configuration: RunConfigurationBase<*>): Boolean {
+    return if (configuration is ExternalSystemRunConfiguration) {
+        configuration.settings.env[FORCE_RUN_ENV_NAME].toBoolean()
+    } else {
+        false
+    }
+}
+
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * mirrord env set in ExternalRunConfigurations. Used for cleanup the configuration after the execution has ended.
      */
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
+    private val runningProcessEnvs = ConcurrentHashMap<RunConfigurationBase<*>, Map<String, String>>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
-        val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
-        val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration") &&
-            configuration.name.contains("build", ignoreCase = true)
-
-        val forceRunMirrord = getForceRunMirrord(configuration)
-
-        // if the env override is set for this run configuration, always return `applicable = true`
-        // otherwise, return `applicable = true` when the configuration is NOT a Tomcat or Gradle build
-        val applicable = forceRunMirrord || !(skipTomcat || skipGradleBuild)
+        val applicable = isIdeaConfigurationApplicableForMirrord(configuration)
 
         if (!applicable) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -58,61 +71,29 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         return true
     }
 
-    private fun <T : RunConfigurationBase<*>> getForceRunMirrord(configuration: T): Boolean {
-        if (configuration is ExternalSystemRunConfiguration) {
-            val ext = configuration as ExternalSystemRunConfiguration
-            return ext.settings.env[FORCE_RUN_ENV_NAME].toBoolean()
-        } else {
-            return false
-        }
-    }
-
-    private fun <T : RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
-        return params.env[CONFIG_ENV_NAME] ?: if (configuration is ExternalSystemRunConfiguration) {
-            val ext = configuration as ExternalSystemRunConfiguration
-            ext.settings.env[CONFIG_ENV_NAME]
-        } else {
-            null
-        }
-    }
-
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
         runnerSettings: RunnerSettings?
     ) {
-        val service = configuration.project.service<MirrordProjectService>()
-
-        MirrordLogger.logger.debug("wsl check")
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
+        val executionInfo = IdeaMirrordPreparationStore.consume(configuration) ?: run {
+            // Main mirrord initialization is prepared by a before-run task to avoid blocking here under read lock.
+            MirrordLogger.logger.debug("No prepared mirrord execution info for `${configuration.name}`, skipping")
+            return
         }
 
-        val extraEnv = if (configuration is ExternalSystemRunConfiguration) {
-            val extraEnv = params.env + configuration.settings.env
-            extraEnv
-        } else {
-            params.env
-        }
+        val mirrordEnv = executionInfo.environment + mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
+        params.env = params.env + mirrordEnv - executionInfo.envToUnset.orEmpty().toSet()
 
-        service.execManager.wrapper("idea", extraEnv).apply {
-            this.wsl = wsl
-        }.start()?.let { executionInfo ->
-            val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"))
-            params.env = params.env + mirrordEnv - executionInfo.envToUnset.orEmpty().toSet()
-            runningProcessEnvs[configuration.project] = params.env.toMap()
-
-            // Gradle support (and external system configuration)
-            if (configuration is ExternalSystemRunConfiguration) {
-                runningProcessEnvs[configuration.project] = configuration.settings.env.toMap()
-                val env = configuration.settings.env +
-                    mirrordEnv -
-                    executionInfo.envToUnset.orEmpty().toSet()
-                configuration.settings.env = env
-            }
-            MirrordLogger.logger.debug("setting env and finishing")
+        // Gradle support (and external system configuration)
+        if (configuration is ExternalSystemRunConfiguration) {
+            runningProcessEnvs[configuration] = configuration.settings.env.toMap()
+            val env = configuration.settings.env +
+                mirrordEnv -
+                executionInfo.envToUnset.orEmpty().toSet()
+            configuration.settings.env = env
         }
+        MirrordLogger.logger.debug("setting env and finishing")
     }
 
     /**
@@ -124,7 +105,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?
     ) {
         if (configuration is ExternalSystemRunConfiguration) {
-            val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
+            val envsToRestore = runningProcessEnvs.remove(configuration) ?: return
 
             handler.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {

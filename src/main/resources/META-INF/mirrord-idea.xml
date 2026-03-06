@@ -1,5 +1,6 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
         <runConfigurationExtension implementation="com.metalbear.mirrord.products.idea.IdeaRunConfigurationExtension" id="mirrordIdea"/>
+        <stepsBeforeRunProvider implementation="com.metalbear.mirrord.products.idea.IdeaBeforeRunTaskProvider"/>
     </extensions>
 </idea-plugin>

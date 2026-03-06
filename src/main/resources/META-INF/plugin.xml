@@ -32,7 +32,7 @@
     </extensions>
 
     <projectListeners>
-        <listener class="com.metalbear.mirrord.MirrordNpmExecutionListener"
+        <listener class="com.metalbear.mirrord.MirrordExecutionListener"
                   topic="com.intellij.execution.ExecutionListener"/>
     </projectListeners>
 
