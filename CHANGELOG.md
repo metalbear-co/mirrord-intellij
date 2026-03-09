@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.71.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.2) - 2026-03-09
+
+
+### Fixed
+
+- change entrypoint for java based projects to be in a way that would avoid
+  freezing
+
+
+### Internal
+
+- Fixed all warnings when building the plugin, warnings are treated as errors
+  going forward.
+- fix e2e flakiness timing out on dumb mode
+
 ## [3.71.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.1) - 2026-02-05
 
 
