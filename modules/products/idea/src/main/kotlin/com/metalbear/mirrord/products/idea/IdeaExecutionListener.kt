@@ -13,21 +13,9 @@ import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 
 class IdeaExecutionListener : ExecutionListener {
-    companion object {
-        private const val EXTERNAL_SYSTEM_RUN_CONFIGURATION =
-            "com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration"
-        private const val COMMON_JAVA_RUN_CONFIGURATION_PARAMETERS =
-            "com.intellij.execution.CommonJavaRunConfigurationParameters"
-    }
-
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
         val configuration = env.runProfile as? RunConfigurationBase<*> ?: run {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: unsupported run profile `${env.runProfile.javaClass.name}`")
-            return
-        }
-
-        if (!isRelevantIdeaRunConfiguration(configuration)) {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: irrelevant `${configuration.javaClass.name}`")
             return
         }
 
@@ -76,22 +64,5 @@ class IdeaExecutionListener : ExecutionListener {
         val configuration = env.runProfile as? RunConfigurationBase<*> ?: return
         IdeaMirrordPreparationStore.clear(configuration)
         configuration.beforeRunTasks = configuration.beforeRunTasks.filter { it !is IdeaBeforeRunTaskProvider.IdeaBeforeRunTask }
-    }
-
-    private fun isRelevantIdeaRunConfiguration(configuration: RunConfigurationBase<*>): Boolean {
-        val configurationClassName = configuration.javaClass.name
-        return configurationClassName == EXTERNAL_SYSTEM_RUN_CONFIGURATION ||
-            implementsInterface(configuration.javaClass, COMMON_JAVA_RUN_CONFIGURATION_PARAMETERS)
-    }
-
-    private fun implementsInterface(clazz: Class<*>, interfaceName: String): Boolean {
-        var current: Class<*>? = clazz
-        while (current != null) {
-            if (current.interfaces.any { it.name == interfaceName || implementsInterface(it, interfaceName) }) {
-                return true
-            }
-            current = current.superclass
-        }
-        return false
     }
 }
