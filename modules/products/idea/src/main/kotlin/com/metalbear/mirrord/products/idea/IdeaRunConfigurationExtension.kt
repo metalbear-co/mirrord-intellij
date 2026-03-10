@@ -31,7 +31,7 @@ internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigura
 
     val gradleTaskNames = (configuration as? ExternalSystemRunConfiguration)?.settings?.taskNames ?: emptyList()
     val skipGradleBuild = configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
-            gradleTaskNames.none { task -> GRADLE_RUN_TASKS.any { task.contains(it, ignoreCase = true) } }
+        gradleTaskNames.none { task -> GRADLE_RUN_TASKS.any { task.contains(it, ignoreCase = true) } }
 
     val forceRunMirrord = getForceRunMirrord(configuration)
 
@@ -95,8 +95,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         if (configuration is ExternalSystemRunConfiguration) {
             runningProcessEnvs[configuration] = configuration.settings.env.toMap()
             val env = configuration.settings.env +
-                    mirrordEnv -
-                    executionInfo.envToUnset.orEmpty().toSet()
+                mirrordEnv -
+                executionInfo.envToUnset.orEmpty().toSet()
             configuration.settings.env = env
         }
         MirrordLogger.logger.debug("setting env and finishing")
