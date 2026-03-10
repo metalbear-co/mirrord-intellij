@@ -22,10 +22,16 @@ import java.util.concurrent.ConcurrentHashMap
  */
 const val FORCE_RUN_ENV_NAME: String = "MIRRORD_FORCE_RUN"
 
+private const val GRADLE_RUN_CONFIGURATION = "org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration"
+
+private val GRADLE_RUN_TASKS = setOf("run", "bootRun", "runIde", "serve", "start", "quarkusDev")
+
 internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigurationBase<*>): Boolean {
     val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
-    val skipGradleBuild = configuration.javaClass.name.contains("GradleRunConfiguration") &&
-        configuration.name.contains("build", ignoreCase = true)
+
+    val gradleTaskNames = (configuration as? ExternalSystemRunConfiguration)?.settings?.taskNames ?: emptyList()
+    val skipGradleBuild = configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
+            gradleTaskNames.none { task -> GRADLE_RUN_TASKS.any { task.contains(it, ignoreCase = true) } }
 
     val forceRunMirrord = getForceRunMirrord(configuration)
 
@@ -89,8 +95,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         if (configuration is ExternalSystemRunConfiguration) {
             runningProcessEnvs[configuration] = configuration.settings.env.toMap()
             val env = configuration.settings.env +
-                mirrordEnv -
-                executionInfo.envToUnset.orEmpty().toSet()
+                    mirrordEnv -
+                    executionInfo.envToUnset.orEmpty().toSet()
             configuration.settings.env = env
         }
         MirrordLogger.logger.debug("setting env and finishing")
