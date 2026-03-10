@@ -35,7 +35,7 @@ repositories {
     }
 }
 
-val remoteRobotVersion = "0.11.19"
+val remoteRobotVersion = "0.11.24.506"
 
 dependencies {
     implementation(project(":mirrord-products-idea"))
