@@ -3,6 +3,7 @@ package com.metalbear.mirrord
 import com.intellij.execution.ExecutionListener
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 
 /**
  * Single execution-listener entry point.
@@ -16,8 +17,6 @@ class MirrordExecutionListener : ExecutionListener {
         private const val BAZEL_RUN_PROFILE_SUFFIX = "BlazeCommandRunConfiguration"
         private const val RUNNER_SPECIFIC_LOCAL_CONFIGURATION_BIT =
             "com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit"
-        private const val EXTERNAL_SYSTEM_RUN_CONFIGURATION =
-            "com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration"
         private const val COMMON_JAVA_RUN_CONFIGURATION_PARAMETERS =
             "com.intellij.execution.CommonJavaRunConfigurationParameters"
     }
@@ -86,7 +85,7 @@ class MirrordExecutionListener : ExecutionListener {
             return ExecutionKind.TOMCAT
         }
 
-        if (runProfileClassName == EXTERNAL_SYSTEM_RUN_CONFIGURATION ||
+        if (env.runProfile is ExternalSystemRunConfiguration ||
             implementsInterface(env.runProfile.javaClass, COMMON_JAVA_RUN_CONFIGURATION_PARAMETERS)
         ) {
             return ExecutionKind.IDEA
