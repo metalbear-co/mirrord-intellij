@@ -18,7 +18,7 @@ plugins {
     // Gradle Changelog Plugin
     id("org.jetbrains.changelog") version "2.+"
 
-    id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
+    id("org.jlleitschuh.gradle.ktlint") version "14.1.0"
 }
 
 group = properties("pluginGroup")
