@@ -57,7 +57,7 @@ Now open the plugin's code in IntelliJ IDEA. Create a new Gradle run configurati
 Running this configuration in debug will open a new IDE window.
 You can set breakpoints in the plugin's code in the first window, and use the plugin in the second window to reach the breakpoints.
 
-You can control which IDE is opened with a `PLATFORMTYPE` environment variable, as listed [here](https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html#intellij-extension-type). For example, set `PLATFORMTYPE=IU` for IntelliJ IDEA Ultimate. Note that you *need* to set this environment variable to something, otherwise things will appear to work (IDE will open, etc) but lots of things will be broken.
+You can control which IDE is opened with a `PLATFORMTYPE` environment variable, as listed [here](https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html#intellij-extension-type). For example, set `PLATFORMTYPE=IU` for IntelliJ IDEA Ultimate. Note that you *need* to set this environment variable to one of the acceptable values, otherwise things will appear to work (IDE will open, etc) but lots of things will be broken.
 
 
 ## Adding E2E tests
