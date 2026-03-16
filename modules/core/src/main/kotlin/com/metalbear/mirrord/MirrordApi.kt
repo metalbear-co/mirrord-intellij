@@ -121,9 +121,7 @@ data class IdeMessage(val id: String, val level: NotificationLevel, val text: St
         this.actions.forEach {
             if (it["kind"].asString == "Link") {
                 val action = Gson().fromJson(it, IdeAction.Link::class.java)
-                var link = action.link.replace("utm_medium=plugin", "utm_medium=intellij")
-                link = link.replace("utm_medium=cli", "utm_medium=intellij")
-                notification.withLink(action.label, link)
+                notification.withLink(action.label, action.link)
             }
         }
 
@@ -741,6 +739,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
+            environment["MIRRORD_IDE_NAME"] = "intellij"
         }
         project.service<MirrordLogsService>().logInfo("Executing mirrord command: ${commandLine.commandLineString}")
         return commandLine
