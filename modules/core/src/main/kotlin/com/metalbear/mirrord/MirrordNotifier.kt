@@ -117,6 +117,10 @@ class MirrordNotifier(private val service: MirrordProjectService) {
     fun notifyRichError(message: String) {
         ApplicationManager.getApplication().invokeLater {
             notification(message, NotificationType.ERROR)
+                .withAction("Try mirrord for Teams") { _, n ->
+                    BrowserUtil.browse("https://app.metalbear.com/?utm_source=error&utm_medium=intellij")
+                    n.expire()
+                }
                 .withAction("Get support on Slack") { _, n ->
                     BrowserUtil.browse("https://metalbear.co/slack")
                     n.expire()
