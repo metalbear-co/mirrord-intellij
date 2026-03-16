@@ -39,7 +39,7 @@ open class MirrordError(private val richMessage: String, private val help: Strin
 
         val upgradeUrl = help?.let {
             Regex("https://app\\.metalbear\\.com/[^\\s]*").find(it)?.value
-                ?.replace("utm_medium=cli", "utm_medium=intellij")
+                ?.replace(Regex("utm_medium=[^&]*"), "utm_medium=intellij")
         }
 
         if (upgradeUrl != null) {
