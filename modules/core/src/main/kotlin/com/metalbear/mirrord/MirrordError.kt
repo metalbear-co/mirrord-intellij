@@ -36,9 +36,24 @@ open class MirrordError(private val richMessage: String, private val help: Strin
             .service<MirrordProjectService>()
             .notifier
 
-        notifier.notifyRichError(richMessage)
-        help?.let {
-            notifier.notifySimple(it, NotificationType.INFORMATION)
+        val upgradeUrl = help?.let {
+            Regex("https://app\\.metalbear\\.com/[^\\s]*").find(it)?.value
+                ?.replace("utm_medium=cli", "utm_medium=intellij")
+        }
+
+        if (upgradeUrl != null) {
+            notifier.notification(richMessage, NotificationType.ERROR)
+                .withLink("Sign up for Teams", upgradeUrl)
+                .withAction("Get support on Slack") { _, n ->
+                    com.intellij.ide.BrowserUtil.browse("https://metalbear.co/slack")
+                    n.expire()
+                }
+                .fire()
+        } else {
+            notifier.notifyRichError(richMessage)
+            help?.let {
+                notifier.notifySimple(it, NotificationType.INFORMATION)
+            }
         }
     }
 }
