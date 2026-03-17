@@ -8,6 +8,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.71.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.3) - 2026-03-17
+
+
+### Changed
+
+- Mirrord will now only start for gradle tasks that have `run`, `bootRun`,
+  `runIde`, `serve`, `start`, `quarkusDev` in the name, preventing injection
+  into build tasks.
+
+
+### Fixed
+
+- Injection will now be enabled for all run tasks that are subclasses of
+  `ExternalSystemRunConfiguration` (gradle, etc).
+
 ## [3.71.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.2) - 2026-03-09
 
 
