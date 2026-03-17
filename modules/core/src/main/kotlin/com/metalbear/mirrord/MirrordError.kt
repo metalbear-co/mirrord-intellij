@@ -3,6 +3,7 @@ package com.metalbear.mirrord
 import com.google.gson.Gson
 import com.intellij.execution.ExecutionException
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
@@ -36,9 +37,22 @@ open class MirrordError(private val richMessage: String, private val help: Strin
             .service<MirrordProjectService>()
             .notifier
 
-        notifier.notifyRichError(richMessage)
-        help?.let {
-            notifier.notifySimple(it, NotificationType.INFORMATION)
+        val upgradeUrl = "$richMessage ${help ?: ""}".let {
+            Regex("https://app\\.metalbear\\.com/[^\\s]*").find(it)?.value
+        }
+
+        if (upgradeUrl != null) {
+            ApplicationManager.getApplication().invokeLater {
+                notifier.notification(richMessage, NotificationType.ERROR)
+                    .withLink("Sign up for Teams", upgradeUrl)
+                    .withLink("Get support on Slack", "https://metalbear.co/slack")
+                    .fire()
+            }
+        } else {
+            notifier.notifyRichError(richMessage)
+            help?.let {
+                notifier.notifySimple(it, NotificationType.INFORMATION)
+            }
         }
     }
 }
