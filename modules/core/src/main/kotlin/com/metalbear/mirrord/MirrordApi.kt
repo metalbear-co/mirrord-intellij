@@ -741,6 +741,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
+            environment["MIRRORD_IDE_NAME"] = "intellij"
         }
         project.service<MirrordLogsService>().logInfo("Executing mirrord command: ${commandLine.commandLineString}")
         return commandLine
