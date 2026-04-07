@@ -8,6 +8,10 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.71.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.4) - 2026-04-07
+
+No significant changes.
+
 ## [3.71.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.3) - 2026-03-17
 
 
