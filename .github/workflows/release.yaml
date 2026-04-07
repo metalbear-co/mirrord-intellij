@@ -222,6 +222,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh workflow run update-jetbrains-version.yml \
-            --repo metalbear-co/infra \
-            --field version=${{ needs.release.outputs.version }}
+          gh api \
+            --method POST \
+            repos/metalbear-co/infra/actions/workflows/update-vscode-version.yml/dispatches \
+            -f ref=main \
+            -f inputs[jetbrains_version]=${{ needs.release.outputs.version }}
