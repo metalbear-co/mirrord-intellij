@@ -10,15 +10,17 @@ import com.intellij.openapi.project.Project
 /**
  * Dedicated mirrord wrapper around the Scala plugin's SBT run configuration.
  *
- * This exists because shell-backed SBT runs do not reliably participate in the generic JVM
- * run-configuration extension flow that mirrord uses for normal application configurations.
+ * This exists because SBT runs need product-specific handling:
+ * shell-backed runs need command rewriting, while direct launches need environment injection into
+ * the SBT run configuration before the Scala plugin builds the JVM command line.
  */
 class MirrordSbtConfigurationType : ConfigurationType, DumbAware {
     private val configurationFactory = MirrordSbtConfigurationFactory(this)
 
     override fun getDisplayName(): String = "mirrord SBT"
 
-    override fun getConfigurationTypeDescription(): String = "Run SBT application tasks through mirrord using the SBT shell"
+    override fun getConfigurationTypeDescription(): String =
+        "Run SBT application tasks through mirrord. Plain SBT usually works with SBT shell; Play usually requires disabling SBT shell."
 
     override fun getIcon() = AllIcons.Actions.Execute
 
