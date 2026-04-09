@@ -1,7 +1,7 @@
 package com.metalbear.mirrord.products.idea
 
-import com.intellij.execution.Executor
 import com.intellij.execution.ExecutionResult
+import com.intellij.execution.Executor
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
@@ -69,7 +69,7 @@ class MirrordSbtRunConfiguration(
 
         val processedCommands = buildMirrordAwareCommands()
         MirrordLogger.logger.debug(
-            "[${this.javaClass.name}] preprocessTasks: configuration=`${name}`, commands=`$processedCommands`"
+            "[${this.javaClass.name}] preprocessTasks: configuration=`$name`, commands=`$processedCommands`"
         )
         return processedCommands
     }
@@ -80,11 +80,11 @@ class MirrordSbtRunConfiguration(
 
         val taskScope = resolveTaskScope(originalCommands) ?: run {
             MirrordLogger.logger.warn(
-                "[${this.javaClass.name}] buildMirrordAwareCommands: unsupported SBT task `${originalCommands}` for `${name}`, running without shell env injection"
+                "[${this.javaClass.name}] buildMirrordAwareCommands: unsupported SBT task `$originalCommands` for `$name`, running without shell env injection"
             )
             logWarningToUser(
                 "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
-                    "Task `${originalCommands}` will run without mirrord shell env injection."
+                    "Task `$originalCommands` will run without mirrord shell env injection."
             )
             return originalCommands
         }
@@ -167,17 +167,17 @@ class MirrordSbtRunConfiguration(
             val taskScope = resolveTaskScope(originalCommands) ?: run {
                 logWarningToUser(
                     "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
-                        "Task `${originalCommands}` is not supported."
+                        "Task `$originalCommands` is not supported."
                 )
                 return null
             }
 
             MirrordLogger.logger.debug(
-                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for `${name}` taskScope=`$taskScope`"
+                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for `$name` taskScope=`$taskScope`"
             )
         } else {
             MirrordLogger.logger.debug(
-                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for direct SBT launch `${name}`"
+                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for direct SBT launch `$name`"
             )
         }
 
