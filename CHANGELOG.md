@@ -8,6 +8,19 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.72.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.72.0) - 2026-04-12
+
+
+### Added
+
+- Adde mirrord's SBT run configuration wrapper. When `useSbtShell` is set to
+  true, mirrord plugin
+  rewrites the SBT shell command with environment variabels injection command
+  chained with the
+  original. When set to false, mirrord plugin injects environment variables
+  directly to the
+  run configuration and clean up once the run finishes.
+
 ## [3.71.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.4) - 2026-04-07
 
 No significant changes.
