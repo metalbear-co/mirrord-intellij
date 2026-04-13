@@ -29,6 +29,8 @@ private const val CLI_BINARY = "mirrord"
 private const val VERSION_ENDPOINT = "https://version.mirrord.dev/v1/version"
 private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/releases/download"
 
+private const val IGNORE_AUTOUPDATE_SETTINGS = true
+
 /**
  * For dynamically fetching and storing mirrord binary.
  */
@@ -78,7 +80,10 @@ class MirrordBinaryManager {
 
             val manager = service<MirrordBinaryManager>()
 
-            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+            var autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+            if (IGNORE_AUTOUPDATE_SETTINGS) {
+                autoUpdate = false
+            }
             val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
             manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
 

@@ -91,7 +91,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
-        val path = service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
+        val path = try {
+            service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
+        } catch (e: MirrordError) {
+            MirrordLogger.logger.debug("mirrord binary not found in plugin storage, using system mirrord")
+            if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
+        }
         return wslDistribution?.getWslPath(path) ?: path
     }
 
@@ -134,10 +139,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         if ((!service.enabled && !explicitlyEnabled) || explicitlyDisabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
-        }
-
-        if (SystemInfo.isWindows && wslDistribution == null) {
-            throw MirrordError("can't use on Windows without WSL")
         }
 
         dispatchPluginVersionCheck()
@@ -250,6 +251,45 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
         return executionInfo
+    }
+
+    data class PendingAttach(
+        val cliPath: String,
+        val configEnv: Map<String, String>,
+        val configFile: String?,
+        val target: MirrordExecDialog.UserSelection,
+        val wslDistribution: WSLDistribution?
+    )
+
+    private val pendingAttaches = mutableListOf<PendingAttach>()
+
+    fun prepareAttach(
+        wslDistribution: WSLDistribution?,
+        executable: String?,
+        product: String,
+        projectEnvVars: Map<String, String>?
+    ): PendingAttach? {
+        checkForSuspiciousEnvVars(projectEnvVars)
+
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(wslDistribution, product)
+
+        return PendingAttach(cli, projectEnvVars.orEmpty(), configPath, target, wslDistribution)
+    }
+
+    fun attach(pending: PendingAttach, pid: Long): MirrordAttachExecution {
+        val mirrordApi = service.mirrordApi(pending.configEnv)
+        return mirrordApi.attach(pending.cliPath, pid)
+    }
+
+    /**
+     * Simplified attach for Windows native flow where `mirrord ext` has already
+     * started the intproxy and set env vars. Only needs CLI path to run `mirrord attach <PID>`.
+     */
+    fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        return mirrordApi.attach(cliPath, pid)
     }
 
     private fun containerStart(
