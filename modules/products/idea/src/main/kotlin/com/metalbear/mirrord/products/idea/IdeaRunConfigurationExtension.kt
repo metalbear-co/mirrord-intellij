@@ -214,11 +214,15 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      * Creates a Gradle init script that wraps `JavaExec` tasks with `mirrord pitm`
      * for suspended-start layer injection on Windows.
      *
-     * The init script clears the task's actions and replaces them with a
-     * `project.exec` that calls `mirrord.exe pitm -- <real java> <jvm args>`.
-     * This sidesteps `JavaExec`'s `javaLauncher` finalization, which rejects
-     * a non-JDK executable. Mirrord env vars reach the child via
-     * [MirrordPitm.CHILD_ENV_VAR].
+     * The init script removes only `JavaExec`'s built-in `@TaskAction` (preserving
+     * IDE-injected `doFirst` actions such as the Kotlin coroutine debug agent,
+     * source mapper, and JVM debugger init) and appends a `doLast` that invokes
+     * `mirrord.exe pitm -- <real java> @<argfile>` via `ExecOperations`.
+     *
+     * An argfile is used so that large classpaths (common in real projects)
+     * don't blow past Windows' 32 KiB command-line limit; `ExecOperations`
+     * is used so Stop-in-IDE cancellation reliably kills the pitm child.
+     * Mirrord env vars reach the child via [MirrordPitm.CHILD_ENV_VAR].
      */
     private fun wrapGradleRunWithPitm(
         configuration: ExternalSystemRunConfiguration,
@@ -256,35 +260,60 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     }
 
     /**
-     * Creates a temp Gradle init script that replaces matching JavaExec task
-     * actions with a `project.exec` calling `mirrord pitm -- <java> <args>`.
-     * This sidesteps JavaExec's `javaLauncher` finalization which rejects
-     * non-JDK executables.
+     * Creates a temp Gradle init script that surgically replaces `JavaExec`'s
+     * built-in action with `mirrord pitm -- <java> @<argfile>`, via
+     * [org.gradle.process.ExecOperations].
+     *
+     * Kept as doLast (not a full action swap) to preserve IDE-injected
+     * `doFirst` actions that mutate `jvmArgs` at runtime. Argfile sidesteps
+     * the Windows `CreateProcess` 32 KiB command-line limit.
      */
     private fun createPitmInitScript(cliPath: String, taskFilter: String): File {
         return File.createTempFile("mirrord-pitm-", ".gradle").apply {
             deleteOnExit()
             writeText(
                 """
+                import javax.inject.Inject
+                import org.gradle.process.ExecOperations
+
+                abstract class MirrordExecInjector {
+                    @Inject abstract ExecOperations getExecOps()
+                }
+
+                def mirrordEscapeArg = { s ->
+                    '"' + String.valueOf(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
+                }
                 def mirrordTargetTasks = [${taskFilter}] as Set
+                def mirrordStandardTaskActionClass = 'org.gradle.api.internal.project.taskfactory.StandardTaskAction'
+
                 allprojects {
+                    def execOps = project.objects.newInstance(MirrordExecInjector).execOps
                     tasks.withType(JavaExec).configureEach { task ->
                         if (!mirrordTargetTasks.contains(task.name)) return
-                        task.actions.clear()
                         task.doLast {
                             def realJava = task.executable
-                            def cmdArgs = ['pitm', '--', realJava] + task.allJvmArgs + ['-cp', task.classpath.asPath]
-                            if (task.mainClass.isPresent()) cmdArgs += task.mainClass.get()
-                            cmdArgs += (task.args ?: [])
-                            project.exec { spec ->
+                            def argfile = File.createTempFile('mirrord-pitm-', '.args')
+                            argfile.deleteOnExit()
+                            def lines = []
+                            task.allJvmArgs.each { lines << mirrordEscapeArg(it) }
+                            lines << '-cp'
+                            lines << mirrordEscapeArg(task.classpath.asPath)
+                            if (task.mainClass.isPresent()) lines << mirrordEscapeArg(task.mainClass.get())
+                            (task.args ?: []).each { lines << mirrordEscapeArg(it) }
+                            task.argumentProviders.each { p ->
+                                p.asArguments().each { lines << mirrordEscapeArg(it) }
+                            }
+                            argfile.text = lines.join(System.lineSeparator())
+                            execOps.exec { spec ->
                                 spec.executable '${cliPath}'
-                                spec.args cmdArgs
+                                spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
                                 spec.environment(task.environment)
                                 spec.environment('${MirrordPitm.CHILD_ENV_VAR}', System.getenv('${MirrordPitm.CHILD_ENV_VAR}') ?: '')
                                 spec.workingDir = task.workingDir
                                 spec.standardInput = System.in
                             }
                         }
+                        task.actions.removeAll { it.class.name == mirrordStandardTaskActionClass }
                     }
                 }
                 """.trimIndent()

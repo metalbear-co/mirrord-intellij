@@ -5,6 +5,7 @@ import com.metalbear.mirrord.MirrordLogger
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 /**
  * Creates a fake JDK whose `bin/java.exe` is a copy of `mirrord.exe`, and wraps
@@ -34,9 +35,9 @@ object MirrordPitmJdk {
      * delegating [Sdk] that reports the fake directory as its home path. All
      * other [Sdk] methods pass through to [realJdk].
      *
-     * The copy happens unconditionally on every call — this guarantees the fake
-     * matches whatever `MirrordBinaryManager.getBinary()` returned for this run,
-     * even if the binary was auto-updated since the previous run.
+     * The copy is skipped when the fake `java.exe` already exists and has the
+     * same size and MD5 as the source — this avoids rewriting on every run
+     * when the binary hasn't changed, while still picking up auto-updates.
      *
      * @return the wrapping [Sdk], or `null` if the fake could not be prepared
      *         (e.g. `realJdk.homePath` is null, source `mirrordExe` doesn't
@@ -60,10 +61,16 @@ object MirrordPitmJdk {
 
         try {
             fakeJavaExe.parentFile.mkdirs()
-            Files.copy(mirrordExe.toPath(), fakeJavaExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            MirrordLogger.logger.info(
-                "MirrordPitmJdk: copied ${mirrordExe.absolutePath} → ${fakeJavaExe.absolutePath}"
-            )
+            if (needsCopy(mirrordExe, fakeJavaExe)) {
+                Files.copy(mirrordExe.toPath(), fakeJavaExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                MirrordLogger.logger.info(
+                    "MirrordPitmJdk: copied ${mirrordExe.absolutePath} → ${fakeJavaExe.absolutePath}"
+                )
+            } else {
+                MirrordLogger.logger.info(
+                    "MirrordPitmJdk: fake java.exe up-to-date at ${fakeJavaExe.absolutePath}, skipping copy"
+                )
+            }
         } catch (e: Exception) {
             MirrordLogger.logger.error("MirrordPitmJdk: failed to copy mirrord.exe into fake JDK", e)
             return null
@@ -78,5 +85,24 @@ object MirrordPitmJdk {
             override fun getHomePath(): String = fakeJdkDir.absolutePath
             override fun getHomeDirectory() = null
         }
+    }
+
+    private fun needsCopy(src: File, dst: File): Boolean {
+        if (!dst.exists()) return true
+        if (src.length() != dst.length()) return true
+        return !md5(src).contentEquals(md5(dst))
+    }
+
+    private fun md5(file: File): ByteArray {
+        val digest = MessageDigest.getInstance("MD5")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n <= 0) break
+                digest.update(buf, 0, n)
+            }
+        }
+        return digest.digest()
     }
 }
