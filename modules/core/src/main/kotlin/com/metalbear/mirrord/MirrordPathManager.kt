@@ -17,7 +17,7 @@ object MirrordPathManager {
         val os = when {
             SystemInfo.isLinux -> "linux"
             SystemInfo.isMac -> "macos"
-            SystemInfo.isWindows -> "linux"
+            SystemInfo.isWindows -> "windows"
             else -> throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
         }
 
@@ -27,9 +27,13 @@ object MirrordPathManager {
             else -> throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
         }
 
+        // On Windows, binaries carry the `.exe` extension both on disk and in the
+        // GitHub release. Everywhere else they're extensionless.
+        val binaryName = if (SystemInfo.isWindows) "$name.exe" else name
+
         val format = when {
-            SystemInfo.isMac && universalOnMac -> "bin/$os/$name"
-            else -> "bin/$os/$arch/$name"
+            SystemInfo.isMac && universalOnMac -> "bin/$os/$binaryName"
+            else -> "bin/$os/$arch/$binaryName"
         }
 
         return pluginDir().resolve(format)

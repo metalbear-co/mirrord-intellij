@@ -3,9 +3,4 @@
         <rider.patchCommandLine implementation="com.metalbear.mirrord.products.rider.RiderPatchCommandLineExtension" />
         <rider.dotNetProjectConfigurationExtension implementation="com.metalbear.mirrord.products.rider.RiderDebugDotNetProjectConfigurationExtension" />
     </extensions>
-    
-    <projectListeners>
-        <listener class="com.metalbear.mirrord.products.rider.RiderDebugAttachListener"
-                  topic="com.intellij.xdebugger.XDebuggerManagerListener"/>
-    </projectListeners>
 </idea-plugin>

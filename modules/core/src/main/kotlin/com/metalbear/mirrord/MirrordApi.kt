@@ -619,66 +619,21 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     private class MirrordAttachTask(cli: String, private val pid: Long, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordAttachExecution>(cli, "attach", listOf(pid.toString()), projectEnvVars) {
+        // `mirrord attach` injects the layer DLL into the target process (pid)
+        // and exits 0 on success. Callers must run `mirrord ext` first to start
+        // the intproxy and set env vars on the target.
+        // stdout is drained to the log; exit code is the success signal.
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordAttachExecution {
-            val parser = SafeParser()
-            val bufferedReader = process.inputStream.reader().buffered()
-
-            val warningHandler = MirrordWarningHandler(project.service<MirrordProjectService>())
             val logsService = project.service<MirrordLogsService>()
-
             logsService.onMirrordExecutionStart()
 
             setText("mirrord is attaching to process $pid...")
             logsService.logInfo("mirrord is attaching to process $pid...")
 
-            for (line in bufferedReader.lines()) {
-                val message = parser.parse(line, Message::class.java)
-                when {
-                    message.name == "mirrord preparing to launch" && message.type == MessageType.FinishedTask -> {
-                        val success = message.success
-                            ?: throw MirrordError("invalid message received from the mirrord binary")
-                        if (success) {
-                            val innerMessage = message.message
-                                ?: throw MirrordError("invalid message received from the mirrord binary")
-                            val executionInfo = parser.parse(innerMessage as String, MirrordAttachExecution::class.java)
-                            setText("mirrord layer injected into process $pid")
-                            logsService.logInfo("mirrord layer injected into process $pid")
-                            logsService.onMirrordExecutionEnd()
-                            return executionInfo
-                        }
-                    }
-
-                    message.type == MessageType.Info -> {
-                        message.message?.let {
-                            val msg = it as String
-                            logsService.logInfo(msg)
-                        }
-                    }
-
-                    message.type == MessageType.Warning -> {
-                        message.message?.let {
-                            val msg = it as String
-                            warningHandler.handle(msg)
-                            logsService.logWarning(msg)
-                        }
-                    }
-
-                    message.type == MessageType.IdeMessage -> {
-                        message.message?.run {
-                            logsService.logInfo("IDE Message: $this")
-                            val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
-                            val service = project.service<MirrordProjectService>()
-                            ideMessage?.handleIdeMessage(service)
-                        }
-                    }
-
-                    else -> {
-                        var displayMessage = message.name
-                        message.message?.let {
-                            displayMessage += ": $it"
-                        }
-                        setText(displayMessage)
-                        logsService.logMessage("Task: $displayMessage")
+            process.inputStream.reader().buffered().useLines { lines ->
+                for (line in lines) {
+                    if (line.isNotBlank()) {
+                        logsService.logInfo("[mirrord attach] $line")
                     }
                 }
             }
@@ -690,24 +645,21 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                 logErrorToBoth(logsService, errorMessage)
                 logsService.onMirrordExecutionEnd()
                 throw MirrordError.fromStdErr(processStdError)
-            } else {
-                // `mirrord attach` exits 0 after successfully injecting the layer DLL.
-                // Unlike `mirrord ext`, it may not send a FinishedTask protocol message,
-                // so a clean exit with code 0 is treated as success.
-                MirrordLogger.logger.info("mirrord attach exited with code 0, treating as success for pid $pid")
-                setText("mirrord layer injected into process $pid")
-                logsService.logInfo("mirrord attach completed successfully for process $pid")
-                logsService.onMirrordExecutionEnd()
-                return MirrordAttachExecution(mutableMapOf(), null)
             }
+
+            MirrordLogger.logger.info("mirrord attach exited with code 0, layer injected into pid $pid")
+            setText("mirrord layer injected into process $pid")
+            logsService.logInfo("mirrord attach completed successfully for process $pid")
+            logsService.onMirrordExecutionEnd()
+            return MirrordAttachExecution(mutableMapOf(), null)
         }
     }
 
     fun attach(cli: String, pid: Long): MirrordAttachExecution {
         bumpRunCounter()
 
-        // `mirrord attach` only accepts <PID> — no other CLI flags (-t, -f, -e, etc.).
-        // The intproxy and environment are set up separately.
+        // Only PID is passed — target, namespace, config flags remain null.
+        // `mirrord ext` must have been run first by the caller.
         val task = MirrordAttachTask(cli, pid, projectEnvVars)
 
         val result = task.run(service.project)

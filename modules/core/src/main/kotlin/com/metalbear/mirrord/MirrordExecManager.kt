@@ -91,12 +91,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
-        val path = try {
-            service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
-        } catch (e: MirrordError) {
-            MirrordLogger.logger.debug("mirrord binary not found in plugin storage, using system mirrord")
-            if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
-        }
+        val path = service<MirrordBinaryManager>().getCliPath(product, wslDistribution, service.project)
         return wslDistribution?.getWslPath(path) ?: path
     }
 
@@ -253,39 +248,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return executionInfo
     }
 
-    data class PendingAttach(
-        val cliPath: String,
-        val configEnv: Map<String, String>,
-        val configFile: String?,
-        val target: MirrordExecDialog.UserSelection,
-        val wslDistribution: WSLDistribution?
-    )
-
-    private val pendingAttaches = mutableListOf<PendingAttach>()
-
-    fun prepareAttach(
-        wslDistribution: WSLDistribution?,
-        executable: String?,
-        product: String,
-        projectEnvVars: Map<String, String>?
-    ): PendingAttach? {
-        checkForSuspiciousEnvVars(projectEnvVars)
-
-        val mirrordApi = service.mirrordApi(projectEnvVars)
-        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
-        val cli = cliPath(wslDistribution, product)
-
-        return PendingAttach(cli, projectEnvVars.orEmpty(), configPath, target, wslDistribution)
-    }
-
-    fun attach(pending: PendingAttach, pid: Long): MirrordAttachExecution {
-        val mirrordApi = service.mirrordApi(pending.configEnv)
-        return mirrordApi.attach(pending.cliPath, pid)
-    }
-
     /**
-     * Simplified attach for Windows native flow where `mirrord ext` has already
-     * started the intproxy and set env vars. Only needs CLI path to run `mirrord attach <PID>`.
+     * Runs `mirrord attach <PID>`. Expects `mirrord ext` to have already
+     * started the intproxy and set env vars on the target process.
+     *
+     * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
+     * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
      */
     fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
         val mirrordApi = service.mirrordApi(projectEnvVars)

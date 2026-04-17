@@ -29,7 +29,6 @@ private const val CLI_BINARY = "mirrord"
 private const val VERSION_ENDPOINT = "https://version.mirrord.dev/v1/version"
 private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/releases/download"
 
-private const val IGNORE_AUTOUPDATE_SETTINGS = true
 
 /**
  * For dynamically fetching and storing mirrord binary.
@@ -39,6 +38,35 @@ class MirrordBinaryManager {
     @Volatile
     private var latestSupportedVersion: String? = null
     private var downloadVersion: String? = null
+
+    companion object {
+        /** Cross-platform `which`/`where` lookup. Returns the first match or null. */
+        fun which(binary: String): String? {
+            return try {
+                val cmd = if (SystemInfo.isWindows) arrayOf("where", "$binary.exe") else arrayOf("which", binary)
+                val child = Runtime.getRuntime().exec(cmd)
+                val result = child.waitFor()
+                if (result != 0) return null
+                child.inputReader().readLine()?.trim()?.takeIf { it.isNotBlank() }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    /**
+     * Like [getBinary] but returns a fallback ("mirrord"/"mirrord.exe") instead
+     * of throwing when no managed binary is found. Use this when a best-effort
+     * CLI path is acceptable (e.g. pitm wrapping, attach flows).
+     */
+    fun getCliPath(product: String, wslDistribution: WSLDistribution?, project: Project): String {
+        return try {
+            getBinary(product, wslDistribution, project)
+        } catch (e: MirrordError) {
+            MirrordLogger.logger.debug("getCliPath: getBinary failed, falling back to system mirrord")
+            if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
+        }
+    }
 
     /**
      * Schedules the update task at project startup.
@@ -80,10 +108,7 @@ class MirrordBinaryManager {
 
             val manager = service<MirrordBinaryManager>()
 
-            var autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
-            if (IGNORE_AUTOUPDATE_SETTINGS) {
-                autoUpdate = false
-            }
+            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
             val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
             manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
 
@@ -195,18 +220,19 @@ class MirrordBinaryManager {
     private fun updateBinary(indicator: ProgressIndicator) {
         val version = downloadVersion ?: return
 
-        val url = if (SystemInfo.isMac) {
-            "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
-        } else if (SystemInfo.isLinux || SystemInfo.isWindows) {
-            if (CpuArch.isArm64()) {
-                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
-            } else if (CpuArch.isIntel64()) {
-                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
-            } else {
-                throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
-            }
-        } else {
-            throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
+        val url = when {
+            SystemInfo.isMac -> "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
+            SystemInfo.isWindows && CpuArch.isIntel64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord.exe"
+            SystemInfo.isWindows -> throw RuntimeException(
+                "mirrord does not currently provide a Windows ${CpuArch.CURRENT.name} build. " +
+                    "If you require ${CpuArch.CURRENT.name} support, please upvote or comment on " +
+                    "https://github.com/metalbear-co/mirrord/issues/4162 so we can gauge interest."
+            )
+            SystemInfo.isLinux && CpuArch.isArm64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
+            SystemInfo.isLinux && CpuArch.isIntel64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
+            else -> throw RuntimeException(
+                "Unsupported platform/architecture: ${SystemInfo.OS_NAME} ${CpuArch.CURRENT.name}"
+            )
         }
 
         indicator.text = "mirrord is downloading binary version $version..."
@@ -269,12 +295,7 @@ class MirrordBinaryManager {
     private fun findBinaryInPath(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
             val output = if (wslDistribution == null) {
-                val child = Runtime.getRuntime().exec(arrayOf("which", "mirrord"))
-                val result = child.waitFor()
-                if (result != 0) {
-                    throw RuntimeException("`which` failed with code $result")
-                }
-                child.inputReader().readLine().trim()
+                which("mirrord") ?: throw RuntimeException("mirrord not found in PATH")
             } else {
                 val output = wslDistribution.executeOnWsl(5000, "which", "mirrord")
                 if (output.exitCode != 0) {
@@ -343,6 +364,14 @@ class MirrordBinaryManager {
      */
     fun getBinary(product: String, wslDistribution: WSLDistribution?, project: Project): String {
         UpdateTask(project, product, wslDistribution, true).queue()
+
+        val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+        val userVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+
+        if (!autoUpdate && userVersion.isEmpty()) {
+            // No specific version requested, so look for the mirrord version available in the env.
+            getLocalBinary(null, wslDistribution)?.let { return it.command }
+        }
 
         latestSupportedVersion?.let { version ->
             getLocalBinary(version, wslDistribution)?.let { return it.command }
