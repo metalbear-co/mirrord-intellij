@@ -265,8 +265,24 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
      */
     fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
+        MirrordLogger.logger.info(
+            "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}"
+        )
+        val started = System.currentTimeMillis()
         val mirrordApi = service.mirrordApi(projectEnvVars)
-        return mirrordApi.attach(cliPath, pid)
+        try {
+            val result = mirrordApi.attach(cliPath, pid)
+            MirrordLogger.logger.info(
+                "MirrordExecManager.attach: SUCCESS pid=$pid in ${System.currentTimeMillis() - started}ms"
+            )
+            return result
+        } catch (e: Throwable) {
+            MirrordLogger.logger.warn(
+                "MirrordExecManager.attach: FAILED pid=$pid after ${System.currentTimeMillis() - started}ms: ${e.message}",
+                e
+            )
+            throw e
+        }
     }
 
     private fun containerStart(

@@ -67,8 +67,12 @@ class MirrordBinaryManager {
         return try {
             getBinary(product, wslDistribution, project)
         } catch (e: MirrordError) {
-            MirrordLogger.logger.debug("getCliPath: getBinary failed, falling back to system mirrord")
-            if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
+            val fallback = if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
+            MirrordLogger.logger.warn(
+                "getCliPath: getBinary failed for product=$product (${e.message}), " +
+                    "falling back to `$fallback` — resolution depends on PATH. Subsequent CLI calls may fail."
+            )
+            fallback
         }
     }
 

@@ -3,11 +3,24 @@ package com.metalbear.mirrord
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.wsl.WSLDistribution
+import com.intellij.openapi.util.SystemInfo
 import java.util.Base64
 
 /**
+ * True when mirrord's Windows-native injection path (`mirrord.exe pitm` for run,
+ * `mirrord.exe attach` for debug) should be used. Requires an actual Windows host
+ * AND no resolved WSL distribution — WSL targets use the Linux/LD_PRELOAD path
+ * regardless of host OS.
+ */
+fun isWinNative(wsl: WSLDistribution?): Boolean =
+    SystemInfo.isWindows && wsl == null
+
+/**
  * Helper for the `mirrord pitm` (Process In The Middle) Windows injection mode.
- * See `pitm.rs` in the mirrord CLI.
+ *
+ * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/pitm.rs
+ * Introduced in: https://github.com/metalbear-co/mirrord/pull/4191
  *
  * On Windows there is no `LD_PRELOAD`. `mirrord pitm` spawns the target process
  * in a suspended state, injects the layer DLL directly, then resumes it —
@@ -36,12 +49,25 @@ object MirrordPitm {
         mirrordEnvVars: Map<String, String>,
         envToUnset: List<String>?
     ) {
+        MirrordLogger.logger.info(
+            "MirrordPitm.wrapCommandLine: ENTER cliPath=$cliPath originalExe=${commandLine.exePath} " +
+                "originalArgsCount=${commandLine.parametersList.list.size} " +
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0} " +
+                "cmdEnvSize=${commandLine.environment.size}"
+        )
+
         val childEnv = encodeChildEnv(mirrordEnvVars, envToUnset)
 
         // Remove mirrord env vars from the command line — they belong to the child only.
+        var removedCount = 0
         for (key in mirrordEnvVars.keys) {
-            commandLine.environment.remove(key)
+            if (commandLine.environment.remove(key) != null) {
+                removedCount++
+            }
         }
+        MirrordLogger.logger.debug(
+            "MirrordPitm.wrapCommandLine: stripped $removedCount/${mirrordEnvVars.size} mirrord vars from wrapper env"
+        )
 
         commandLine.withEnvironment(CHILD_ENV_VAR, childEnv)
 
@@ -53,7 +79,18 @@ object MirrordPitm {
         commandLine.addParameters("pitm", "--", originalExe)
         commandLine.addParameters(originalArgs)
 
-        MirrordLogger.logger.info("Wrapped command with mirrord pitm: $cliPath pitm -- $originalExe ...")
+        // Guardrail: mirrord env vars should only live inside MIRRORD_CHILD_ENV on the wrapper process.
+        val leaked = commandLine.environment.keys.intersect(mirrordEnvVars.keys)
+        if (leaked.isNotEmpty()) {
+            MirrordLogger.logger.warn(
+                "MirrordPitm.wrapCommandLine: LEAK — mirrord env vars still present on wrapper command line: $leaked"
+            )
+        }
+
+        MirrordLogger.logger.info(
+            "MirrordPitm.wrapCommandLine: SUCCESS wrapped as `$cliPath pitm -- $originalExe <${originalArgs.size} args>`, " +
+                "CHILD_ENV payload.len=${childEnv.length}"
+        )
     }
 
     /**

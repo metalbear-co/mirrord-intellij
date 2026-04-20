@@ -13,13 +13,16 @@ import java.security.MessageDigest
  *
  * IntelliJ invokes `<sdk.homePath>/bin/java.exe` for Java run configurations.
  * With this fake JDK, it runs `mirrord.exe` instead. mirrord's `run_as_java_launcher`
- * (see `pitm.rs`) detects `argv[0]` ends with `java.exe`, reads [REAL_JAVA_ENV]
- * for the real `java.exe` path, and executes the pitm flow.
+ * detects `argv[0]` ends with `java.exe`, reads [REAL_JAVA_ENV] for the real
+ * `java.exe` path, and executes the pitm flow.
+ *
+ * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/pitm.rs
+ * Introduced in: https://github.com/metalbear-co/mirrord/pull/4191
  *
  * The fake JDK is at `<user.home>/.mirrord/binaries/idea/`. The `bin/java.exe`
  * is re-copied from the resolved `mirrord.exe` on every call to [wrap].
  *
- * Windows-native only. Caller must gate on `SystemInfo.isWindows && wsl == null`.
+ * Windows-native only. Caller must gate on [com.metalbear.mirrord.isWinNative].
  */
 object MirrordPitmJdk {
 
@@ -61,18 +64,25 @@ object MirrordPitmJdk {
 
         try {
             fakeJavaExe.parentFile.mkdirs()
+            val dstExisted = fakeJavaExe.exists()
+            val dstSizeBefore = if (dstExisted) fakeJavaExe.length() else -1L
             if (needsCopy(mirrordExe, fakeJavaExe)) {
                 Files.copy(mirrordExe.toPath(), fakeJavaExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 MirrordLogger.logger.info(
-                    "MirrordPitmJdk: copied ${mirrordExe.absolutePath} → ${fakeJavaExe.absolutePath}"
+                    "MirrordPitmJdk: copied ${mirrordExe.absolutePath} (size=${mirrordExe.length()}) → " +
+                        "${fakeJavaExe.absolutePath} (existed=$dstExisted prevSize=$dstSizeBefore)"
                 )
             } else {
                 MirrordLogger.logger.info(
-                    "MirrordPitmJdk: fake java.exe up-to-date at ${fakeJavaExe.absolutePath}, skipping copy"
+                    "MirrordPitmJdk: fake java.exe up-to-date at ${fakeJavaExe.absolutePath} (size=$dstSizeBefore), skipping copy"
                 )
             }
         } catch (e: Exception) {
-            MirrordLogger.logger.error("MirrordPitmJdk: failed to copy mirrord.exe into fake JDK", e)
+            MirrordLogger.logger.error(
+                "MirrordPitmJdk: failed to copy mirrord.exe (${mirrordExe.absolutePath}) into fake JDK " +
+                    "(${fakeJavaExe.absolutePath}): ${e.message}",
+                e
+            )
             return null
         }
 

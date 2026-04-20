@@ -7,10 +7,10 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebugSessionListener
 import com.intellij.xdebugger.XDebuggerManager
@@ -25,6 +25,7 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.isWinNative
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
 
@@ -78,21 +79,38 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         processInfo: ProcessInfo?,
         project: Project
     ): Promise<WorkerRunInfo> {
-        MirrordLogger.logger.info("RiderPatchCommandLineExtension: patchDebugCommandLine called")
+        MirrordLogger.logger.info(
+            "RiderPatchCommandLineExtension.patchDebugCommandLine: ENTER exe=${workerRunInfo.commandLine.exePath} " +
+                "argsCount=${workerRunInfo.commandLine.parametersList.list.size}"
+        )
         val wsl = resolveWsl(project)
+        MirrordLogger.logger.info("patchDebugCommandLine: wsl=${wsl?.presentableName ?: "null"}")
         val executionInfo = startMirrordExt(workerRunInfo.commandLine, project, wsl)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
 
+        val winNative = isWinNative(wsl)
+        MirrordLogger.logger.info(
+            "patchDebugCommandLine: decision winNative=$winNative executionInfoPresent=${executionInfo != null}"
+        )
+
         // Debug on Windows native: pitm can't be used because JetBrains'
         // DebuggerWorker.exe owns process creation. Instead, hook `targetReady`
-        // on DotNetDebuggerSessionModel
-        // (fires when target is spawned + worker attached, before user code runs).
-        // From there: session.pause() → sessionPaused → mirrord attach <pid> →
-        // session.resume(). See attach.rs for the DLL injection flow.
-        if (SystemInfo.isWindows && wsl == null && executionInfo != null) {
+        // on DotNetDebuggerSessionModel (fires when target is spawned + worker
+        // attached, before user code runs). From there: session.pause() →
+        // sessionPaused → mirrord attach <pid> → session.resume() (dispatched
+        // on EDT). The pause is required to close the targetReady→attach race
+        // window (CLR startup threads could otherwise issue syscalls before
+        // the layer is injected). The resume must run on EDT because
+        // XDebugSession fires EDT-asserting listeners during resume.
+        // CLI injection flow:
+        // https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
+        if (winNative && executionInfo != null) {
             armRiderTargetReadyAttach(project, workerRunInfo.commandLine.environment.toMap())
+        } else {
+            MirrordLogger.logger.info("patchDebugCommandLine: skipping armRiderTargetReadyAttach (not Windows-native or no executionInfo)")
         }
 
+        MirrordLogger.logger.info("patchDebugCommandLine: EXIT")
         return resolvedPromise(workerRunInfo)
     }
 
@@ -125,7 +143,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
                     MirrordLogger.logger.info("armRiderTargetReadyAttach: processStarted, wiring targetReady + sessionPaused")
 
                     // sessionPaused fires once we've requested a pause and the debugger
-                    // has actually suspended the target. Run mirrord attach there.
+                    // has actually suspended the target. Run mirrord attach there so the
+                    // target is frozen.
                     session.addSessionListener(object : XDebugSessionListener {
                         @Volatile
                         private var consumed = false
@@ -134,10 +153,16 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
                             if (consumed) return
                             consumed = true
 
-                            val pid = dotNetProcess.sessionInfo.valueOrNull?.processId?.toLong()
+                            val sessionInfoNow = dotNetProcess.sessionInfo.valueOrNull
+                            val pid = sessionInfoNow?.processId?.toLong()
                             if (pid == null) {
                                 MirrordLogger.logger.warn(
-                                    "armRiderTargetReadyAttach.sessionPaused: no PID on sessionInfo, skipping attach"
+                                    "armRiderTargetReadyAttach.sessionPaused: no PID on sessionInfo (sessionInfo=$sessionInfoNow), " +
+                                        "skipping attach. Debug session will proceed WITHOUT mirrord layer."
+                                )
+                                project.service<MirrordProjectService>().notifier.notifySimple(
+                                    "mirrord: could not determine target process PID; Rider debug proceeding without layer",
+                                    NotificationType.WARNING
                                 )
                                 return
                             }
@@ -151,24 +176,35 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
                                         .execManager
                                         .attach(cliPath, envVars, pid)
                                     MirrordLogger.logger.info(
-                                        "armRiderTargetReadyAttach: attach completed for pid $pid, resuming session"
+                                        "armRiderTargetReadyAttach: attach completed for pid $pid, dispatching session.resume() on EDT"
                                     )
-                                    // Explicit resume after synchronous attach. `attach`
-                                    // only returns once the layer has signalled init, so
-                                    // by this point the mirrord DLL is loaded in the target
-                                    // and user code is safe to run under it.
-                                    session.resume()
+                                    // session.resume() must run on EDT — XDebugSession fires
+                                    // listeners like LinqInlayDisplay.beforeSessionResume that
+                                    // assertIsEdt() and throw otherwise, aborting the resume
+                                    // and leaving the session paused forever.
+                                    ApplicationManager.getApplication().invokeLater {
+                                        try {
+                                            session.resume()
+                                            MirrordLogger.logger.info(
+                                                "armRiderTargetReadyAttach: session.resume() completed for pid $pid"
+                                            )
+                                        } catch (e: Exception) {
+                                            MirrordLogger.logger.error(
+                                                "armRiderTargetReadyAttach: session.resume() threw on EDT for pid $pid",
+                                                e
+                                            )
+                                        }
+                                    }
                                 } catch (e: Exception) {
                                     // Attach failed — don't resume. Leaving the session
                                     // paused so the user can inspect state and the error.
-                                    // Surfacing via notifier keeps parity with the old flow.
                                     MirrordLogger.logger.error(
                                         "armRiderTargetReadyAttach: attach failed for pid $pid, session left paused",
                                         e
                                     )
                                     project.service<MirrordProjectService>().notifier.notifySimple(
                                         "mirrord attach failed: ${e.message}",
-                                        com.intellij.notification.NotificationType.ERROR
+                                        NotificationType.ERROR
                                     )
                                 }
                             }
@@ -180,7 +216,8 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
                     })
 
                     // targetReady fires from the Rider backend when the target process
-                    // is spawned and the worker is attached. Request a pause immediately.
+                    // is spawned and the worker is attached. Request a pause immediately
+                    // so user code is frozen before mirrord attach starts injecting.
                     dotNetProcess.sessionProxy.targetReady.advise(dotNetProcess.sessionLifetime) { sessionInfo ->
                         MirrordLogger.logger.info(
                             "armRiderTargetReadyAttach.targetReady: pid=${sessionInfo.processId}, requesting session.pause()"
@@ -197,17 +234,31 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         dotNetRuntime: DotNetRuntime,
         project: Project
     ): ProcessListener? {
-        MirrordLogger.logger.info("RiderPatchCommandLineExtension: patchRunCommandLine called")
+        MirrordLogger.logger.info(
+            "RiderPatchCommandLineExtension.patchRunCommandLine: ENTER exe=${commandLine.exePath} " +
+                "argsCount=${commandLine.parametersList.list.size}"
+        )
         val wsl = resolveWsl(project)
-        val executionInfo = startMirrordExt(commandLine, project, wsl) ?: return null
+        MirrordLogger.logger.info("patchRunCommandLine: wsl=${wsl?.presentableName ?: "null"}")
+        val executionInfo = startMirrordExt(commandLine, project, wsl) ?: run {
+            MirrordLogger.logger.info("patchRunCommandLine: startMirrordExt returned null — mirrord disabled or cancelled, exiting")
+            return null
+        }
+
+        val winNative = isWinNative(wsl)
+        MirrordLogger.logger.info("patchRunCommandLine: decision winNative=$winNative")
 
         // On Windows native, wrap with `mirrord pitm` for zero-race DLL injection.
         // The process' execution is proxied, suspended, layer injected, then resumed.
-        if (SystemInfo.isWindows && wsl == null) {
+        if (winNative) {
             val cliPath = resolveCliPath(project)
+            MirrordLogger.logger.info("patchRunCommandLine: wrapping with pitm cliPath=$cliPath")
             MirrordPitm.wrapCommandLine(commandLine, cliPath, executionInfo.environment, executionInfo.envToUnset)
+        } else {
+            MirrordLogger.logger.info("patchRunCommandLine: non-Windows or WSL — skipping pitm wrap, relying on LD_PRELOAD")
         }
 
+        MirrordLogger.logger.info("patchRunCommandLine: EXIT")
         return null
     }
 }

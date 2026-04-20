@@ -24,7 +24,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebuggerManager
 import com.intellij.xdebugger.XDebuggerManagerListener
@@ -32,9 +31,27 @@ import com.metalbear.mirrord.MirrordBinaryManager
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.isWinNative
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+
+/** Whether the IDE is launching a JVM debug session (vs. plain run). */
+internal val RunnerSettings?.isJvmDebug: Boolean
+    get() = this is GenericDebuggerRunnerSettings
+
+/**
+ * Whether this run configuration is handled by IntelliJ's external build-system
+ * integration (Gradle, Maven, SBT, Bazel-tasks). Contract-enabled so the caller
+ * gets a smart-cast to [ExternalSystemRunConfiguration] in the `true` branch.
+ */
+@OptIn(kotlin.contracts.ExperimentalContracts::class)
+internal fun RunConfigurationBase<*>.isExternalBuildSystem(): Boolean {
+    kotlin.contracts.contract {
+        returns(true) implies (this@isExternalBuildSystem is ExternalSystemRunConfiguration)
+    }
+    return this is ExternalSystemRunConfiguration
+}
 
 /**
  * For overriding the `isApplicableFor` check on run configurations.
@@ -45,14 +62,40 @@ const val FORCE_RUN_ENV_NAME: String = "MIRRORD_FORCE_RUN"
 
 private const val GRADLE_RUN_CONFIGURATION = "org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration"
 
-private val GRADLE_RUN_TASKS = setOf("run", "bootRun", "runIde", "serve", "start", "quarkusDev")
+/**
+ * Exact task names that never fork a user JVM (packaging / clean / docs / housekeeping).
+ */
+private val GRADLE_BUILD_ONLY_EXACT = setOf(
+    "clean",
+    "jar", "war", "bootJar", "bootWar", "shadowJar", "distTar", "distZip",
+    "javadoc",
+    "wrapper", "init",
+    "classes", "testClasses"
+)
+
+/**
+ * Prefix matches for build-only tasks. Covers multiplatform / Android / custom
+ * source-set variants: `compileJava`, `compileKotlinJvm`, `compileDebugJavaWithJavac`,
+ * `compileIntegrationTestJava`, `processResources`, `processTestResources`, etc.
+ */
+private val GRADLE_BUILD_ONLY_PREFIXES = listOf(
+    "compile",
+    "process" // processResources, process*Resources
+)
+
+private fun isGradleBuildOnlyTask(task: String): Boolean {
+    val bare = task.removePrefix(":").substringAfterLast(':')
+    return GRADLE_BUILD_ONLY_EXACT.any { bare.equals(it, ignoreCase = true) } ||
+        GRADLE_BUILD_ONLY_PREFIXES.any { bare.startsWith(it, ignoreCase = true) }
+}
 
 internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigurationBase<*>): Boolean {
     val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
 
     val gradleTaskNames = (configuration as? ExternalSystemRunConfiguration)?.settings?.taskNames ?: emptyList()
     val skipGradleBuild = configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
-        gradleTaskNames.none { task -> GRADLE_RUN_TASKS.any { task.contains(it, ignoreCase = true) } }
+        gradleTaskNames.isNotEmpty() &&
+        gradleTaskNames.all(::isGradleBuildOnlyTask)
 
     val forceRunMirrord = getForceRunMirrord(configuration)
 
@@ -104,14 +147,22 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         params: JavaParameters,
         runnerSettings: RunnerSettings?
     ) {
+        val configSummary = "cfg=`${configuration.name}` class=${configuration.javaClass.simpleName} " +
+            "runnerSettings=${runnerSettings?.javaClass?.simpleName ?: "null"} " +
+            "isExternal=${configuration.isExternalBuildSystem()}"
+        MirrordLogger.logger.info("updateJavaParameters: ENTER $configSummary")
+
         val executionInfo = IdeaMirrordPreparationStore.consume(configuration) ?: run {
             // Main mirrord initialization is prepared by a before-run task to avoid blocking here under read lock.
-            MirrordLogger.logger.debug("No prepared mirrord execution info for `${configuration.name}`, skipping")
+            MirrordLogger.logger.info("updateJavaParameters: no prepared executionInfo for `${configuration.name}`, skipping (check IdeaExecutionListener/BeforeRunTask ran)")
             return
         }
 
         val mirrordEnv = executionInfo.environment + mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
         val envToUnset = executionInfo.envToUnset
+        MirrordLogger.logger.info(
+            "updateJavaParameters: executionInfo consumed, mirrordEnv size=${mirrordEnv.size}, envToUnset size=${envToUnset?.size ?: 0}"
+        )
 
         // Resolve WSL for platform gating (Windows-native-only pitm/attach paths).
         @Suppress("UnstableApiUsage")
@@ -119,6 +170,11 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
+        val winNative = isWinNative(wsl)
+        val isDebug = runnerSettings.isJvmDebug
+        MirrordLogger.logger.info(
+            "updateJavaParameters: platform gating winNative=$winNative wsl=${wsl?.presentableName ?: "null"} isDebug=$isDebug"
+        )
 
         // On Windows native, try to wrap the JDK with mirrord pitm. When that
         // succeeds, the mirrord env vars are ferried to the child via
@@ -128,11 +184,9 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         // ExternalSystemRunConfiguration (Gradle/Maven) is excluded because
         // params.jdk is null — Gradle manages its own JDK. For Gradle debug
         // on Windows we use mirrord-attach instead (armIdeaDebugAttach below).
-        val pitmWrapped = if (
-            SystemInfo.isWindows &&
-            wsl == null &&
-            configuration !is ExternalSystemRunConfiguration
-        ) {
+        val envSizeBefore = params.env.size
+        val pitmWrapped = if (winNative && !configuration.isExternalBuildSystem()) {
+            MirrordLogger.logger.info("updateJavaParameters: branch=NON_GRADLE_WIN, attempting wrapJdkWithPitm")
             wrapJdkWithPitm(configuration.project, params, mirrordEnv, envToUnset)
         } else {
             false
@@ -140,16 +194,37 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
         if (!pitmWrapped) {
             params.env = params.env + mirrordEnv - envToUnset.orEmpty().toSet()
+            MirrordLogger.logger.info(
+                "updateJavaParameters: mirrord env set on params.env directly (pitm NOT engaged), " +
+                    "params.env size ${envSizeBefore} → ${params.env.size}"
+            )
+        } else {
+            MirrordLogger.logger.info(
+                "updateJavaParameters: pitm JDK wrap succeeded, params.env size ${envSizeBefore} → ${params.env.size}"
+            )
         }
 
         // Gradle support (and external system configuration)
-        if (configuration is ExternalSystemRunConfiguration) {
+        if (configuration.isExternalBuildSystem()) {
+            val gradleBranch = when {
+                winNative && !isDebug -> "GRADLE_WIN_RUN"
+                winNative && isDebug -> "GRADLE_WIN_DEBUG"
+                else -> "GRADLE_PLAIN_ENV"
+            }
+            MirrordLogger.logger.info(
+                "updateJavaParameters: ExternalSystem branch=$gradleBranch taskNames=${configuration.settings.taskNames}"
+            )
+
             runningProcessEnvs[configuration] = configuration.settings.env.toMap()
             configuration.settings.scriptParameters?.let {
                 runningProcessScriptParams[configuration] = it
             }
+            MirrordLogger.logger.debug(
+                "updateJavaParameters: snapshotted settings.env size=${configuration.settings.env.size}, " +
+                    "scriptParameters=${configuration.settings.scriptParameters}"
+            )
 
-            if (SystemInfo.isWindows && wsl == null && runnerSettings !is GenericDebuggerRunnerSettings) {
+            if (winNative && !isDebug) {
                 // Windows native + Run: inject a Gradle init script that wraps
                 // JavaExec tasks with `mirrord pitm`, and ferry env vars via
                 // MIRRORD_CHILD_ENV so they only reach the child process.
@@ -158,15 +233,18 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 // Non-Windows, or Debug: set env vars directly on the config.
                 val env = configuration.settings.env + mirrordEnv - envToUnset.orEmpty().toSet()
                 configuration.settings.env = env
+                MirrordLogger.logger.info(
+                    "updateJavaParameters: settings.env updated directly, now ${configuration.settings.env.size} vars"
+                )
             }
 
             // Windows native + Debug: hook the JDWP ATTACHED event to hold the
             // VM suspended (via JDI suspend count) while we inject the layer.
-            if (SystemInfo.isWindows && wsl == null && runnerSettings is GenericDebuggerRunnerSettings) {
+            if (winNative && isDebug) {
                 armIdeaDebugAttach(configuration.project, mirrordEnv)
             }
         }
-        MirrordLogger.logger.debug("setting env and finishing")
+        MirrordLogger.logger.info("updateJavaParameters: EXIT $configSummary")
     }
 
     /**
@@ -176,7 +254,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      * override the executable for a `JavaParameters`-based launch.
      *
      * When IntelliJ invokes this fake `java.exe`, mirrord's `run_as_java_launcher`
-     * (see `pitm.rs`) detects `argv[0]` is `java.exe` and enters pitm mode using:
+     * detects `argv[0]` is `java.exe` and enters pitm mode using:
+     * (https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/pitm.rs)
      *
      *   - [MirrordPitmJdk.REAL_JAVA_ENV] — path to the real `java.exe`; pitm
      *     spawns it suspended and injects the layer before resuming.
@@ -192,36 +271,74 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         mirrordEnvVars: Map<String, String>,
         envToUnset: List<String>?
     ): Boolean {
+        MirrordLogger.logger.info(
+            "wrapJdkWithPitm: ENTER jdk=${params.jdk?.name ?: "null"} jdkHome=${params.jdk?.homePath ?: "null"} " +
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
+        )
+
         val realJdk = params.jdk
         if (realJdk == null) {
-            MirrordLogger.logger.warn("wrapJdkWithPitm: params.jdk is null, cannot wrap")
+            MirrordLogger.logger.error("wrapJdkWithPitm: no JDK on run config, aborting")
+            project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: no JDK on run config; pitm wrap failed",
+                NotificationType.ERROR
+            )
             return false
         }
         val realHome = realJdk.homePath
         if (realHome == null) {
-            MirrordLogger.logger.warn("wrapJdkWithPitm: real JDK home is null, cannot wrap")
+            MirrordLogger.logger.error("wrapJdkWithPitm: JDK `${realJdk.name}` has no homePath, aborting")
+            project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: JDK `${realJdk.name}` has no homePath; pitm wrap failed",
+                NotificationType.ERROR
+            )
             return false
         }
 
         val mirrordExe = try {
             File(service<MirrordBinaryManager>().getBinary("idea", null, project))
         } catch (e: Exception) {
-            MirrordLogger.logger.warn("wrapJdkWithPitm: failed to resolve mirrord binary: ${e.message}")
+            MirrordLogger.logger.warn("wrapJdkWithPitm: failed to resolve mirrord binary: ${e.message}", e)
+            project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: could not resolve mirrord binary for pitm wrap (${e.message}); layer will not load",
+                NotificationType.ERROR
+            )
+            return false
+        }
+        MirrordLogger.logger.debug(
+            "wrapJdkWithPitm: mirrordExe=${mirrordExe.absolutePath} exists=${mirrordExe.isFile} size=${if (mirrordExe.isFile) mirrordExe.length() else -1}"
+        )
+
+        val wrapped = MirrordPitmJdk.wrap(realJdk, mirrordExe) ?: run {
+            MirrordLogger.logger.warn("wrapJdkWithPitm: MirrordPitmJdk.wrap returned null — see MirrordPitmJdk logs above")
+            project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: fake JDK preparation failed; pitm wrap skipped",
+                NotificationType.WARNING
+            )
             return false
         }
 
-        val wrapped = MirrordPitmJdk.wrap(realJdk, mirrordExe) ?: return false
-
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
 
+        val envSizeBefore = params.env.size
         params.jdk = wrapped
         params.env = params.env + mapOf(
             MirrordPitmJdk.REAL_JAVA_ENV to "$realHome/bin/java.exe",
             MirrordPitm.CHILD_ENV_VAR to childEnvPayload
         )
+        // Guardrail: if any raw mirrord env vars leaked onto params.env, the
+        // mirrord.exe wrapper itself would inherit them. Detect and loudly warn.
+        val leaked = params.env.keys.intersect(mirrordEnvVars.keys)
+        if (leaked.isNotEmpty()) {
+            MirrordLogger.logger.warn(
+                "wrapJdkWithPitm: LEAK — mirrord env vars present on params.env after pitm wrap: $leaked. " +
+                    "These should only live inside MIRRORD_CHILD_ENV."
+            )
+        }
         MirrordLogger.logger.info(
-            "wrapJdkWithPitm: JDK wrapped, real java at $realHome/bin/java.exe, " +
-                "${mirrordEnvVars.size} env vars ferried via ${MirrordPitm.CHILD_ENV_VAR}"
+            "wrapJdkWithPitm: SUCCESS realJava=$realHome/bin/java.exe " +
+                "childEnvPayload.len=${childEnvPayload.length} " +
+                "params.env ${envSizeBefore} → ${params.env.size} (+REAL_JAVA, +CHILD_ENV)"
         )
         return true
     }
@@ -248,27 +365,52 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         mirrordEnvVars: Map<String, String>,
         envToUnset: List<String>?
     ) {
+        MirrordLogger.logger.info(
+            "wrapGradleRunWithPitm: ENTER taskNames=${configuration.settings.taskNames} " +
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
+        )
+
         val cliPath = resolveCliPath(configuration.project).replace("\\", "/")
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
         val taskFilter = gradleTaskNameFilter(configuration.settings.taskNames)
+        MirrordLogger.logger.info(
+            "wrapGradleRunWithPitm: cliPath=$cliPath taskFilter=[$taskFilter] childEnvPayload.len=${childEnvPayload.length}"
+        )
+        if (taskFilter.isBlank()) {
+            MirrordLogger.logger.warn(
+                "wrapGradleRunWithPitm: taskFilter is empty — init script will match no tasks. " +
+                    "This usually means the Gradle config has no taskNames."
+            )
+            configuration.project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: Gradle config has no task names; pitm wrap will not match any task",
+                NotificationType.WARNING
+            )
+        }
 
         val initScript = try {
             createPitmInitScript(cliPath, taskFilter)
         } catch (e: Exception) {
-            MirrordLogger.logger.warn("wrapGradleRunWithPitm: failed to create init script: ${e.message}")
+            MirrordLogger.logger.warn("wrapGradleRunWithPitm: failed to create init script: ${e.message}", e)
+            configuration.project.service<MirrordProjectService>().notifier.notifySimple(
+                "mirrord: could not create pitm init script (${e.message}); layer will not load.",
+                NotificationType.ERROR
+            )
             val env = configuration.settings.env + mirrordEnvVars - envToUnset.orEmpty().toSet()
             configuration.settings.env = env
             return
         }
 
+        val envBefore = configuration.settings.env.size
+        val scriptParamsBefore = configuration.settings.scriptParameters ?: ""
         configuration.settings.env = configuration.settings.env + mapOf(
             MirrordPitm.CHILD_ENV_VAR to childEnvPayload
         )
         appendInitScript(configuration, initScript)
 
         MirrordLogger.logger.info(
-            "wrapGradleRunWithPitm: init script at ${initScript.absolutePath}, " +
-                "cli=$cliPath, ${mirrordEnvVars.size} env vars in MIRRORD_CHILD_ENV"
+            "wrapGradleRunWithPitm: SUCCESS initScript=${initScript.absolutePath} size=${initScript.length()}b, " +
+                "settings.env ${envBefore} → ${configuration.settings.env.size}, " +
+                "scriptParameters grew from ${scriptParamsBefore.length} to ${(configuration.settings.scriptParameters ?: "").length} chars"
         )
     }
 
@@ -361,7 +503,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      *    `vm.resume()` drops count to 0 — user code runs with layer loaded.
      *
      * Used for Gradle/Maven debug on Windows native where pitm cannot be used
-     * (Gradle owns JVM creation). See `attach.rs` for the CLI injection flow.
+     * (Gradle owns JVM creation). CLI injection flow:
+     * https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
      */
     private fun armIdeaDebugAttach(project: Project, envVars: Map<String, String>) {
         val cliPath = resolveCliPath(project)
@@ -447,7 +590,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                                             val pid = if (port != null) findPidByJdwpPort(port, debuggerListens) else null
                                             if (pid == null) {
                                                 MirrordLogger.logger.warn(
-                                                    "armIdeaDebugAttach: could not find PID for JDWP port $port"
+                                                    "armIdeaDebugAttach: could not find PID for JDWP port $port " +
+                                                        "(debuggerListens=$debuggerListens). Debug session will proceed WITHOUT mirrord layer."
+                                                )
+                                                project.service<MirrordProjectService>().notifier.notifySimple(
+                                                    "mirrord: could not identify target JVM (JDWP port $port); debug session proceeding without layer",
+                                                    NotificationType.WARNING
                                                 )
                                                 return@executeOnPooledThread
                                             }
@@ -499,11 +647,19 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      */
     private fun findPidByJdwpPort(port: Int, debuggerListens: Boolean): Long? {
         return try {
+            val started = System.currentTimeMillis()
             val process = ProcessBuilder("cmd", "/c", "netstat -ano")
                 .redirectErrorStream(true)
                 .start()
             val output = process.inputStream.bufferedReader().readText()
-            process.waitFor(10, TimeUnit.SECONDS)
+            val exited = process.waitFor(10, TimeUnit.SECONDS)
+            val elapsed = System.currentTimeMillis() - started
+            MirrordLogger.logger.info(
+                "findPidByJdwpPort: netstat completed in ${elapsed}ms exited=$exited exitCode=${if (exited) process.exitValue() else -1} outputLen=${output.length}"
+            )
+            if (!exited) {
+                MirrordLogger.logger.warn("findPidByJdwpPort: netstat did not exit within 10s for port $port")
+            }
 
             val pid = if (debuggerListens) {
                 // IntelliJ listens on :port → target is the side whose REMOTE addr is :port.
@@ -511,22 +667,34 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 // We want lines where REMOTE ends with :<port> but LOCAL is NOT :<port>
                 // (to exclude IntelliJ's own side of the connection).
                 val pattern = Regex("""\s+TCP\s+(\S+)\s+\S+:${port}\s+ESTABLISHED\s+(\d+)""")
-                pattern.findAll(output)
-                    .filter { !it.groupValues[1].endsWith(":$port") }
-                    .firstOrNull()
-                    ?.groupValues?.get(2)?.toLongOrNull()
+                val all = pattern.findAll(output).toList()
+                val filtered = all.filter { !it.groupValues[1].endsWith(":$port") }
+                MirrordLogger.logger.info(
+                    "findPidByJdwpPort: serverMode — ESTABLISHED matches total=${all.size} after-excluding-IDE-side=${filtered.size}"
+                )
+                if (filtered.size > 1) {
+                    MirrordLogger.logger.warn(
+                        "findPidByJdwpPort: AMBIGUOUS — ${filtered.size} distinct PIDs connect to :$port. Picking first: " +
+                            filtered.joinToString(", ") { "${it.groupValues[2]}@${it.groupValues[1]}" }
+                    )
+                }
+                filtered.firstOrNull()?.groupValues?.get(2)?.toLongOrNull()
             } else {
                 // Target listens on :port → match LOCAL port, LISTENING
                 val pattern = Regex("""\s+TCP\s+\S+:${port}\s+\S+\s+LISTENING\s+(\d+)""")
-                pattern.find(output)?.groupValues?.get(1)?.toLongOrNull()
+                val matches = pattern.findAll(output).toList()
+                MirrordLogger.logger.info(
+                    "findPidByJdwpPort: clientMode — LISTENING matches=${matches.size}"
+                )
+                matches.firstOrNull()?.groupValues?.get(1)?.toLongOrNull()
             }
 
             MirrordLogger.logger.info(
-                "findPidByJdwpPort: port=$port, debuggerListens=$debuggerListens → pid=$pid"
+                "findPidByJdwpPort: RESULT port=$port debuggerListens=$debuggerListens → pid=$pid"
             )
             pid
         } catch (e: Exception) {
-            MirrordLogger.logger.warn("findPidByJdwpPort: failed for port $port: ${e.message}")
+            MirrordLogger.logger.warn("findPidByJdwpPort: failed for port $port: ${e.message}", e)
             null
         }
     }
@@ -539,7 +707,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         handler: ProcessHandler,
         runnerSettings: RunnerSettings?
     ) {
-        if (configuration is ExternalSystemRunConfiguration) {
+        if (configuration.isExternalBuildSystem()) {
             val envsToRestore = runningProcessEnvs.remove(configuration) ?: return
             val scriptParamsToRestore = runningProcessScriptParams.remove(configuration)
 
