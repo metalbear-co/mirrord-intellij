@@ -24,7 +24,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
 import java.awt.Point
 import java.io.File
-import java.net.URL
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -100,9 +100,9 @@ internal class MirrordPluginTest {
         @AfterAll
         @JvmStatic
         fun cleanUp() {
-            val xpathPage = URL("http://localhost:8082/").readText()
-            val xpathPageJs = URL("http://localhost:8082/xpathEditor.js").readText()
-            val xpathPageCss = URL("http://localhost:8082/styles.css").readText()
+            val xpathPage = URI("http://localhost:8082/").toURL().readText()
+            val xpathPageJs = URI("http://localhost:8082/xpathEditor.js").toURL().readText()
+            val xpathPageCss = URI("http://localhost:8082/styles.css").toURL().readText()
             // create a file in build/reports
             File("build/reports/robot-page.html").writeText(xpathPage)
             File("build/reports/xpathEditor.js").writeText(xpathPageJs)
@@ -239,7 +239,7 @@ internal class MirrordPluginTest {
 
             step("Send traffic to pod") {
                 val kubeService = System.getenv("KUBE_SERVICE")
-                URL(kubeService).readText()
+                URI(kubeService).toURL().readText()
             }
 
             step("Assert breakpoint is hit") {

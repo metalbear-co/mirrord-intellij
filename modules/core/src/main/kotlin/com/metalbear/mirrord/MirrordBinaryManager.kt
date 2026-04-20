@@ -52,6 +52,10 @@ class MirrordBinaryManager {
                 null
             }
         }
+
+        @Suppress("DEPRECATION")
+        internal fun wslPath(wslDistribution: WSLDistribution, path: String): String =
+            wslDistribution.getWslPath(path) ?: path
     }
 
     /**
@@ -287,12 +291,6 @@ class MirrordBinaryManager {
                 child.inputReader().readLine().split(' ')[1].trim()
             }
         }
-    }
-
-    companion object {
-        @Suppress("DEPRECATION")
-        private fun wslPath(wslDistribution: WSLDistribution, path: String): String =
-            wslDistribution.getWslPath(path) ?: path
     }
 
     /**

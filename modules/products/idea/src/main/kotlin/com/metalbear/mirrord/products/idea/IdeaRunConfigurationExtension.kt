@@ -427,7 +427,9 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                                     val debuggerListens: Boolean
                                     try {
                                         val conn = impl.connection
-                                        port = conn.address?.toIntOrNull()
+                                        @Suppress("DEPRECATION")
+                                        val address = conn.address
+                                        port = address?.toIntOrNull()
                                         // isServerMode=true means IntelliJ (debugger) listens,
                                         // target connects TO that port.
                                         debuggerListens = conn.isServerMode
