@@ -47,6 +47,7 @@
 
         <postStartupActivity implementation="com.metalbear.mirrord.MirrordUsageBanner"/>
         <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$DownloadInitializer"/>
+        <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$WindowsNativeSupportInitializer"/>
     </extensions>
 
     <actions>
