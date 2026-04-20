@@ -646,12 +646,18 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      *   the target JVM listens on [port] (match LOCAL port, LISTENING).
      */
     private fun findPidByJdwpPort(port: Int, debuggerListens: Boolean): Long? {
-        return try {
-            val started = System.currentTimeMillis()
-            val process = ProcessBuilder("cmd", "/c", "netstat -ano")
+        val started = System.currentTimeMillis()
+        val process = try {
+            ProcessBuilder("cmd", "/c", "netstat -ano")
                 .redirectErrorStream(true)
                 .start()
-            val output = process.inputStream.bufferedReader().readText()
+        } catch (e: Exception) {
+            MirrordLogger.logger.warn("findPidByJdwpPort: failed to spawn netstat for port $port: ${e.message}", e)
+            return null
+        }
+
+        return try {
+            val output = process.inputStream.bufferedReader().use { it.readText() }
             val exited = process.waitFor(10, TimeUnit.SECONDS)
             val elapsed = System.currentTimeMillis() - started
             MirrordLogger.logger.info(
@@ -696,6 +702,11 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         } catch (e: Exception) {
             MirrordLogger.logger.warn("findPidByJdwpPort: failed for port $port: ${e.message}", e)
             null
+        } finally {
+            // Guarantee netstat doesn't linger if waitFor timed out (or we threw mid-read).
+            if (process.isAlive) {
+                process.destroy()
+            }
         }
     }
 
