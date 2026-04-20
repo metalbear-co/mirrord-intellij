@@ -8,6 +8,98 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.72.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.72.0) - 2026-04-12
+
+
+### Added
+
+- Adde mirrord's SBT run configuration wrapper. When `useSbtShell` is set to
+  true, mirrord plugin
+  rewrites the SBT shell command with environment variabels injection command
+  chained with the
+  original. When set to false, mirrord plugin injects environment variables
+  directly to the
+  run configuration and clean up once the run finishes.
+
+## [3.71.4](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.4) - 2026-04-07
+
+No significant changes.
+
+## [3.71.3](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.3) - 2026-03-17
+
+
+### Changed
+
+- Mirrord will now only start for gradle tasks that have `run`, `bootRun`,
+  `runIde`, `serve`, `start`, `quarkusDev` in the name, preventing injection
+  into build tasks.
+
+
+### Fixed
+
+- Injection will now be enabled for all run tasks that are subclasses of
+  `ExternalSystemRunConfiguration` (gradle, etc).
+
+## [3.71.2](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.2) - 2026-03-09
+
+
+### Fixed
+
+- change entrypoint for java based projects to be in a way that would avoid
+  freezing
+
+
+### Internal
+
+- Fixed all warnings when building the plugin, warnings are treated as errors
+  going forward.
+- fix e2e flakiness timing out on dumb mode
+
+## [3.71.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.1) - 2026-02-05
+
+
+### Fixed
+
+- Bazel + Gradle compatability issue causing exception is resolved
+
+## [3.71.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.71.0) - 2026-02-03
+
+
+### Fixed
+
+- The plugin will now skip running on Gradle run configurations with "build"
+  (case-insensitive) in the name. To override this behaviour, set
+  `MIRRORD_FORCE_RUN=true` in the run configuration's env vars. *NOTE: mirrord
+  must still be enabled to run.*
+
+
+### Internal
+
+- Free runner space for release workflow.
+
+## [3.70.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.1) - 2025-12-07
+
+
+### Internal
+
+- Added an action to free runner space.
+  [#ci-runner-space](https://github.com/metalbear-co/mirrord-intellij/issues/ci-runner-space)
+
+## [3.70.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.70.0) - 2025-12-03
+
+
+### Fixed
+
+- fix for multiple execution of service wrapper in TomcatBeforeRunTaskProvider,
+  now only one for debug session is executed
+  [#344](https://github.com/metalbear-co/mirrord-intellij/issues/344)
+- Log mirrord command line always instead of in some scenarios
+
+
+### Internal
+
+- Bump gradle version to fix build.
+
 ## [3.69.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.69.0) - 2025-09-26
 
 

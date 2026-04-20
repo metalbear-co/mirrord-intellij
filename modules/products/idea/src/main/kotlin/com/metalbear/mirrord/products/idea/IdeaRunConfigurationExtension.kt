@@ -8,6 +8,7 @@ import com.intellij.debugger.engine.DebugProcessListener
 import com.intellij.debugger.engine.JavaDebugProcess
 import com.intellij.debugger.engine.events.DebuggerCommandImpl
 import com.intellij.debugger.impl.GenericDebuggerRunnerSettings
+import com.intellij.execution.CommonProgramRunConfigurationParameters
 import com.intellij.execution.RunConfigurationExtension
 import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.configurations.RunConfigurationBase
@@ -27,24 +28,62 @@ import com.intellij.openapi.util.SystemInfo
 import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebuggerManager
 import com.intellij.xdebugger.XDebuggerManagerListener
-import com.metalbear.mirrord.CONFIG_ENV_NAME
 import com.metalbear.mirrord.MirrordBinaryManager
-import java.io.File
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+
+/**
+ * For overriding the `isApplicableFor` check on run configurations.
+ * Set MIRRORD_FORCE_RUN=true to ensure we consider the run configuration able to run with mirrord.
+ * NOTE: mirrord must _still be enabled_ to run on the run configuration.
+ */
+const val FORCE_RUN_ENV_NAME: String = "MIRRORD_FORCE_RUN"
+
+private const val GRADLE_RUN_CONFIGURATION = "org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration"
+
+private val GRADLE_RUN_TASKS = setOf("run", "bootRun", "runIde", "serve", "start", "quarkusDev")
+
+internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigurationBase<*>): Boolean {
+    val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
+
+    val gradleTaskNames = (configuration as? ExternalSystemRunConfiguration)?.settings?.taskNames ?: emptyList()
+    val skipGradleBuild = configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
+        gradleTaskNames.none { task -> GRADLE_RUN_TASKS.any { task.contains(it, ignoreCase = true) } }
+
+    val forceRunMirrord = getForceRunMirrord(configuration)
+
+    return forceRunMirrord || !(skipTomcat || skipGradleBuild)
+}
+
+internal fun getIdeaConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> {
+    return when (configuration) {
+        is ExternalSystemRunConfiguration -> configuration.settings.env
+        is CommonProgramRunConfigurationParameters -> configuration.envs
+        else -> emptyMap()
+    }
+}
+
+private fun getForceRunMirrord(configuration: RunConfigurationBase<*>): Boolean {
+    return if (configuration is ExternalSystemRunConfiguration) {
+        configuration.settings.env[FORCE_RUN_ENV_NAME].toBoolean()
+    } else {
+        false
+    }
+}
 
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
      * mirrord env set in ExternalRunConfigurations. Used for cleanup the configuration after the execution has ended.
      */
-    private val runningProcessEnvs = ConcurrentHashMap<Project, Map<String, String>>()
-    private val runningProcessScriptParams = ConcurrentHashMap<Project, String>()
+    private val runningProcessEnvs = ConcurrentHashMap<RunConfigurationBase<*>, Map<String, String>>()
+    private val runningProcessScriptParams = ConcurrentHashMap<RunConfigurationBase<*>, String>()
 
     override fun isApplicableFor(configuration: RunConfigurationBase<*>): Boolean {
-        val applicable = !configuration.name.startsWith("Build ") && !configuration.name.startsWith("Tomcat")
+        val applicable = isIdeaConfigurationApplicableForMirrord(configuration)
 
         if (!applicable) {
             MirrordLogger.logger.info("Configuration name %s ignored".format(configuration.name))
@@ -60,94 +99,74 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         return true
     }
 
-    private fun <T : RunConfigurationBase<*>> getMirrordConfigPath(configuration: T, params: JavaParameters): String? {
-        return params.env[CONFIG_ENV_NAME] ?: if (configuration is ExternalSystemRunConfiguration) {
-            val ext = configuration as ExternalSystemRunConfiguration
-            ext.settings.env[CONFIG_ENV_NAME]
-        } else {
-            null
-        }
-    }
-
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
         runnerSettings: RunnerSettings?
     ) {
-        val service = configuration.project.service<MirrordProjectService>()
+        val executionInfo = IdeaMirrordPreparationStore.consume(configuration) ?: run {
+            // Main mirrord initialization is prepared by a before-run task to avoid blocking here under read lock.
+            MirrordLogger.logger.debug("No prepared mirrord execution info for `${configuration.name}`, skipping")
+            return
+        }
 
-        MirrordLogger.logger.debug("wsl check")
+        val mirrordEnv = executionInfo.environment + mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
+        val envToUnset = executionInfo.envToUnset
+
+        // Resolve WSL for platform gating (Windows-native-only pitm/attach paths).
+        @Suppress("UnstableApiUsage")
         val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
             is WslTargetEnvironmentRequest -> request.configuration.distribution!!
             else -> null
         }
 
-        val extraEnv = if (configuration is ExternalSystemRunConfiguration) {
-            val extraEnv = params.env + configuration.settings.env
-            extraEnv
+        // On Windows native, try to wrap the JDK with mirrord pitm. When that
+        // succeeds, the mirrord env vars are ferried to the child via
+        // MIRRORD_CHILD_ENV only — they must NOT be set on params.env directly,
+        // or the mirrord.exe wrapper itself would inherit them.
+        //
+        // ExternalSystemRunConfiguration (Gradle/Maven) is excluded because
+        // params.jdk is null — Gradle manages its own JDK. For Gradle debug
+        // on Windows we use mirrord-attach instead (armIdeaDebugAttach below).
+        val pitmWrapped = if (
+            SystemInfo.isWindows &&
+            wsl == null &&
+            configuration !is ExternalSystemRunConfiguration
+        ) {
+            wrapJdkWithPitm(configuration.project, params, mirrordEnv, envToUnset)
         } else {
-            params.env
+            false
         }
 
-        service.execManager.wrapper("idea", extraEnv).apply {
-            this.wsl = wsl
-        }.start()?.let { executionInfo ->
-            val mirrordEnv = executionInfo.environment + mapOf(Pair("MIRRORD_DETECT_DEBUGGER_PORT", "javaagent"))
-            val envToUnset = executionInfo.envToUnset
+        if (!pitmWrapped) {
+            params.env = params.env + mirrordEnv - envToUnset.orEmpty().toSet()
+        }
 
-            // On Windows native, try to wrap the JDK with mirrord pitm. When that
-            // succeeds, the mirrord env vars are ferried to the child via
-            // MIRRORD_CHILD_ENV only — they must NOT be set on params.env directly,
-            // or the mirrord.exe wrapper itself would inherit them.
-            //
-            // ExternalSystemRunConfiguration (Gradle/Maven) is excluded because
-            // params.jdk is null — Gradle manages its own JDK. For Gradle debug
-            // on Windows we use mirrord-attach instead (armIdeaDebugAttach below).
-            val pitmWrapped = if (
-                SystemInfo.isWindows &&
-                wsl == null &&
-                configuration !is ExternalSystemRunConfiguration
-            ) {
-                wrapJdkWithPitm(configuration.project, params, mirrordEnv, envToUnset)
+        // Gradle support (and external system configuration)
+        if (configuration is ExternalSystemRunConfiguration) {
+            runningProcessEnvs[configuration] = configuration.settings.env.toMap()
+            configuration.settings.scriptParameters?.let {
+                runningProcessScriptParams[configuration] = it
+            }
+
+            if (SystemInfo.isWindows && wsl == null && runnerSettings !is GenericDebuggerRunnerSettings) {
+                // Windows native + Run: inject a Gradle init script that wraps
+                // JavaExec tasks with `mirrord pitm`, and ferry env vars via
+                // MIRRORD_CHILD_ENV so they only reach the child process.
+                wrapGradleRunWithPitm(configuration, mirrordEnv, envToUnset)
             } else {
-                false
+                // Non-Windows, or Debug: set env vars directly on the config.
+                val env = configuration.settings.env + mirrordEnv - envToUnset.orEmpty().toSet()
+                configuration.settings.env = env
             }
 
-            if (!pitmWrapped) {
-                params.env = params.env + mirrordEnv - envToUnset.orEmpty().toSet()
+            // Windows native + Debug: hook the JDWP ATTACHED event to hold the
+            // VM suspended (via JDI suspend count) while we inject the layer.
+            if (SystemInfo.isWindows && wsl == null && runnerSettings is GenericDebuggerRunnerSettings) {
+                armIdeaDebugAttach(configuration.project, mirrordEnv)
             }
-
-            runningProcessEnvs[configuration.project] = params.env.toMap()
-
-            // Gradle support (and external system configuration)
-            if (configuration is ExternalSystemRunConfiguration) {
-                val extConfig = configuration as ExternalSystemRunConfiguration
-                runningProcessEnvs[configuration.project] = extConfig.settings.env.toMap()
-                extConfig.settings.scriptParameters?.let {
-                    runningProcessScriptParams[configuration.project] = it
-                }
-
-                if (SystemInfo.isWindows && wsl == null && runnerSettings !is GenericDebuggerRunnerSettings) {
-                    // Windows native + Run: inject a Gradle init script that wraps
-                    // JavaExec tasks with `mirrord pitm`, and ferry env vars via
-                    // MIRRORD_CHILD_ENV so they only reach the child process.
-                    wrapGradleRunWithPitm(extConfig, mirrordEnv, envToUnset)
-                } else {
-                    // Non-Windows, or Debug: set env vars directly on the config.
-                    val env = extConfig.settings.env +
-                        mirrordEnv -
-                        envToUnset.orEmpty().toSet()
-                    extConfig.settings.env = env
-                }
-
-                // Windows native + Debug: hook the JDWP ATTACHED event to hold the
-                // VM suspended (via JDI suspend count) while we inject the layer.
-                if (SystemInfo.isWindows && wsl == null && runnerSettings is GenericDebuggerRunnerSettings) {
-                    armIdeaDebugAttach(configuration.project, mirrordEnv)
-                }
-            }
-            MirrordLogger.logger.debug("setting env and finishing")
         }
+        MirrordLogger.logger.debug("setting env and finishing")
     }
 
     /**
@@ -519,8 +538,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?
     ) {
         if (configuration is ExternalSystemRunConfiguration) {
-            val envsToRestore = runningProcessEnvs.remove(configuration.project) ?: return
-            val scriptParamsToRestore = runningProcessScriptParams.remove(configuration.project)
+            val envsToRestore = runningProcessEnvs.remove(configuration) ?: return
+            val scriptParamsToRestore = runningProcessScriptParams.remove(configuration)
 
             handler.addProcessListener(object : ProcessListener {
                 override fun processTerminated(event: ProcessEvent) {

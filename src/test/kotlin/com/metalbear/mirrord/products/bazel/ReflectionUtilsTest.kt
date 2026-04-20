@@ -26,11 +26,11 @@ class ReflectionUtilsTest {
         hashMap["key"] = "value"
 
         // downcast
-        val downcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.Map") as Map<String, String>
+        val downcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.Map") as Map<*, *>
         assert(downcastedMap["key"] == "value")
 
         // upcast
-        val upcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.HashMap") as HashMap<String, String>
+        val upcastedMap = ReflectUtils.castFromClassName(hashMap, "java.util.HashMap") as HashMap<*, *>
         assert(upcastedMap["key"] == "value")
 
         // bad cast

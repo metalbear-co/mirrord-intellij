@@ -18,23 +18,28 @@ on:
 jobs:
   intellij-e2e:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     env:
       CI_BUILD_PLUGIN: "true"
     steps:
-      - name: Remove unnecessary files
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      - name: Free Disk Space (Ubuntu)
+        uses: metalbear-co/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # default branch HEAD
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true", frees about 6 GB
+          tool-cache: false
 
       - name: checkout repository
         if: ${{ !inputs.mirrord_release_branch }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
         # mirrord_release_branch boolean when set, means we are on a release branch
         # and hence we need to checkout into the last released tag of mirrord-intellij
       - name: checkout into mirrord-intellij if mirrord_release_branch
         if: ${{ inputs.mirrord_release_branch }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: "metalbear-co/mirrord-intellij"
 
@@ -45,12 +50,17 @@ jobs:
           git checkout tags/$(grep 'pluginVersion =' gradle.properties | cut -d '=' -f 2 | xargs)
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: zulu
           java-version: 17
 
-      - uses: actions/setup-python@v5
+      - name: build plugin
+        run: |
+          ./gradlew buildPlugin
+
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: 3.11
       - uses: metalbear-co/actions-poetry@b8f6fe29ba2eb78e0d45ccbf41cd14154c4e25b2
@@ -59,7 +69,7 @@ jobs:
         # mirrord-artifacts and add it to the path
       - name: download mirrord binary
         if: ${{ inputs.mirrord_release_branch }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: mirrord-artifacts
       - name: add downloaded mirrord to path
@@ -87,37 +97,37 @@ jobs:
 
       - name: download image
         if: ${{ inputs.mirrord_release_branch }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: test
           path: /tmp
       - run: minikube image load /tmp/test.tar
         if: ${{ inputs.mirrord_release_branch }}
 
-      - name: build plugin
-        run: |
-          ./gradlew buildPlugin
-
       - name: Run intellij e2e in headless state
-        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
           MIRRORD_AGENT_IMAGE: "test"
-        with:
-          run: |
-            ./gradlew test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
+          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
+          wait -n
 
       - name: Run intellij e2e in headless state
-        uses: metalbear-co/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         if: ${{ !inputs.mirrord_release_branch }}
         env:
           POD_TO_SELECT: ${{ env.POD_TO_SELECT }}
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
-        with:
-          run: |
-            ./gradlew test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
+          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
+          wait -n
 
       - name: Save the failure video
         continue-on-error: true
@@ -126,7 +136,7 @@ jobs:
           mv video build/reports
       - name: Save fails report
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: mirrord-plugin-fail-report
           path: |

@@ -38,12 +38,18 @@ private fun getProcessFailedStderrError(processStdError: String) = "Process fail
 private fun getContainerProcessFailedStderrError(processStdError: String) = "Container process failed with stderr: $processStdError"
 private fun getConfigVerificationFailedError(processStdError: String) = "Config verification failed: $processStdError"
 
-private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) = "mirrord task failed: ${error.message ?: error.toString()}"
-private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) = "mirrord background task failed: ${error.message ?: error.toString()}"
+private fun getMirrordTaskFailedError(commandLine: String, error: Throwable) =
+    "mirrord task failed for $commandLine: ${error.message ?: error.toString()}"
+private fun getMirrordBackgroundTaskFailedError(commandLine: String, error: Throwable) =
+    "mirrord background task failed for $commandLine: ${error.message ?: error.toString()}"
 private fun getMirrordTaskTimedOutError(commandLine: String) = "mirrord task timed out: $commandLine"
 private fun getMirrordTaskTimedOutUnderReadLockError(commandLine: String) = "mirrord task timed out under read lock: $commandLine"
 private fun getMirrordTaskCancelledMessage(commandLine: String) = "mirrord task was cancelled: $commandLine"
 private fun getMirrordBackgroundTaskCancelledMessage(commandLine: String) = "mirrord background task was cancelled: $commandLine"
+
+@Suppress("DEPRECATION")
+private fun wslPath(wslDistribution: WSLDistribution?, path: String): String =
+    wslDistribution?.getWslPath(path) ?: path
 
 /**
  * Helper function to log errors to both MirrordLogger and logsService
@@ -749,7 +755,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             environment["MIRRORD_EXT_PRINT_CONFIG"] = "TRUE"
 
             configFile?.let {
-                val formattedPath = wslDistribution?.getWslPath(it) ?: it
+                val formattedPath = wslPath(wslDistribution, it)
                 addParameter("-f")
                 addParameter(formattedPath)
             }
@@ -795,6 +801,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
 
             environment["MIRRORD_PROGRESS_MODE"] = "json"
             environment["MIRRORD_PROGRESS_SUPPORT_IDE"] = "true"
+            environment["MIRRORD_IDE_NAME"] = "intellij"
         }
         project.service<MirrordLogsService>().logInfo("Executing mirrord command: ${commandLine.commandLineString}")
         return commandLine
