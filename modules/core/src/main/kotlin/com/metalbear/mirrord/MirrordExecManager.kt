@@ -10,7 +10,6 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.util.SystemInfo
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is

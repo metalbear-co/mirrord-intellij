@@ -29,7 +29,6 @@ private const val CLI_BINARY = "mirrord"
 private const val VERSION_ENDPOINT = "https://version.mirrord.dev/v1/version"
 private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/releases/download"
 
-
 /**
  * For dynamically fetching and storing mirrord binary.
  */
