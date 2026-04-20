@@ -196,11 +196,11 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             params.env = params.env + mirrordEnv - envToUnset.orEmpty().toSet()
             MirrordLogger.logger.info(
                 "updateJavaParameters: mirrord env set on params.env directly (pitm NOT engaged), " +
-                    "params.env size ${envSizeBefore} → ${params.env.size}"
+                    "params.env size $envSizeBefore → ${params.env.size}"
             )
         } else {
             MirrordLogger.logger.info(
-                "updateJavaParameters: pitm JDK wrap succeeded, params.env size ${envSizeBefore} → ${params.env.size}"
+                "updateJavaParameters: pitm JDK wrap succeeded, params.env size $envSizeBefore → ${params.env.size}"
             )
         }
 
@@ -338,7 +338,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         MirrordLogger.logger.info(
             "wrapJdkWithPitm: SUCCESS realJava=$realHome/bin/java.exe " +
                 "childEnvPayload.len=${childEnvPayload.length} " +
-                "params.env ${envSizeBefore} → ${params.env.size} (+REAL_JAVA, +CHILD_ENV)"
+                "params.env $envSizeBefore → ${params.env.size} (+REAL_JAVA, +CHILD_ENV)"
         )
         return true
     }
@@ -409,7 +409,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
         MirrordLogger.logger.info(
             "wrapGradleRunWithPitm: SUCCESS initScript=${initScript.absolutePath} size=${initScript.length()}b, " +
-                "settings.env ${envBefore} → ${configuration.settings.env.size}, " +
+                "settings.env $envBefore → ${configuration.settings.env.size}, " +
                 "scriptParameters grew from ${scriptParamsBefore.length} to ${(configuration.settings.scriptParameters ?: "").length} chars"
         )
     }
@@ -444,7 +444,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 def mirrordEscapeArg = { s ->
                     '"' + String.valueOf(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
                 }
-                def mirrordTargetTasks = [${taskFilter}] as Set
+                def mirrordTargetTasks = [$taskFilter] as Set
                 def mirrordStandardTaskActionClass = 'org.gradle.api.internal.project.taskfactory.StandardTaskAction'
 
                 allprojects {
@@ -466,7 +466,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                             }
                             argfile.text = lines.join(System.lineSeparator())
                             execOps.exec { spec ->
-                                spec.executable '${cliPath}'
+                                spec.executable '$cliPath'
                                 spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
                                 spec.environment(task.environment)
                                 spec.environment('${MirrordPitm.CHILD_ENV_VAR}', System.getenv('${MirrordPitm.CHILD_ENV_VAR}') ?: '')
@@ -570,6 +570,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                                     val debuggerListens: Boolean
                                     try {
                                         val conn = impl.connection
+
                                         @Suppress("DEPRECATION")
                                         val address = conn.address
                                         port = address?.toIntOrNull()
@@ -611,7 +612,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                                             )
                                         } catch (e: Exception) {
                                             MirrordLogger.logger.error(
-                                                "armIdeaDebugAttach: attach failed", e
+                                                "armIdeaDebugAttach: attach failed",
+                                                e
                                             )
                                             project.service<MirrordProjectService>().notifier.notifySimple(
                                                 "mirrord attach failed: ${e.message}",
@@ -628,7 +630,6 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                                         }
                                     }
                                 }
-
                             })
                         }
                     })
@@ -672,7 +673,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 // netstat: TCP  <local>:<localPort>  <remote>:<remotePort>  ESTABLISHED  <pid>
                 // We want lines where REMOTE ends with :<port> but LOCAL is NOT :<port>
                 // (to exclude IntelliJ's own side of the connection).
-                val pattern = Regex("""\s+TCP\s+(\S+)\s+\S+:${port}\s+ESTABLISHED\s+(\d+)""")
+                val pattern = Regex("""\s+TCP\s+(\S+)\s+\S+:$port\s+ESTABLISHED\s+(\d+)""")
                 val all = pattern.findAll(output).toList()
                 val filtered = all.filter { !it.groupValues[1].endsWith(":$port") }
                 MirrordLogger.logger.info(
@@ -687,7 +688,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 filtered.firstOrNull()?.groupValues?.get(2)?.toLongOrNull()
             } else {
                 // Target listens on :port → match LOCAL port, LISTENING
-                val pattern = Regex("""\s+TCP\s+\S+:${port}\s+\S+\s+LISTENING\s+(\d+)""")
+                val pattern = Regex("""\s+TCP\s+\S+:$port\s+\S+\s+LISTENING\s+(\d+)""")
                 val matches = pattern.findAll(output).toList()
                 MirrordLogger.logger.info(
                     "findPidByJdwpPort: clientMode — LISTENING matches=${matches.size}"
