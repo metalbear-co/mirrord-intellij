@@ -1,8 +1,18 @@
 // Gradle init script injected by the mirrord IntelliJ plugin on Windows to
 // wrap JavaExec tasks with `mirrord pitm` for suspended-start layer injection.
 //
+// Task selection: we only wrap JavaExec tasks that the user/IDE actually asked
+// to run — i.e. whose name or path appears in `gradle.startParameter.taskNames`.
+// This covers:
+//   - IntelliJ's synthesized run-a-main-method task (e.g. `:org.example.Main.main()`),
+//     created by ApplicationTaskInitScript from the Gradle tooling extension
+//   - the `run` task added by the `application` plugin
+//   - qualified subproject tasks like `:sub:run`
+//   - any user-defined JavaExec the user invokes
+// Tasks reached only as transitive build dependencies (e.g. a code-generator
+// JavaExec pulled in by `build`) are intentionally NOT wrapped.
+//
 // Placeholders (substituted at runtime by MirrordPitmGradle.kt):
-//   __MIRRORD_TASK_FILTER__   Groovy set literal of target task names
 //   __MIRRORD_CLI_PATH__      absolute path to mirrord.exe
 //   __MIRRORD_CHILD_ENV_VAR__ name of the MIRRORD_CHILD_ENV env var
 
@@ -16,13 +26,23 @@ abstract class MirrordExecInjector {
 def mirrordEscapeArg = { s ->
     '"' + String.valueOf(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
 }
-def mirrordTargetTasks = [__MIRRORD_TASK_FILTER__] as Set
+def mirrordRequestedTasks = (gradle.startParameter.taskNames ?: []) as Set
 def mirrordStandardTaskActionClass = 'org.gradle.api.internal.project.taskfactory.StandardTaskAction'
+
+def mirrordMatchesRequested = { task ->
+    if (mirrordRequestedTasks.isEmpty()) return false
+    if (mirrordRequestedTasks.contains(task.path)) return true
+    if (mirrordRequestedTasks.contains(task.name)) return true
+    // CLI often uses `:taskName` for a root-project task; task.path already
+    // includes the leading colon, but match explicitly for clarity.
+    if (mirrordRequestedTasks.contains(':' + task.name)) return true
+    return false
+}
 
 allprojects {
     def execOps = project.objects.newInstance(MirrordExecInjector).execOps
     tasks.withType(JavaExec).configureEach { task ->
-        if (!mirrordTargetTasks.contains(task.name)) return
+        if (!mirrordMatchesRequested(task)) return
         task.doLast {
             def realJava = task.executable
             def argfile = File.createTempFile('mirrord-pitm-', '.args')
