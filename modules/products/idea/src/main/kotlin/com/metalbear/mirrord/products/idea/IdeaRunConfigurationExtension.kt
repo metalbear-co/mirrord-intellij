@@ -228,7 +228,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 // Windows native + Run: inject a Gradle init script that wraps
                 // JavaExec tasks with `mirrord pitm`, and ferry env vars via
                 // MIRRORD_CHILD_ENV so they only reach the child process.
-                wrapGradleRunWithPitm(configuration, mirrordEnv, envToUnset)
+                MirrordPitmGradle.wrap(configuration, mirrordEnv, envToUnset)
             } else {
                 // Non-Windows, or Debug: set env vars directly on the config.
                 val env = configuration.settings.env + mirrordEnv - envToUnset.orEmpty().toSet()
@@ -241,7 +241,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             // Windows native + Debug: hook the JDWP ATTACHED event to hold the
             // VM suspended (via JDI suspend count) while we inject the layer.
             if (winNative && isDebug) {
-                armIdeaDebugAttach(configuration.project, mirrordEnv)
+                armIdeaDebugAttach(configuration, mirrordEnv)
             }
         }
         MirrordLogger.logger.info("updateJavaParameters: EXIT $configSummary")
@@ -347,149 +347,6 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         service<MirrordBinaryManager>().getCliPath("idea", null, project)
 
     /**
-     * Creates a Gradle init script that wraps `JavaExec` tasks with `mirrord pitm`
-     * for suspended-start layer injection on Windows.
-     *
-     * The init script removes only `JavaExec`'s built-in `@TaskAction` (preserving
-     * IDE-injected `doFirst` actions such as the Kotlin coroutine debug agent,
-     * source mapper, and JVM debugger init) and appends a `doLast` that invokes
-     * `mirrord.exe pitm -- <real java> @<argfile>` via `ExecOperations`.
-     *
-     * An argfile is used so that large classpaths (common in real projects)
-     * don't blow past Windows' 32 KiB command-line limit; `ExecOperations`
-     * is used so Stop-in-IDE cancellation reliably kills the pitm child.
-     * Mirrord env vars reach the child via [MirrordPitm.CHILD_ENV_VAR].
-     */
-    private fun wrapGradleRunWithPitm(
-        configuration: ExternalSystemRunConfiguration,
-        mirrordEnvVars: Map<String, String>,
-        envToUnset: List<String>?
-    ) {
-        MirrordLogger.logger.info(
-            "wrapGradleRunWithPitm: ENTER taskNames=${configuration.settings.taskNames} " +
-                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
-        )
-
-        val cliPath = resolveCliPath(configuration.project).replace("\\", "/")
-        val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
-        val taskFilter = gradleTaskNameFilter(configuration.settings.taskNames)
-        MirrordLogger.logger.info(
-            "wrapGradleRunWithPitm: cliPath=$cliPath taskFilter=[$taskFilter] childEnvPayload.len=${childEnvPayload.length}"
-        )
-        if (taskFilter.isBlank()) {
-            MirrordLogger.logger.warn(
-                "wrapGradleRunWithPitm: taskFilter is empty — init script will match no tasks. " +
-                    "This usually means the Gradle config has no taskNames."
-            )
-            configuration.project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: Gradle config has no task names; pitm wrap will not match any task",
-                NotificationType.WARNING
-            )
-        }
-
-        val initScript = try {
-            createPitmInitScript(cliPath, taskFilter)
-        } catch (e: Exception) {
-            MirrordLogger.logger.warn("wrapGradleRunWithPitm: failed to create init script: ${e.message}", e)
-            configuration.project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: could not create pitm init script (${e.message}); layer will not load.",
-                NotificationType.ERROR
-            )
-            val env = configuration.settings.env + mirrordEnvVars - envToUnset.orEmpty().toSet()
-            configuration.settings.env = env
-            return
-        }
-
-        val envBefore = configuration.settings.env.size
-        val scriptParamsBefore = configuration.settings.scriptParameters ?: ""
-        configuration.settings.env = configuration.settings.env + mapOf(
-            MirrordPitm.CHILD_ENV_VAR to childEnvPayload
-        )
-        appendInitScript(configuration, initScript)
-
-        MirrordLogger.logger.info(
-            "wrapGradleRunWithPitm: SUCCESS initScript=${initScript.absolutePath} size=${initScript.length()}b, " +
-                "settings.env $envBefore → ${configuration.settings.env.size}, " +
-                "scriptParameters grew from ${scriptParamsBefore.length} to ${(configuration.settings.scriptParameters ?: "").length} chars"
-        )
-    }
-
-    /** Builds a Groovy set literal from Gradle task names, stripping the `:` project-path prefix. */
-    private fun gradleTaskNameFilter(taskNames: List<String>): String {
-        val names = taskNames.map { it.removePrefix(":") }
-        return names.joinToString(", ") { "'${it.replace("'", "\\'")}'" }
-    }
-
-    /**
-     * Creates a temp Gradle init script that surgically replaces `JavaExec`'s
-     * built-in action with `mirrord pitm -- <java> @<argfile>`, via
-     * [org.gradle.process.ExecOperations].
-     *
-     * Kept as doLast (not a full action swap) to preserve IDE-injected
-     * `doFirst` actions that mutate `jvmArgs` at runtime. Argfile sidesteps
-     * the Windows `CreateProcess` 32 KiB command-line limit.
-     */
-    private fun createPitmInitScript(cliPath: String, taskFilter: String): File {
-        return File.createTempFile("mirrord-pitm-", ".gradle").apply {
-            deleteOnExit()
-            writeText(
-                """
-                import javax.inject.Inject
-                import org.gradle.process.ExecOperations
-
-                abstract class MirrordExecInjector {
-                    @Inject abstract ExecOperations getExecOps()
-                }
-
-                def mirrordEscapeArg = { s ->
-                    '"' + String.valueOf(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
-                }
-                def mirrordTargetTasks = [$taskFilter] as Set
-                def mirrordStandardTaskActionClass = 'org.gradle.api.internal.project.taskfactory.StandardTaskAction'
-
-                allprojects {
-                    def execOps = project.objects.newInstance(MirrordExecInjector).execOps
-                    tasks.withType(JavaExec).configureEach { task ->
-                        if (!mirrordTargetTasks.contains(task.name)) return
-                        task.doLast {
-                            def realJava = task.executable
-                            def argfile = File.createTempFile('mirrord-pitm-', '.args')
-                            argfile.deleteOnExit()
-                            def lines = []
-                            task.allJvmArgs.each { lines << mirrordEscapeArg(it) }
-                            lines << '-cp'
-                            lines << mirrordEscapeArg(task.classpath.asPath)
-                            if (task.mainClass.isPresent()) lines << mirrordEscapeArg(task.mainClass.get())
-                            (task.args ?: []).each { lines << mirrordEscapeArg(it) }
-                            task.argumentProviders.each { p ->
-                                p.asArguments().each { lines << mirrordEscapeArg(it) }
-                            }
-                            argfile.text = lines.join(System.lineSeparator())
-                            execOps.exec { spec ->
-                                spec.executable '$cliPath'
-                                spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
-                                spec.environment(task.environment)
-                                spec.environment('${MirrordPitm.CHILD_ENV_VAR}', System.getenv('${MirrordPitm.CHILD_ENV_VAR}') ?: '')
-                                spec.workingDir = task.workingDir
-                                spec.standardInput = System.in
-                            }
-                        }
-                        task.actions.removeAll { it.class.name == mirrordStandardTaskActionClass }
-                    }
-                }
-                """.trimIndent()
-            )
-        }
-    }
-
-    /** Appends `--init-script <path>` to the Gradle run configuration's script parameters. */
-    private fun appendInitScript(configuration: ExternalSystemRunConfiguration, script: File) {
-        val scriptPath = script.absolutePath.replace("\\", "/")
-        val existing = configuration.settings.scriptParameters ?: ""
-        configuration.settings.scriptParameters = "$existing --init-script \"$scriptPath\""
-    }
-
-    /**
      * Arms a one-shot listener that holds the target JVM suspended via JDI while
      * `mirrord attach <pid>` injects the layer DLL, then releases the hold.
      *
@@ -506,11 +363,20 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      * (Gradle owns JVM creation). CLI injection flow:
      * https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
      */
-    private fun armIdeaDebugAttach(project: Project, envVars: Map<String, String>) {
+    private fun armIdeaDebugAttach(
+        targetConfiguration: RunConfigurationBase<*>,
+        envVars: Map<String, String>
+    ) {
+        val project = targetConfiguration.project
         val cliPath = resolveCliPath(project)
-        MirrordLogger.logger.info("armIdeaDebugAttach: wiring listener, cliPath=$cliPath")
+        MirrordLogger.logger.info(
+            "armIdeaDebugAttach: wiring listener for config=`${targetConfiguration.name}`, cliPath=$cliPath"
+        )
 
-        val busConnection = project.messageBus.connect()
+        // connect(project) ties the bus to project lifetime — if the debug
+        // launch fails before processStarted fires, the connection still gets
+        // disposed on project close rather than leaking indefinitely.
+        val busConnection = project.messageBus.connect(project)
         busConnection.subscribe(
             XDebuggerManager.TOPIC,
             object : XDebuggerManagerListener {
@@ -519,12 +385,22 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
                 override fun processStarted(debugProcess: XDebugProcess) {
                     if (wired) return
+
+                    // Filter by run-profile identity: processStarted fires for
+                    // every debug session in the project, so we must ignore
+                    // sessions belonging to other launches (e.g. a concurrent
+                    // Java run). Without this check an unrelated session
+                    // starting first would consume our one-shot wiring and
+                    // silently skip mirrord on the target.
+                    if (debugProcess.session.runProfile !== targetConfiguration) {
+                        return
+                    }
                     wired = true
 
                     val javaProcess = debugProcess as? JavaDebugProcess
                     if (javaProcess == null) {
                         MirrordLogger.logger.warn(
-                            "armIdeaDebugAttach: processStarted but not JavaDebugProcess " +
+                            "armIdeaDebugAttach: processStarted for target config but not JavaDebugProcess " +
                                 "(got ${debugProcess::class.qualifiedName}), skipping"
                         )
                         busConnection.disconnect()

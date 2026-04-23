@@ -42,6 +42,8 @@ private const val MIN_WINDOWS_NATIVE_VERSION = "3.204.0"
 class MirrordBinaryManager {
     @Volatile
     private var latestSupportedVersion: String? = null
+
+    @Volatile
     private var downloadVersion: String? = null
 
     companion object {
@@ -72,7 +74,7 @@ class MirrordBinaryManager {
         return try {
             getBinary(product, wslDistribution, project)
         } catch (e: MirrordError) {
-            val fallback = if (SystemInfo.isWindows) "mirrord.exe" else "mirrord"
+            val fallback = if (isWinNative(wslDistribution)) "mirrord.exe" else "mirrord"
             MirrordLogger.logger.warn(
                 "getCliPath: getBinary failed for product=$product (${e.message}), " +
                     "falling back to `$fallback` — resolution depends on PATH. Subsequent CLI calls may fail."
@@ -187,7 +189,7 @@ class MirrordBinaryManager {
             }
 
             downloadingVersion = version
-            manager.updateBinary(indicator)
+            manager.updateBinary(indicator, wslDistribution)
         }
 
         override fun onThrowable(error: Throwable) {
@@ -250,22 +252,29 @@ class MirrordBinaryManager {
         return response.body()
     }
 
-    private fun updateBinary(indicator: ProgressIndicator) {
+    private fun updateBinary(indicator: ProgressIndicator, wslDistribution: WSLDistribution? = null) {
         val version = downloadVersion ?: return
 
-        val url = when {
-            SystemInfo.isMac -> "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
-            SystemInfo.isWindows && CpuArch.isIntel64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord.exe"
-            SystemInfo.isWindows -> throw RuntimeException(
-                "mirrord does not currently provide a Windows ${CpuArch.CURRENT.name} build. " +
-                    "If you require ${CpuArch.CURRENT.name} support, please upvote or comment on " +
-                    "https://github.com/metalbear-co/mirrord/issues/4162 so we can gauge interest."
-            )
-            SystemInfo.isLinux && CpuArch.isArm64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
-            SystemInfo.isLinux && CpuArch.isIntel64() -> "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
-            else -> throw RuntimeException(
-                "Unsupported platform/architecture: ${SystemInfo.OS_NAME} ${CpuArch.CURRENT.name}"
-            )
+        val url = if (SystemInfo.isMac) {
+            "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
+        } else if (isWinNative(wslDistribution)) {
+            if (CpuArch.isIntel64()) {
+                "$DOWNLOAD_ENDPOINT/$version/mirrord.exe"
+            } else {
+                throw RuntimeException("Unsupported architecture: ${CpuArch.CURRENT.name}")
+            }
+        } else if (SystemInfo.isLinux || SystemInfo.isWindows) {
+            // Native Linux, or Windows host targeting WSL — both use the Linux
+            // binary. WSL inherits host arch, so CpuArch is the right proxy.
+            if (CpuArch.isArm64()) {
+                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
+            } else if (CpuArch.isIntel64()) {
+                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
+            } else {
+                throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
+            }
+        } else {
+            throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
         }
 
         indicator.text = "mirrord is downloading binary version $version..."
@@ -274,24 +283,26 @@ class MirrordBinaryManager {
         val connection = URI(url).toURL().openConnection()
         connection.connect()
         val size = connection.contentLength
-        val stream = connection.getInputStream()
 
         val bytes = ByteArray(size)
-        var bytesRead = 0
-        while (bytesRead < size) {
-            indicator.checkCanceled()
-            val toRead = minOf(4096, size - bytesRead)
-            val readNow = stream.read(bytes, bytesRead, toRead)
-            if (readNow == -1) {
-                break
+        // .use { } guarantees the stream closes (and the underlying connection is
+        // released back to the pool) even if the user cancels mid-download or a
+        // socket error fires from the read loop.
+        connection.getInputStream().use { stream ->
+            var bytesRead = 0
+            while (bytesRead < size) {
+                indicator.checkCanceled()
+                val toRead = minOf(4096, size - bytesRead)
+                val readNow = stream.read(bytes, bytesRead, toRead)
+                if (readNow == -1) {
+                    break
+                }
+                bytesRead += readNow
+                indicator.fraction = bytesRead.toDouble() / size.toDouble()
             }
-            bytesRead += readNow
-            indicator.fraction = bytesRead.toDouble() / size.toDouble()
         }
 
-        stream.close()
-
-        val destination = MirrordPathManager.getPath(CLI_BINARY, true)
+        val destination = MirrordPathManager.getPath(CLI_BINARY, true, wslDistribution)
         Files.createDirectories(destination.parent)
 
         val tmpDestination = destination.resolveSibling(destination.name + UUID.randomUUID().toString())
@@ -363,7 +374,7 @@ class MirrordBinaryManager {
      */
     private fun findBinaryInStorage(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
         try {
-            MirrordPathManager.getBinary(CLI_BINARY, true)?.let {
+            MirrordPathManager.getBinary(CLI_BINARY, true, wslDistribution)?.let {
                 val binary = MirrordBinary(it, wslDistribution)
                 val isRequiredVersion = try {
                     Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
@@ -402,18 +413,18 @@ class MirrordBinaryManager {
         if (!SystemInfo.isWindows) return
 
         if (!CpuArch.isIntel64()) {
-            project.service<MirrordProjectService>().notifier.notifyRichError(
-                "mirrord does not currently provide a Windows ${CpuArch.CURRENT.name} build. " +
-                    "If you require ${CpuArch.CURRENT.name} support, please upvote or comment on " +
-                    "https://github.com/metalbear-co/mirrord/issues/4162 so we can gauge interest."
-            )
+            MirrordWindowsUnsupportedDialog.showArchUnsupportedOnce(CpuArch.CURRENT.name)
             return
         }
 
         val required = try {
             Version.valueOf(MIN_WINDOWS_NATIVE_VERSION)
         } catch (e: Exception) {
-            MirrordLogger.logger.warn("checkWindowsNativeSupport: could not parse MIN_WINDOWS_NATIVE_VERSION", e)
+            MirrordLogger.logger.error(
+                "checkWindowsNativeSupport: failed to parse the hardcoded minimum Windows-native mirrord version " +
+                    "(\"$MIN_WINDOWS_NATIVE_VERSION\"). This is a bug in the plugin — please report it.",
+                e
+            )
             return
         }
 
@@ -449,7 +460,7 @@ class MirrordBinaryManager {
                 "checkWindowsNativeSupport: local binary ${current ?: "none"} < $MIN_WINDOWS_NATIVE_VERSION, " +
                     "auto-update is OFF in settings; surfacing error without download"
             )
-            notifyWindowsNativeUnsupported(project, current)
+            notifyWindowsNativeUnsupported(current)
             return
         }
 
@@ -459,27 +470,28 @@ class MirrordBinaryManager {
         )
 
         // Take the download lock so we don't race a concurrent DownloadInitializer.
+        // If we can't acquire, another auto-update is already fetching latest —
+        // which by construction satisfies MIN_WINDOWS_NATIVE_VERSION — so we bow
+        // out and let that task's own error handling surface any failure.
         val acquired = !UpdateTask.downloadInProgress.compareAndExchange(false, true)
-        if (acquired) {
-            try {
-                indicator.text = "mirrord: downloading binary for Windows-native support..."
-                val latest = fetchLatestSupportedVersion(null, indicator)
-                latestSupportedVersion = latest
-                downloadVersion = latest
-                updateBinary(indicator)
-            } catch (e: Exception) {
-                MirrordLogger.logger.warn("checkWindowsNativeSupport: auto-update failed: ${e.message}", e)
-            } finally {
-                UpdateTask.downloadInProgress.set(false)
-            }
-        } else {
-            // Another download is already running. Wait briefly for it, then re-check.
-            MirrordLogger.logger.info("checkWindowsNativeSupport: another download in progress, waiting up to 30s")
-            for (i in 0 until 30) {
-                if (!UpdateTask.downloadInProgress.get()) break
-                indicator.checkCanceled()
-                Thread.sleep(1000)
-            }
+        if (!acquired) {
+            MirrordLogger.logger.info(
+                "checkWindowsNativeSupport: another download is in progress (auto-update); " +
+                    "deferring to it and skipping the Windows-native recheck"
+            )
+            return
+        }
+
+        try {
+            indicator.text = "mirrord: downloading binary for Windows-native support..."
+            val latest = fetchLatestSupportedVersion(null, indicator)
+            latestSupportedVersion = latest
+            downloadVersion = latest
+            updateBinary(indicator)
+        } catch (e: Exception) {
+            MirrordLogger.logger.warn("checkWindowsNativeSupport: auto-update failed: ${e.message}", e)
+        } finally {
+            UpdateTask.downloadInProgress.set(false)
         }
 
         val after = parse(resolveLocal()?.version)
@@ -490,17 +502,12 @@ class MirrordBinaryManager {
             return
         }
 
-        notifyWindowsNativeUnsupported(project, after)
+        notifyWindowsNativeUnsupported(after)
     }
 
-    private fun notifyWindowsNativeUnsupported(project: Project, found: Version?) {
+    private fun notifyWindowsNativeUnsupported(found: Version?) {
         val actual = found?.toString() ?: "none"
-        project.service<MirrordProjectService>().notifier.notifyRichError(
-            "Windows-native mirrord requires binary version >= $MIN_WINDOWS_NATIVE_VERSION (found: $actual). " +
-                "Non-WSL run/debug configurations will not work until the binary is upgraded. " +
-                "WSL-based configurations continue to work. " +
-                "Enable auto-update in mirrord settings or set a version >= $MIN_WINDOWS_NATIVE_VERSION."
-        )
+        MirrordWindowsUnsupportedDialog.showVersionUnsupportedOnce(MIN_WINDOWS_NATIVE_VERSION, actual)
     }
 
     /**

@@ -105,7 +105,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         // CLI injection flow:
         // https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
         if (winNative && executionInfo != null) {
-            armRiderTargetReadyAttach(project, workerRunInfo.commandLine.environment.toMap())
+            armRiderTargetReadyAttach(project, lifetime, workerRunInfo.commandLine.environment.toMap())
         } else {
             MirrordLogger.logger.info("patchDebugCommandLine: skipping armRiderTargetReadyAttach (not Windows-native or no executionInfo)")
         }
@@ -114,11 +114,21 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         return resolvedPromise(workerRunInfo)
     }
 
-    private fun armRiderTargetReadyAttach(project: Project, envVars: Map<String, String>) {
+    private fun armRiderTargetReadyAttach(
+        project: Project,
+        launchLifetime: Lifetime,
+        envVars: Map<String, String>
+    ) {
         val cliPath = resolveCliPath(project)
         MirrordLogger.logger.info("armRiderTargetReadyAttach: wiring listener, cliPath=$cliPath")
 
-        val busConnection = project.messageBus.connect()
+        // connect(project) + lifetime.onTermination gives belt-and-suspenders
+        // cleanup: project close bounds the listener absolutely, and the
+        // Rider launch lifetime disposes it as soon as THIS launch ends
+        // (success, cancel, or failure before processStarted ever fires).
+        val busConnection = project.messageBus.connect(project)
+        launchLifetime.onTermination { busConnection.disconnect() }
+
         busConnection.subscribe(
             XDebuggerManager.TOPIC,
             object : XDebuggerManagerListener {
@@ -127,17 +137,15 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
                 override fun processStarted(debugProcess: XDebugProcess) {
                     if (wired) return
-                    wired = true
 
-                    val dotNetProcess = debugProcess as? DotNetDebugProcess
-                    if (dotNetProcess == null) {
-                        MirrordLogger.logger.warn(
-                            "armRiderTargetReadyAttach: processStarted but not a DotNetDebugProcess " +
-                                "(got ${debugProcess::class.qualifiedName}), unsubscribing"
-                        )
-                        busConnection.disconnect()
-                        return
-                    }
+                    // processStarted fires for every debug session in the
+                    // project. Ignore sessions that aren't DotNet (e.g. a
+                    // concurrent Java/Python debug) without unsubscribing —
+                    // otherwise an unrelated session starting first would
+                    // consume our one-shot wiring and silently skip mirrord
+                    // on the target.
+                    val dotNetProcess = debugProcess as? DotNetDebugProcess ?: return
+                    wired = true
 
                     val session = debugProcess.session
                     MirrordLogger.logger.info("armRiderTargetReadyAttach: processStarted, wiring targetReady + sessionPaused")

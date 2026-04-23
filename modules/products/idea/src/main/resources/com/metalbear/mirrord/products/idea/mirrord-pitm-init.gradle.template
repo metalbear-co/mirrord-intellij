@@ -1,0 +1,51 @@
+// Gradle init script injected by the mirrord IntelliJ plugin on Windows to
+// wrap JavaExec tasks with `mirrord pitm` for suspended-start layer injection.
+//
+// Placeholders (substituted at runtime by MirrordPitmGradle.kt):
+//   __MIRRORD_TASK_FILTER__   Groovy set literal of target task names
+//   __MIRRORD_CLI_PATH__      absolute path to mirrord.exe
+//   __MIRRORD_CHILD_ENV_VAR__ name of the MIRRORD_CHILD_ENV env var
+
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
+abstract class MirrordExecInjector {
+    @Inject abstract ExecOperations getExecOps()
+}
+
+def mirrordEscapeArg = { s ->
+    '"' + String.valueOf(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+def mirrordTargetTasks = [__MIRRORD_TASK_FILTER__] as Set
+def mirrordStandardTaskActionClass = 'org.gradle.api.internal.project.taskfactory.StandardTaskAction'
+
+allprojects {
+    def execOps = project.objects.newInstance(MirrordExecInjector).execOps
+    tasks.withType(JavaExec).configureEach { task ->
+        if (!mirrordTargetTasks.contains(task.name)) return
+        task.doLast {
+            def realJava = task.executable
+            def argfile = File.createTempFile('mirrord-pitm-', '.args')
+            argfile.deleteOnExit()
+            def lines = []
+            task.allJvmArgs.each { lines << mirrordEscapeArg(it) }
+            lines << '-cp'
+            lines << mirrordEscapeArg(task.classpath.asPath)
+            if (task.mainClass.isPresent()) lines << mirrordEscapeArg(task.mainClass.get())
+            (task.args ?: []).each { lines << mirrordEscapeArg(it) }
+            task.argumentProviders.each { p ->
+                p.asArguments().each { lines << mirrordEscapeArg(it) }
+            }
+            argfile.text = lines.join(System.lineSeparator())
+            execOps.exec { spec ->
+                spec.executable '__MIRRORD_CLI_PATH__'
+                spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
+                spec.environment(task.environment)
+                spec.environment('__MIRRORD_CHILD_ENV_VAR__', System.getenv('__MIRRORD_CHILD_ENV_VAR__') ?: '')
+                spec.workingDir = task.workingDir
+                spec.standardInput = System.in
+            }
+        }
+        task.actions.removeAll { it.class.name == mirrordStandardTaskActionClass }
+    }
+}
