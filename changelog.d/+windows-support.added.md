@@ -1,1 +1,0 @@
-Added support for Windows for the respective IDEs and scenarios: Rider Run + Debug, IDEA IntelliJ Build-System Run + Debug and IDEA Gradle/Maven Build-System Run + Debug.

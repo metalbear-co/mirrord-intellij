@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.73.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.73.0) - 2026-04-24
+
+
+### Added
+
+- Added support for Windows for the respective IDEs and scenarios: Rider Run +
+  Debug, IDEA IntelliJ Build-System Run + Debug and IDEA Gradle/Maven
+  Build-System Run + Debug.
+
 ## [3.72.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.72.0) - 2026-04-12
 
 
