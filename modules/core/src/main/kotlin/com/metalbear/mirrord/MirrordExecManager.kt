@@ -10,7 +10,6 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.util.SystemInfo
 
 /**
  * Functions to be called when one of our entry points to the program is called - when process is
@@ -96,7 +95,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
-        val path = service<MirrordBinaryManager>().getBinary(product, wslDistribution, service.project)
+        val path = service<MirrordBinaryManager>().getCliPath(product, wslDistribution, service.project)
         return wslPath(wslDistribution, path)
     }
 
@@ -143,10 +142,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         if ((!service.enabled && !explicitlyEnabled) || explicitlyDisabled) {
             MirrordLogger.logger.debug("disabled, returning")
             return null
-        }
-
-        if (SystemInfo.isWindows && wslDistribution == null) {
-            throw MirrordError("can't use on Windows without WSL")
         }
 
         dispatchPluginVersionCheck()
@@ -259,6 +254,34 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
         return executionInfo
+    }
+
+    /**
+     * Runs `mirrord attach <PID>`. Expects `mirrord ext` to have already
+     * started the intproxy and set env vars on the target process.
+     *
+     * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
+     * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
+     */
+    fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
+        MirrordLogger.logger.info(
+            "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}"
+        )
+        val started = System.currentTimeMillis()
+        val mirrordApi = service.mirrordApi(projectEnvVars)
+        try {
+            val result = mirrordApi.attach(cliPath, pid)
+            MirrordLogger.logger.info(
+                "MirrordExecManager.attach: SUCCESS pid=$pid in ${System.currentTimeMillis() - started}ms"
+            )
+            return result
+        } catch (e: Throwable) {
+            MirrordLogger.logger.warn(
+                "MirrordExecManager.attach: FAILED pid=$pid after ${System.currentTimeMillis() - started}ms: ${e.message}",
+                e
+            )
+            throw e
+        }
     }
 
     private fun containerStart(

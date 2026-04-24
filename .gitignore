@@ -6,6 +6,8 @@
 **/.DS_Store
 
 .mirrord/
+.claude/
+.porchlight/
 
 .gradle/
 .qodana/

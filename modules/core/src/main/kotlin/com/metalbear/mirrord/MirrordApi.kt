@@ -146,6 +146,11 @@ data class MirrordContainerExecution(
     @SerializedName("uses_operator") val usesOperator: Boolean?
 )
 
+data class MirrordAttachExecution(
+    val environment: MutableMap<String, String>,
+    @SerializedName("uses_operator") val usesOperator: Boolean?
+)
+
 /**
  * Wrapper around Gson for parsing messages from the mirrord binary.
  */
@@ -607,6 +612,61 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             this.configFile = configFile
             this.wslDistribution = wslDistribution
         }
+
+        val result = task.run(service.project)
+
+        result.usesOperator?.let { usesOperator ->
+            if (usesOperator) {
+                MirrordSettingsState.instance.mirrordState.operatorUsed = true
+            }
+        }
+
+        return result
+    }
+
+    private class MirrordAttachTask(cli: String, private val pid: Long, projectEnvVars: Map<String, String>?) : MirrordCliTask<MirrordAttachExecution>(cli, "attach", listOf(pid.toString()), projectEnvVars) {
+        // `mirrord attach` injects the layer DLL into the target process (pid)
+        // and exits 0 on success. Callers must run `mirrord ext` first to start
+        // the intproxy and set env vars on the target.
+        // stdout is drained to the log; exit code is the success signal.
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordAttachExecution {
+            val logsService = project.service<MirrordLogsService>()
+            logsService.onMirrordExecutionStart()
+
+            setText("mirrord is attaching to process $pid...")
+            logsService.logInfo("mirrord is attaching to process $pid...")
+
+            process.inputStream.reader().buffered().useLines { lines ->
+                for (line in lines) {
+                    if (line.isNotBlank()) {
+                        logsService.logInfo("[mirrord attach] $line")
+                    }
+                }
+            }
+
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val processStdError = process.errorStream.bufferedReader().readText()
+                val errorMessage = "Attach process failed with stderr: $processStdError"
+                logErrorToBoth(logsService, errorMessage)
+                logsService.onMirrordExecutionEnd()
+                throw MirrordError.fromStdErr(processStdError)
+            }
+
+            MirrordLogger.logger.info("mirrord attach exited with code 0, layer injected into pid $pid")
+            setText("mirrord layer injected into process $pid")
+            logsService.logInfo("mirrord attach completed successfully for process $pid")
+            logsService.onMirrordExecutionEnd()
+            return MirrordAttachExecution(mutableMapOf(), null)
+        }
+    }
+
+    fun attach(cli: String, pid: Long): MirrordAttachExecution {
+        bumpRunCounter()
+
+        // Only PID is passed — target, namespace, config flags remain null.
+        // `mirrord ext` must have been run first by the caller.
+        val task = MirrordAttachTask(cli, pid, projectEnvVars)
 
         val result = task.run(service.project)
 
