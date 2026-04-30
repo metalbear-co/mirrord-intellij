@@ -1,26 +1,16 @@
 fun properties(key: String) = project.findProperty(key).toString()
 
 plugins {
-    // Java support
     id("java")
-    // Kotlin support
-    id("org.jetbrains.kotlin.jvm") version "1.8.22"
-    // Gradle IntelliJ Plugin
-    id("org.jetbrains.intellij") version "1.+"
-}
-
-tasks {
-    buildSearchableOptions {
-        enabled = false
-    }
-}
-
-intellij {
-    type.set("IU")
-    version.set(properties("platformVersion"))
-    plugins.set(listOf("NodeJS"))
+    id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.intellij.platform.module")
 }
 
 dependencies {
     implementation(project(":mirrord-core"))
+
+    intellijPlatform {
+        create("IU", properties("platformVersion"))
+        bundledPlugin("NodeJS")
+    }
 }
