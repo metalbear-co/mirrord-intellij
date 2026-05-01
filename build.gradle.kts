@@ -1,7 +1,9 @@
+import org.gradle.process.ProcessForkOptions
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.intellij.tasks.ListProductsReleasesTask
-import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
 import java.util.EnumSet
@@ -9,43 +11,29 @@ import java.util.EnumSet
 fun properties(key: String) = project.findProperty(key).toString()
 
 plugins {
-    // Java support
     id("java")
-    // Kotlin support
-    id("org.jetbrains.kotlin.jvm") version "1.8.22"
-    // Gradle IntelliJ Plugin
-    id("org.jetbrains.intellij") version "1.+"
-    // Gradle Changelog Plugin
-    id("org.jetbrains.changelog") version "2.+"
-
-    id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
+    id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.intellij.platform")
+    id("org.jetbrains.changelog")
+    id("org.jlleitschuh.gradle.ktlint")
 }
 
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
-// Configure project's dependencies
+val remoteRobotVersion = "0.11.19"
+val platformType = System.getenv("PLATFORMTYPE") ?: "IC"
+
 repositories {
     mavenCentral()
-    maven {
-        url = uri("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
-    }
-    maven {
-        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+    maven("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+    maven("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+    intellijPlatform {
+        defaultRepositories()
     }
 }
 
-val remoteRobotVersion = "0.11.19"
-
 dependencies {
-    implementation(project(":mirrord-products-idea"))
-    implementation(project(":mirrord-products-pycharm"))
-    implementation(project(":mirrord-products-rubymine"))
-    implementation(project(":mirrord-products-goland"))
-    implementation(project(":mirrord-products-nodejs"))
-    implementation(project(":mirrord-products-rider"))
-    implementation(project(":mirrord-products-tomcat"))
-    implementation(project(":mirrord-products-bazel"))
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
@@ -54,50 +42,46 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.3")
     testImplementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    testImplementation("junit:junit:4.13.2")
+
+    intellijPlatform {
+        create(platformType, properties("platformVersion"))
+
+        pluginComposedModule(implementation(project(":mirrord-products-idea")))
+        pluginComposedModule(implementation(project(":mirrord-products-pycharm")))
+        pluginComposedModule(implementation(project(":mirrord-products-rubymine")))
+        pluginComposedModule(implementation(project(":mirrord-products-goland")))
+        pluginComposedModule(implementation(project(":mirrord-products-nodejs")))
+        pluginComposedModule(implementation(project(":mirrord-products-rider")))
+        pluginComposedModule(implementation(project(":mirrord-products-tomcat")))
+        pluginComposedModule(implementation(project(":mirrord-products-bazel")))
+
+        if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
+            properties("platformPlugins")
+                .split(',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .forEach { bundledPlugin(it) }
+        }
+
+        testFramework(TestFrameworkType.Bundled)
+    }
 }
 
 subprojects {
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
 }
 
-// Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
-intellij {
-    pluginName.set(properties("pluginName"))
-    version.set(properties("platformVersion"))
-    // So we can have run configurations with different IDEs to test (GO/PC) etc
-    val platformType = System.getenv("PLATFORMTYPE")
-    if (platformType != null) {
-        type.set(platformType)
-    }
-
-    // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
-    if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
-        plugins.set(
-            properties("platformPlugins")
-                .split(',')
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-        )
-    }
-
-    updateSinceUntilBuild.set(false)
-}
-
 allprojects {
-    // Configure project's dependencies
-    repositories {
-        mavenCentral()
-    }
-
     properties("javaVersion").let {
-        tasks.withType<JavaCompile> {
+        tasks.withType<JavaCompile>().configureEach {
             sourceCompatibility = it
             targetCompatibility = it
         }
 
-        tasks.withType<KotlinCompile> {
-            kotlinOptions {
-                jvmTarget = it
+        tasks.withType<KotlinCompile>().configureEach {
+            compilerOptions {
+                jvmTarget.set(JvmTarget.fromTarget(it))
             }
         }
     }
@@ -107,137 +91,114 @@ gradle.taskGraph.whenReady(
     closureOf<TaskExecutionGraph> {
         val ignoreSubprojectTasks = listOf(
             "buildSearchableOptions",
-            "listProductsReleases",
-            "patchPluginXml",
             "publishPlugin",
             "runIde",
-            "runPluginVerifier",
-            "verifyPlugin",
-            "runIdeForUiTests"
+            "verifyPlugin"
         )
 
         // Don't run some tasks for subprojects
         for (task in allTasks) {
-            if (task.project != task.project.rootProject) {
-                when (task.name) {
-                    in ignoreSubprojectTasks -> task.enabled = false
-                }
+            if (task.project != task.project.rootProject && task.name in ignoreSubprojectTasks) {
+                task.enabled = false
             }
         }
     }
 )
 
-tasks {
-    // Removing this makes build stop working, not sure why.
-    buildSearchableOptions {
-        enabled = false
-    }
-    // Set the JVM compatibility versions
+changelog {
+    version.set(properties("pluginVersion"))
+    groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", "Internal"))
+}
 
-    properties("javaVersion").let {
-        withType<JavaCompile> {
-            sourceCompatibility = it
-            targetCompatibility = it
-        }
-        withType<KotlinCompile> {
-            kotlinOptions.jvmTarget = it
-        }
-    }
+intellijPlatform {
+    pluginConfiguration {
+        version = providers.gradleProperty("pluginVersion")
 
-    wrapper {
-        gradleVersion = properties("gradleVersion")
-    }
+        description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
+            val start = "<!-- Plugin description -->"
+            val end = "<!-- Plugin description end -->"
 
-    changelog {
-        version.set(properties("pluginVersion"))
-        groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", "Internal"))
-    }
-
-    patchPluginXml {
-        version.set(properties("pluginVersion"))
-
-        // Extract the <!-- Plugin description --> section from README.md and provide for the plugin's manifest
-        pluginDescription.set(
-            projectDir.resolve("README.md").readText().lines().run {
-                val start = "<!-- Plugin description -->"
-                val end = "<!-- Plugin description end -->"
-
+            with(it.lines()) {
                 if (!containsAll(listOf(start, end))) {
                     throw GradleException("Plugin description section not found in README.md:\n$start ... $end")
                 }
-                subList(indexOf(start) + 1, indexOf(end))
-            }.joinToString("\n").run { markdownToHTML(this) }
-        )
+                subList(indexOf(start) + 1, indexOf(end)).joinToString("\n").let(::markdownToHTML)
+            }
+        }
+
         if (!System.getenv("CI_BUILD_PLUGIN").toBoolean()) {
-            changeNotes.set(
-                provider {
-                    changelog.renderItem(
-                        changelog.run {
-                            getOrNull(properties("pluginVersion")) ?: getLatest()
-                        },
+            val changelog = project.changelog
+            changeNotes = providers.gradleProperty("pluginVersion").map { pluginVersion ->
+                with(changelog) {
+                    renderItem(
+                        getOrNull(pluginVersion) ?: getLatest(),
                         Changelog.OutputType.HTML
                     )
                 }
-            )
-        }
-    }
-
-    prepareSandbox {
-        // binaries to copy from $projectDir/bin to $pluginDir/bin with same path.
-        // we have custom delve until delve 20 is widely used
-        val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
-        binaries.forEach { binary ->
-            from(file(project.projectDir.resolve("bin").resolve(binary))) {
-                // into treats last part as directory, so need to drop it.
-                into(Paths.get(pluginName.get(), "bin", binary).parent.toString())
             }
         }
     }
 
+    pluginVerification {
+        failureLevel = EnumSet.of(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS, VerifyPluginTask.FailureLevel.INVALID_PLUGIN)
+    }
+
+    signing {
+        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+        privateKey = System.getenv("PRIVATE_KEY")
+        password = System.getenv("PRIVATE_KEY_PASSWORD")
+    }
+}
+
+intellijPlatformTesting {
     runIde {
-        environment("PLUGIN_TESTING_ENVIRONMENT", "true")
+        register("runIdeForUiTests") {
+            task {
+                // Set the port for RemoteRobot to communicate with the IDE
+                jvmArgumentProviders.add(
+                    CommandLineArgumentProvider {
+                        listOf(
+                            "-Drobot-server.port=8082",
+                            "-Drobot-server.host.public=true",
+                            "-Dide.mac.message.dialogs.as.sheets=false",
+                            "-Djb.privacy.policy.text=\"<!--999.999-->\"",
+                            "-Djb.consents.confirmation.enabled=false",
+                            "-Didea.trust.all.projects=true",
+                            "-Dide.show.tips.on.startup.default.value=false"
+                        )
+                    }
+                )
+            }
+
+            plugins {
+                robotServerPlugin()
+            }
+        }
+    }
+}
+
+tasks {
+    wrapper {
+        gradleVersion = properties("gradleVersion")
     }
 
-    // Configure UI tests plugin
-    // Read more: https://github.com/JetBrains/intellij-ui-test-robot
-    runIdeForUiTests {
-        systemProperty("robot-server.port", "8082")
-        systemProperty("robot-server.host.public", "true")
-        systemProperty("ide.mac.message.dialogs.as.sheets", "false")
-        systemProperty("jb.privacy.policy.text", "<!--999.999-->")
-        systemProperty("jb.consents.confirmation.enabled", "false")
-        systemProperty("idea.trust.all.projects", "true")
-        systemProperty("ide.show.tips.on.startup.default.value", "false")
-    }
-
-    downloadRobotServerPlugin {
-        version.set(remoteRobotVersion)
-    }
-
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+    prepareSandbox {
+        val binaries = listOf("macos/arm64/dlv", "macos/x86-64/dlv")
+        binaries.forEach { binary ->
+            from(file(project.projectDir.resolve("bin").resolve(binary))) {
+                into(Paths.get(properties("pluginName"), "bin", binary).parent.toString())
+            }
+        }
     }
 
     publishPlugin {
+        dependsOn(patchChangelog)
         token.set(System.getenv("PUBLISH_TOKEN"))
         // pluginVersion is based on the SemVer (https://semver.org) and supports pre-release labels, like 2.1.7-alpha.3
         // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
         // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
         channels.set(listOf("beta"))
         channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
-    }
-
-    listProductsReleases {
-        val ides = System.getenv("IDE")
-        types.set(ides?.split(',') ?: listOf("IU", "RD", "PY"))
-        sinceBuild.set(if (types.get() == listOf("IU")) "222.*" else "232.*")
-        releaseChannels.set(setOf(ListProductsReleasesTask.Channel.EAP, ListProductsReleasesTask.Channel.RELEASE))
-    }
-
-    runPluginVerifier {
-        failureLevel.set(EnumSet.of(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.INVALID_PLUGIN))
     }
 
     test {
@@ -252,9 +213,18 @@ tasks {
     }
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions {
-        // Treat all warnings as errors
-        allWarningsAsErrors = true
+tasks.matching { it.name == "buildSearchableOptions" }.configureEach {
+    enabled = false
+}
+
+tasks.matching { it.name == "runIde" }.configureEach {
+    doFirst {
+        (this as? ProcessForkOptions)?.environment("PLUGIN_TESTING_ENVIRONMENT", "true")
+    }
+}
+
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
     }
 }

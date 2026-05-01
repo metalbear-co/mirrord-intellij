@@ -18,3 +18,7 @@ bin/
 /video/
 
 libmirrord_layer.*
+
+.intellijPlatform/
+.kotlin/
+

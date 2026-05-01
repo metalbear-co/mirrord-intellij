@@ -1,4 +1,37 @@
+import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
+
 rootProject.name = "mirrord"
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+
+    plugins {
+        id("org.jetbrains.kotlin.jvm") version "2.3.20"
+        id("org.jetbrains.intellij.platform") version "2.14.0"
+        id("org.jetbrains.intellij.platform.module") version "2.14.0"
+        id("org.jetbrains.changelog") version "2.+"
+        id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
+    }
+}
+
+plugins {
+    id("org.jetbrains.intellij.platform.settings") version "2.14.0"
+}
+
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven("https://packages.jetbrains.team/maven/p/iuia/qa-automation-maven")
+        maven("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+        intellijPlatform {
+            defaultRepositories()
+        }
+    }
+}
 
 include(
     "modules/core",
