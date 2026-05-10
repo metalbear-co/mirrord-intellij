@@ -22,7 +22,7 @@ import java.util.concurrent.*
 
 const val GITHUB_URL = "https://github.com/metalbear-co/mirrord"
 
-const val NEWSLETTER_SIGNUP_URL = "https://metalbear.co/newsletter" + "?utm_medium=intellij&utm_source=newsletter"
+const val NEWSLETTER_SIGNUP_URL = "https://metalbear.com/newsletter" + "?utm_medium=intellij&utm_source=newsletter"
 
 const val MIRRORD_LISTING_TARGETS_MESSAGE = "mirrord is listing targets..."
 const val MIRRORD_STARTING_MESSAGE = "mirrord is starting..."
@@ -193,9 +193,8 @@ private const val MIRRORD_FOR_TEAMS_INVITE_EVERY = 30
 /**
  * How many times mirrord can be run before inviting the user to sign up to the newsletter with corresponding message.
  */
-private const val NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST = 5
-private const val NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND = 20
-private const val NEWSLETTER_COUNTER_PROMPT_AFTER_THIRD = 100
+private const val NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST = 20
+private const val NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND = 100
 
 /**
  * Name of the environment variable used to trigger rich output of `mirrord ls`.
@@ -695,19 +694,18 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
 
         if (currentRuns == SLACK_COUNTER_INVITE_AFTER) {
-            service.notifier.notification("Need any help with mirrord? Come chat with our team on Slack!", NotificationType.INFORMATION).withLink("Join us", "https://metalbear.co/slack").withDontShowAgain(MirrordSettingsState.NotificationId.SLACK_INVITE).fire()
+            service.notifier.notification("Need any help with mirrord? Come chat with our team on Slack!", NotificationType.INFORMATION).withLink("Join us", "https://metalbear.com/slack").withDontShowAgain(MirrordSettingsState.NotificationId.SLACK_INVITE).fire()
         }
 
         if (previousRuns >= MIRRORD_FOR_TEAMS_INVITE_AFTER && !operatorUsed) {
             if ((previousRuns - MIRRORD_FOR_TEAMS_INVITE_AFTER) % MIRRORD_FOR_TEAMS_INVITE_EVERY == 0) {
-                service.notifier.notification("For more features of mirrord, including multi-pod impersonation, check out mirrord for Teams!", NotificationType.INFORMATION).withLink("Try it now", MIRRORD_FOR_TEAMS_URL).withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_FOR_TEAMS).fire()
+                service.notifier.notification("mirrord for Teams unlocks team workflow features: DB branching for parallel devs, preview environments for branch testing, and shared targets with queue splitting.", NotificationType.INFORMATION).withLink("Try it now", MIRRORD_FOR_TEAMS_URL).withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_FOR_TEAMS).fire()
             }
         }
 
         when (currentRuns) {
-            NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST -> "Join thousands of devs using mirrord!\nGet the latest updates, tutorials, and insider info from our team."
-            NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND -> "Liking what mirrord can do?\nStay in the loop with updates, tips & tricks straight from the team."
-            NEWSLETTER_COUNTER_PROMPT_AFTER_THIRD -> "Looks like you're doing some serious work with mirrord!\nWant to hear about advanced features, upcoming releases, and cool use cases?"
+            NEWSLETTER_COUNTER_PROMPT_AFTER_FIRST -> "Liking what mirrord can do?\nStay in the loop with updates, tips & tricks straight from the team."
+            NEWSLETTER_COUNTER_PROMPT_AFTER_SECOND -> "Looks like you're doing some serious work with mirrord!\nWant to hear about advanced features, upcoming releases, and cool use cases?"
             else -> null
         }?.let {
             service.notifier.notification(

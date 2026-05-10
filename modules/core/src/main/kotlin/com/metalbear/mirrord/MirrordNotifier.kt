@@ -118,7 +118,7 @@ class MirrordNotifier(private val service: MirrordProjectService) {
         ApplicationManager.getApplication().invokeLater {
             notification(message, NotificationType.ERROR)
                 .withAction("Get support on Slack") { _, n ->
-                    BrowserUtil.browse("https://metalbear.co/slack")
+                    BrowserUtil.browse("https://metalbear.com/slack")
                     n.expire()
                 }
                 .withAction("Report on GitHub") { _, n ->
@@ -126,7 +126,7 @@ class MirrordNotifier(private val service: MirrordProjectService) {
                     n.expire()
                 }
                 .withAction("Send us an email") { _, n ->
-                    BrowserUtil.browse("mailto:hi@metalbear.co")
+                    BrowserUtil.browse("mailto:hi@metalbear.com")
                     n.expire()
                 }
                 .fire()
