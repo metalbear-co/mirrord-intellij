@@ -25,6 +25,12 @@ class MirrordSettingsComponent {
         this
     }
 
+    private val mirrordBinaryPathLabel = JBLabel("mirrord binary path:")
+    private val mirrordBinaryPath = with(JBTextField("", 30)) {
+        toolTipText = "absolute path to a mirrord binary (overrides auto-update and the version setting)"
+        this
+    }
+
     private val autoUpdate = JBCheckBox("Auto update mirrord binary")
         .apply {
             addItemListener { e ->
@@ -36,6 +42,7 @@ class MirrordSettingsComponent {
         .createFormBuilder()
         .addComponent(autoUpdate)
         .addLabeledComponent(mirrordVersionLabel, mirrordVersion)
+        .addLabeledComponent(mirrordBinaryPathLabel, mirrordBinaryPath)
         .addComponentFillVertically(JPanel(), 0)
         .panel
 
@@ -95,5 +102,11 @@ class MirrordSettingsComponent {
         set(value) {
             // to avoid errornous whitespaces
             mirrordVersion.text = value.trim()
+        }
+
+    var mirrordBinaryPathStatus: String
+        get() = mirrordBinaryPath.text
+        set(value) {
+            mirrordBinaryPath.text = value.trim()
         }
 }

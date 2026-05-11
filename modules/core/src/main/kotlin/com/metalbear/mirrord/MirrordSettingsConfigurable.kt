@@ -20,6 +20,7 @@ class MirrordSettingsConfigurable : Configurable {
                 (usageBannerEnabledStatus != settings.showUsageBanner) ||
                 (autoUpdateEnabledStatus != settings.autoUpdate) ||
                 (mirrordVersionStatus != settings.mirrordVersion) ||
+                (mirrordBinaryPathStatus != settings.mirrordBinaryPath) ||
                 (enabledOnStartupStatus != settings.enabledByDefault)
         }
     }
@@ -32,6 +33,7 @@ class MirrordSettingsConfigurable : Configurable {
             settings.showUsageBanner = usageBannerEnabledStatus
             settings.autoUpdate = autoUpdateEnabledStatus
             settings.mirrordVersion = mirrordVersionStatus
+            settings.mirrordBinaryPath = mirrordBinaryPathStatus
             settings.enabledByDefault = enabledOnStartupStatus
         }
     }
@@ -42,6 +44,7 @@ class MirrordSettingsConfigurable : Configurable {
             versionCheckEnabledStatus = settings.versionCheckEnabled ?: true
             autoUpdateEnabledStatus = settings.autoUpdate
             mirrordVersionStatus = settings.mirrordVersion
+            mirrordBinaryPathStatus = settings.mirrordBinaryPath
             notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
             usageBannerEnabledStatus = settings.showUsageBanner
             enabledOnStartupStatus = settings.enabledByDefault

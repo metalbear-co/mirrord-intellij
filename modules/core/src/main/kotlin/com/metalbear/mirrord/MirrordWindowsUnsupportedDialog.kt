@@ -71,15 +71,20 @@ class MirrordWindowsUnsupportedDialog private constructor(
         @Volatile
         private var versionShownThisSession = false
 
-        fun showVersionUnsupportedOnce(required: String, found: String) {
+        fun showVersionUnsupportedOnce(required: String, found: String, path: String? = null) {
             if (versionShownThisSession) return
             versionShownThisSession = true
-            val body = "Windows-native mirrord requires binary version $required or newer.\n" +
+            val body = buildVersionUnsupportedBody(required, found, path)
+            show(body, null)
+        }
+
+        fun buildVersionUnsupportedBody(required: String, found: String, path: String?): String {
+            val core = "Windows-native mirrord requires binary version $required or newer.\n" +
                 "Found: $found\n\n" +
                 "Non-WSL run/debug configurations will not work until the binary is upgraded. " +
                 "WSL-based configurations continue to work.\n\n" +
                 "Enable auto-update in mirrord settings, or pin a version ≥ $required."
-            show(body, null)
+            return if (path != null) "$core\n\nmirrord path: $path" else core
         }
 
         fun showArchUnsupportedOnce(arch: String) {
