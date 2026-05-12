@@ -56,7 +56,7 @@ dependencies {
         pluginComposedModule(implementation(project(":mirrord-products-tomcat")))
         pluginComposedModule(implementation(project(":mirrord-products-bazel")))
 
-        if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
+        if (platformType !in setOf("PY", "PC", "GO", "RD", "RM")) {
             properties("platformPlugins")
                 .split(',')
                 .map(String::trim)
@@ -111,6 +111,10 @@ changelog {
 }
 
 intellijPlatform {
+    // RubyMine 2024.1 does not publish the java-compiler-ant-tasks artifact needed by IntelliJ code instrumentation.
+    // We do not use IntelliJ GUI Designer .form files or Java sources, so instrumentation is unnecessary.
+    instrumentCode.set(false)
+
     pluginConfiguration {
         version = providers.gradleProperty("pluginVersion")
 
