@@ -5,7 +5,9 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -65,22 +67,8 @@ class MirrordBinaryManager {
             wslDistribution.getWslPath(path) ?: path
     }
 
-    /**
-     * Like [getBinary] but returns a fallback ("mirrord"/"mirrord.exe") instead
-     * of throwing when no managed binary is found. Use this when a best-effort
-     * CLI path is acceptable (e.g. pitm wrapping, attach flows).
-     */
     fun getCliPath(product: String, wslDistribution: WSLDistribution?, project: Project): String {
-        return try {
-            getBinary(product, wslDistribution, project)
-        } catch (e: MirrordError) {
-            val fallback = if (isWinNative(wslDistribution)) "mirrord.exe" else "mirrord"
-            MirrordLogger.logger.warn(
-                "getCliPath: getBinary failed for product=$product (${e.message}), " +
-                    "falling back to `$fallback` — resolution depends on PATH. Subsequent CLI calls may fail."
-            )
-            fallback
-        }
+        return getBinary(product, wslDistribution, project)
     }
 
     /**
@@ -113,12 +101,9 @@ class MirrordBinaryManager {
     }
 
     /**
-     * Runs version check and binary download in the background.
-     *
-     * @param product for example "idea", "goland", null if unknown
-     * @param wslDistribution null if not applicable or unknown
-     * @param checkInPath whether the task should attempt to find binary installation in PATH.
-     *                    Should be false if wslDistribution is unknown
+     * Async wrapper around [runUpdate]. Retained so `DownloadInitializer` can
+     * fire-and-forget at project startup; per-call refreshes from `getBinary`
+     * call [runUpdate] directly so resolution sees settled state.
      */
     private class UpdateTask(
         private val project: Project,
@@ -133,89 +118,100 @@ class MirrordBinaryManager {
             val downloadInProgress = AtomicBoolean(false)
         }
 
-        /**
-         * Binary version being downloaded by this task.
-         */
-        private var downloadingVersion: String? = null
-
         override fun run(indicator: ProgressIndicator) {
-            indicator.isIndeterminate = false
+            service<MirrordBinaryManager>()
+                .runUpdate(project, product, wslDistribution, checkInPath, indicator)
+        }
+    }
 
-            val manager = service<MirrordBinaryManager>()
+    /**
+     * Refreshes [latestSupportedVersion] and downloads the binary into plugin
+     * storage if no local match is available. Notifications (success / format
+     * error / failure) fire from inside, so both the async [UpdateTask] caller
+     * and the synchronous [getBinary] caller surface the same UX.
+     */
+    private fun runUpdate(
+        project: Project,
+        product: String?,
+        wslDistribution: WSLDistribution?,
+        checkInPath: Boolean,
+        indicator: ProgressIndicator
+    ) {
+        indicator.isIndeterminate = false
 
-            val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
-            val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-            manager.latestSupportedVersion = manager.fetchLatestSupportedVersion(product, indicator)
+        val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+        val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
 
-            val version = when {
-                // auto update -> false -> use mirrordVersion if it's not empty
-                !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
-                    try {
-                        Version.valueOf(userSelectedMirrordVersion)
-                    } catch (e: Exception) {
-                        project
-                            .service<MirrordProjectService>()
-                            .notifier
-                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
-                            .fire()
-                        return
-                    }
-                    userSelectedMirrordVersion
+        try {
+            latestSupportedVersion = fetchLatestSupportedVersion(product, indicator)
+        } catch (e: Throwable) {
+            MirrordLogger.logger.debug("binary update: latest-version fetch failed", e)
+            return
+        }
+
+        val version = when {
+            // auto update -> false -> use mirrordVersion if it's not empty
+            !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
+                try {
+                    Version.valueOf(userSelectedMirrordVersion)
+                } catch (e: Exception) {
+                    project
+                        .service<MirrordProjectService>()
+                        .notifier
+                        .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                        .fire()
+                    return
                 }
-                // auto update -> false -> mirrordVersion is empty -> needs check in the path
-                // if not in path -> fetch latest version
-                !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
-
-                // auto update -> true -> fetch latest version
-                else -> manager.latestSupportedVersion
+                userSelectedMirrordVersion
             }
+            // auto update -> false -> mirrordVersion is empty -> needs check in the path
+            // if not in path -> fetch latest version
+            !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
-            val local = if (checkInPath) {
-                manager.getLocalBinary(version, wslDistribution)
-            } else {
-                manager.findBinaryInStorage(version, wslDistribution)
-            }
-
-            if (local != null) {
-                return
-            }
-
-            manager.downloadVersion = version
-                // auto update -> false -> mirrordVersion is empty -> no cli found locally -> latest version
-                ?: manager.latestSupportedVersion
-
-            if (downloadInProgress.compareAndExchange(false, true)) {
-                return
-            }
-
-            downloadingVersion = version
-            manager.updateBinary(indicator, wslDistribution)
+            // auto update -> true -> fetch latest version
+            else -> latestSupportedVersion
         }
 
-        override fun onThrowable(error: Throwable) {
-            MirrordLogger.logger.debug("binary update task failed", error)
-
-            project.service<MirrordProjectService>()
-                .notifier
-                .notifyRichError("failed to update the mirrord binary: ${error.message ?: error.toString()}")
+        val local = if (checkInPath) {
+            getLocalBinary(version, wslDistribution)
+        } else {
+            findBinaryInStorage(version, wslDistribution)
         }
 
-        override fun onFinished() {
-            if (downloadingVersion != null) {
-                downloadInProgress.set(false)
-            }
+        if (local != null) {
+            return
         }
 
-        override fun onSuccess() {
-            downloadingVersion?.let {
+        downloadVersion = version
+            // auto update -> false -> mirrordVersion is empty -> no cli found locally -> latest version
+            ?: latestSupportedVersion
+
+        if (UpdateTask.downloadInProgress.compareAndExchange(false, true)) {
+            return
+        }
+
+        try {
+            updateBinary(indicator, wslDistribution)
+            val downloaded = downloadVersion
+            if (downloaded != null) {
                 project
                     .service<MirrordProjectService>()
                     .notifier
                     .notifySimple(
-                        "downloaded mirrord binary version $downloadingVersion",
+                        "downloaded mirrord binary version $downloaded",
                         NotificationType.INFORMATION
                     )
             }
+        } catch (e: Throwable) {
+            MirrordLogger.logger.debug("binary download failed", e)
+            project
+                .service<MirrordProjectService>()
+                .notifier
+                .notifyRichError(
+                    "failed to update the mirrord binary: ${e.message ?: e.toString()}"
+                )
+        } finally {
+            UpdateTask.downloadInProgress.set(false)
         }
     }
 
@@ -444,7 +440,8 @@ class MirrordBinaryManager {
             }
         }
 
-        val current = parse(resolveLocal()?.version)
+        val currentBinary = resolveLocal()
+        val current = parse(currentBinary?.version)
         if (current.satisfies()) {
             MirrordLogger.logger.info(
                 "checkWindowsNativeSupport: binary $current satisfies >= $MIN_WINDOWS_NATIVE_VERSION"
@@ -460,7 +457,7 @@ class MirrordBinaryManager {
                 "checkWindowsNativeSupport: local binary ${current ?: "none"} < $MIN_WINDOWS_NATIVE_VERSION, " +
                     "auto-update is OFF in settings; surfacing error without download"
             )
-            notifyWindowsNativeUnsupported(current)
+            notifyWindowsNativeUnsupported(currentBinary)
             return
         }
 
@@ -494,7 +491,8 @@ class MirrordBinaryManager {
             UpdateTask.downloadInProgress.set(false)
         }
 
-        val after = parse(resolveLocal()?.version)
+        val afterBinary = resolveLocal()
+        val after = parse(afterBinary?.version)
         if (after.satisfies()) {
             MirrordLogger.logger.info(
                 "checkWindowsNativeSupport: after update, binary $after satisfies >= $MIN_WINDOWS_NATIVE_VERSION"
@@ -502,48 +500,79 @@ class MirrordBinaryManager {
             return
         }
 
-        notifyWindowsNativeUnsupported(after)
+        notifyWindowsNativeUnsupported(afterBinary)
     }
 
-    private fun notifyWindowsNativeUnsupported(found: Version?) {
-        val actual = found?.toString() ?: "none"
-        MirrordWindowsUnsupportedDialog.showVersionUnsupportedOnce(MIN_WINDOWS_NATIVE_VERSION, actual)
+    private fun notifyWindowsNativeUnsupported(binary: MirrordBinary?) {
+        val actual = binary?.version ?: "none"
+        MirrordWindowsUnsupportedDialog.showVersionUnsupportedOnce(
+            MIN_WINDOWS_NATIVE_VERSION,
+            actual,
+            binary?.command
+        )
     }
 
     /**
-     * Finds a local installation of the mirrord binary.
-     * Schedules a binary update task to be executed in the background.
+     * Asserts the resolved binary supports Windows-native execution. No-op on
+     * non-Windows-native targets (Linux, macOS, Windows host targeting WSL).
+     * On Windows-native, throws if the version is below [MIN_WINDOWS_NATIVE_VERSION]
+     * or unparseable. The error body uses the same wording as the proactive
+     * startup dialog so users see the same warning + path on both surfaces.
+     */
+    private fun enforceWindowsNativeMin(binary: MirrordBinary, wslDistribution: WSLDistribution?) {
+        if (!isWinNative(wslDistribution)) return
+        val parsed = try {
+            Version.valueOf(binary.version)
+        } catch (_: Exception) {
+            null
+        }
+        val required = Version.valueOf(MIN_WINDOWS_NATIVE_VERSION)
+        if (parsed != null && parsed.greaterThanOrEqualTo(required)) return
+
+        val found = parsed?.toString() ?: binary.version.ifBlank { "none" }
+        val body = MirrordWindowsUnsupportedDialog.buildVersionUnsupportedBody(
+            MIN_WINDOWS_NATIVE_VERSION,
+            found,
+            binary.command
+        )
+        throw MirrordError(
+            body,
+            "Update mirrord to version >= $MIN_WINDOWS_NATIVE_VERSION (enable auto-update or pin a newer version)."
+        )
+    }
+
+    /**
+     * Resolves the mirrord binary to use for this invocation. Settles binary
+     * state synchronously up-front (`runUpdate`) so concurrent `getBinary`
+     * calls in one execution see the same state. Custom `mirrordBinaryPath`
+     * setting takes precedence; otherwise resolves against the wanted version
+     * derived from `autoUpdate` / `mirrordVersion`.
      *
-     * @throws MirrordError if no local binary was found
+     * @throws MirrordError if no local binary could be resolved
      * @return the path to the binary
      */
     fun getBinary(product: String, wslDistribution: WSLDistribution?, project: Project): String {
-        UpdateTask(project, product, wslDistribution, true).queue()
+        val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
+        if (customPath.isNotEmpty()) {
+            validateCustomBinary(customPath, wslDistribution, project)?.let {
+                enforceWindowsNativeMin(it, wslDistribution)
+                return it.command
+            }
+        }
+
+        val indicator = ProgressManager.getInstance().progressIndicator ?: EmptyProgressIndicator()
+        runUpdate(project, product, wslDistribution, true, indicator)
 
         val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
         val userVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-
-        if (!autoUpdate && userVersion.isEmpty()) {
-            // No specific version requested, so look for the mirrord version available in the env.
-            getLocalBinary(null, wslDistribution)?.let { return it.command }
+        val wantedVersion = when {
+            autoUpdate -> latestSupportedVersion
+            userVersion.isNotEmpty() -> userVersion
+            else -> null
         }
 
-        latestSupportedVersion?.let { version ->
-            getLocalBinary(version, wslDistribution)?.let { return it.command }
-        }
-
-        this.getLocalBinary(null, wslDistribution)?.let {
-            val message = latestSupportedVersion?.let { latest ->
-                "using a local installation with version ${it.version}, latest supported version is $latest"
-            } ?: "using a possibly outdated local installation with version ${it.version}"
-
-            project
-                .service<MirrordProjectService>()
-                .notifier
-                .notification(message, NotificationType.WARNING)
-                .withDontShowAgain(MirrordSettingsState.NotificationId.POSSIBLY_OUTDATED_BINARY_USED)
-                .fire()
-
+        getLocalBinary(wantedVersion, wslDistribution)?.let {
+            enforceWindowsNativeMin(it, wslDistribution)
             return it.command
         }
 
@@ -551,5 +580,27 @@ class MirrordBinaryManager {
             "no local installation of mirrord binary was found",
             "mirrord binary will be downloaded in the background"
         )
+    }
+
+    private fun validateCustomBinary(
+        path: String,
+        wslDistribution: WSLDistribution?,
+        project: Project
+    ): MirrordBinary? {
+        return try {
+            MirrordBinary(path, wslDistribution)
+        } catch (e: Exception) {
+            MirrordLogger.logger.debug("custom mirrord binary path is invalid: $path", e)
+            project
+                .service<MirrordProjectService>()
+                .notifier
+                .notification(
+                    "custom mirrord binary path is invalid: $path",
+                    NotificationType.WARNING
+                )
+                .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
+                .fire()
+            null
+        }
     }
 }

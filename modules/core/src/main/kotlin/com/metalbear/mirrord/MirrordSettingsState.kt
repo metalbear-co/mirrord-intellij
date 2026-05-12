@@ -36,13 +36,15 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         DISCORD_INVITE("mirrord offers a Discord server invitation"),
         SLACK_INVITE("mirrord offers a Slack server invitation"),
         MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams"),
-        NEWSLETTER_SIGNUP("mirrord occasionally informs about the mirrord newsletter")
+        NEWSLETTER_SIGNUP("mirrord occasionally informs about the mirrord newsletter"),
+        MIRRORD_BINARY_PATH_INVALID("custom mirrord binary path is invalid or not executable")
     }
 
     class MirrordState {
         var versionCheckEnabled: Boolean? = null
         var autoUpdate: Boolean = true
         var mirrordVersion: String = ""
+        var mirrordBinaryPath: String = ""
         var lastChosenTarget: String? = null
         var showPodsInSelection: Boolean? = null
         var showDeploymentsInSelection: Boolean? = null
