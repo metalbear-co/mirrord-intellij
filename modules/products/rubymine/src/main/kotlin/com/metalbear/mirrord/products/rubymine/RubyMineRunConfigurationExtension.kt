@@ -9,6 +9,7 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordError
+import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
@@ -62,6 +63,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
                 executionInfo.patchedPath?.let {
                     cmdLine.exePath = it
                 }
+                MirrordLogger.logger.info("RubyMineRunConfigurationExtension.patchCommandLine: cmdLine=${cmdLine.exePath}")
                 // asdf-ruby compiles the ruby interpreter locally and so doesn't any special SIP handling because the
                 // binary isn't signed at all
                 val isAsdf = cmdLine.exePath.contains("/.asdf/")
