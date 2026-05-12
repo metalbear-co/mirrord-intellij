@@ -56,7 +56,7 @@ dependencies {
         pluginComposedModule(implementation(project(":mirrord-products-tomcat")))
         pluginComposedModule(implementation(project(":mirrord-products-bazel")))
 
-        if (platformType != "PY" && platformType != "PC" && platformType != "GO" && platformType != "RD") {
+        if (platformType !in setOf("PY", "PC", "GO", "RD", "RM")) {
             properties("platformPlugins")
                 .split(',')
                 .map(String::trim)
