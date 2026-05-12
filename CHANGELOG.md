@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.74.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.74.1) - 2026-05-12
+
+
+### Fixed
+
+- Aligned mirrord binary resolution (and auto-update, etc) with the VSCode
+  plugin. Furthermore, introduced custom mirrord binary paths as an option in
+  settings.
+
 ## [3.74.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.74.0) - 2026-04-30
 
 
