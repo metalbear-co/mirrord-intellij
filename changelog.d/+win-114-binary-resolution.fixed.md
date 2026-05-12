@@ -1,1 +1,0 @@
-Aligned mirrord binary resolution (and auto-update, etc) with the VSCode plugin. Furthermore, introduced custom mirrord binary paths as an option in settings.

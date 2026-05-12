@@ -1,1 +1,0 @@
-Upgrade Intellij Gradle to 2.14.0 while keeping the bundled, rather than modular, plugin packaging.
