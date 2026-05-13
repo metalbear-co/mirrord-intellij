@@ -10,7 +10,7 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        pycharm(properties("platformVersion"))
         plugin("PythonCore", "241.14494.240")
     }
 }

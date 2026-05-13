@@ -12,6 +12,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        intellijIdea(properties("platformVersion"))
+        // Needed by com.jetbrains.jsonSchema.*
+        bundledPlugin("JavaScript")
     }
 }

@@ -10,7 +10,7 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IU", properties("platformVersion"))
+        intellijIdea(properties("platformVersion"))
         plugin("Tomcat", "241.14494.158")
         bundledPlugin("com.intellij.javaee.app.servers.integration")
     }

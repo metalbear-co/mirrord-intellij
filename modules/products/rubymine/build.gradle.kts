@@ -10,7 +10,7 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        rubymine(properties("platformVersion"))
         plugin("org.jetbrains.plugins.ruby", "241.14494.240")
     }
 }

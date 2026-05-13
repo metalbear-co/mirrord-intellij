@@ -10,7 +10,7 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IU", properties("platformVersion"))
+        intellijIdea(properties("platformVersion"))
         bundledPlugin("NodeJS")
     }
 }
