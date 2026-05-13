@@ -18,9 +18,9 @@ import com.intellij.util.ui.JBDimension
 import java.util.*
 import javax.swing.JComponent
 
-const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.co/?utm_medium=intellij&utm_source=ui_action"
+const val MIRRORD_FOR_TEAMS_URL = "https://app.metalbear.com/?utm_medium=intellij&utm_source=ui_action"
 const val DOCS_URL = "https://mirrord.dev/docs/using-mirrord/intellij-plugin/?utm_medium=intellij&utm_source=ui_action"
-const val SLACK_URL = "https://metalbear.co/slack"
+const val SLACK_URL = "https://metalbear.com/slack"
 
 /**
  * Copied from internal [com.intellij.execution.ui.TogglePopupAction].
