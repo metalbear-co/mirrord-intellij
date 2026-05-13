@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.75.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.75.0) - 2026-05-13
+
+
+### Changed
+
+- Refreshed the mirrord-for-Teams notification copy, dropped the earliest
+  newsletter prompt threshold, and switched all URLs to the `metalbear.com`
+  canonical domain.
+
 ## [3.74.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.74.1) - 2026-05-12
 
 
