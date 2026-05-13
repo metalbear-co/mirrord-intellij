@@ -229,10 +229,8 @@ internal class MirrordPluginTest {
                         }.getOrNull()
                     }
                 }
-                runnerTabDebugger.click()
-                // in the debugger tab of the xdebugger window, if the session has started
-                // it displays "Connected"
-                // following just checks if "Connected" is displayed
+                // once the session has started, the debug console shows
+                // "Connected to pydev debugger"
                 debuggerConnected
             }
 

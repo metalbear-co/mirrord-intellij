@@ -56,17 +56,17 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop process)']")
         ).first()
 
-    val runnerTabDebugger
+    val debuggerConnected
         get() = find<ContainerFixture>(
-            byXpath("//div[@class='SimpleColoredComponent' and @visible_text='Debugger']"),
+            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Connected to pydev debugger')]"),
             Duration.ofSeconds(30)
         )
 
-    val debuggerConnected
-        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerTree']"))
-
     val xDebuggerFramesList
-        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='XDebuggerFramesList']"),
+            Duration.ofSeconds(30)
+        )
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
