@@ -35,9 +35,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
-    val git
-        get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
-
     val mirrordDropdownMenu: ContainerFixture
         get() {
             val list = waitFor<ContainerFixture?>(Duration.ofSeconds(30)) {
