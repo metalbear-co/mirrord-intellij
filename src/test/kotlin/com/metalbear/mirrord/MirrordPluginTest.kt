@@ -240,8 +240,7 @@ internal class MirrordPluginTest {
             }
 
             step("Assert breakpoint is hit") {
-                // there is no simple way to find the blue hover of the breakpoint line
-                // but if the breakpoint is hit, the debugger frames list is populated
+                // The debugger frames list is populated and showing the right file and line number
                 waitFor {
                     xDebuggerFramesList.isShowing
                 }

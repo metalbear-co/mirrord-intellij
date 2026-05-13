@@ -64,7 +64,9 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val xDebuggerFramesList
         get() = find<ContainerFixture>(
-            byXpath("//div[@class='XDebuggerFramesList']"),
+            byXpath(
+                "//div[@class='XDebuggerFramesList' and contains(@visible_text, 'get') and contains(@visible_text, 'app.py') and contains(@visible_text, '8')]"
+            ),
             Duration.ofSeconds(30)
         )
 
