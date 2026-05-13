@@ -60,7 +60,6 @@ internal class MirrordPluginTest {
                 Ide.PYCHARM_COMMUNITY,
                 tmpDir,
                 Ide.BuildType.RELEASE,
-                "2024.1"
             )
 
             // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
@@ -100,13 +99,15 @@ internal class MirrordPluginTest {
         @AfterAll
         @JvmStatic
         fun cleanUp() {
-            val xpathPage = URI("http://localhost:8082/").toURL().readText()
-            val xpathPageJs = URI("http://localhost:8082/xpathEditor.js").toURL().readText()
-            val xpathPageCss = URI("http://localhost:8082/styles.css").toURL().readText()
-            // create a file in build/reports
-            File("build/reports/robot-page.html").writeText(xpathPage)
-            File("build/reports/xpathEditor.js").writeText(xpathPageJs)
-            File("build/reports/styles.css").writeText(xpathPageCss)
+            runCatching {
+                val xpathPage = URI("http://localhost:8082/").toURL().readText()
+                val xpathPageJs = URI("http://localhost:8082/xpathEditor.js").toURL().readText()
+                val xpathPageCss = URI("http://localhost:8082/styles.css").toURL().readText()
+                // create a file in build/reports
+                File("build/reports/robot-page.html").writeText(xpathPage)
+                File("build/reports/xpathEditor.js").writeText(xpathPageJs)
+                File("build/reports/styles.css").writeText(xpathPageCss)
+            }
 
             ideaProcess?.destroy()
             tmpDir.toFile().deleteRecursively()
