@@ -128,6 +128,9 @@ internal class MirrordPluginTest {
     @Test
     @Video
     fun testMirrordFlow() = with(remoteRobot) {
+        step("Close theme onboarding") {
+            closeMeetTheIslandsTheme()
+        }
         step("Welcome Frame") {
             welcomeFrame {
                 steps?.openProject(System.getProperty("test.workspace"))
