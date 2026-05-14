@@ -125,21 +125,17 @@ class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     }
 }
 
-fun RemoteRobot.fileIntention(function: FileLevelIntentionComponent.() -> Unit) {
-    find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(60)).apply(function)
+fun RemoteRobot.pythonSetupPrompt(function: PythonSetupPrompt.() -> Unit) {
+    find<PythonSetupPrompt>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
-// blue hover box that appears when in the text editor asking for poetry setup
-@DefaultXpath("FileLevelIntentionComponent type", "//div[@class='FileLevelIntentionComponent']")
-class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-
-    val setUpPoetry
-        get() = find<ContainerFixture>(
-            byXpath("//div[@accessiblename.key='sdk.set.up.poetry.environment']"),
-            Duration.ofSeconds(20)
-        )
-}
+// inline Python environment setup prompt above the editor
+@DefaultXpath(
+    "Python setup prompt",
+    "//div[@class='ActionLink' and @text='Set up Poetry environment']"
+)
+class PythonSetupPrompt(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent)
 
 fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
     find<StatusBar>(timeout = Duration.ofSeconds(60)).apply(function)

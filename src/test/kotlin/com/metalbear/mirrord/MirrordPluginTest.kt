@@ -176,12 +176,8 @@ internal class MirrordPluginTest {
                     // blue stripe appears on top of the text window asking
                     // to set up poetry environment, we click on setup poetry
                     // option to quickly set up the environment
-                    fileIntention {
-                        val setUpPoetry = setUpPoetry
-                        setUpPoetry.click()
-                        waitFor {
-                            !setUpPoetry.isShowing
-                        }
+                    pythonSetupPrompt {
+                        click()
                     }
                     statusBar {
                         // wait for the progress bar to disappear - poetry is set up
