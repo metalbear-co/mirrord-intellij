@@ -70,16 +70,27 @@ internal class MirrordPluginTest {
                     else -> "bin"
                 }
             )
-            Files
-                .list(ideBinDir)
-                .filter {
-                    val filename = it.fileName.toString()
-                    filename.endsWith(".vmoptions") && filename.contains("64") && filename != "pycharm64.vmoptions"
-                }
-                .forEach {
-                    println("Deleting problematic file $it")
-                    Files.delete(it)
-                }
+            Files.list(ideBinDir).use { stream ->
+                val vmoptionsFiles =
+                    stream
+                        .filter { it.fileName.toString().endsWith(".vmoptions") }
+                        .toList()
+
+                val preferredVmoptions =
+                    vmoptionsFiles.firstOrNull { it.fileName.toString() == "pycharm64.vmoptions" }
+                        ?: vmoptionsFiles.firstOrNull { it.fileName.toString() == "pycharm.vmoptions" }
+                        ?: vmoptionsFiles.firstOrNull { it.fileName.toString().contains("64") }
+                        ?: vmoptionsFiles.firstOrNull()
+
+                vmoptionsFiles
+                    .filter { it != preferredVmoptions }
+                    .forEach {
+                        println("Deleting problematic file $it")
+                        Files.delete(it)
+                    }
+
+                println("Keeping vmoptions file: $preferredVmoptions")
+            }
             ideaProcess = IdeLauncher.launchIde(
                 pathToIde,
                 mapOf(
