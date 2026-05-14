@@ -70,6 +70,15 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    fun ContainerFixture.isComponentEnabled(): Boolean {
+        return callJs(
+            """
+            component.isEnabled()
+        """,
+            true
+        )
+    }
+
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
     fun dumbAware(

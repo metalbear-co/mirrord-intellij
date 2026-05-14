@@ -142,7 +142,7 @@ internal class MirrordPluginTest {
             }
             step("Create config file") {
                 waitFor(ofSeconds(60)) {
-                    mirrordDropdownButton.isShowing
+                    mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
                 }
                 // as per the extension this doesn't need to be in the dumbAware block
                 // however, there can be a loading page which can only be ignored by the
