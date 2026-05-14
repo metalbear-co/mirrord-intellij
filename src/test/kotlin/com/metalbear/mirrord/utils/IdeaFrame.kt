@@ -53,7 +53,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val stopDebugging
         get() = findAll<ContainerFixture>(
-            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop process)']")
+            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop the process)']")
         ).first()
 
     val debuggerConnected
