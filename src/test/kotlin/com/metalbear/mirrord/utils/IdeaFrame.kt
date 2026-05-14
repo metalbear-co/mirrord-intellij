@@ -62,6 +62,12 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    val appRunning
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Press CTRL+C to quit')]"),
+            Duration.ofSeconds(30)
+        )
+
     val xDebuggerFramesList
         get() = find<ContainerFixture>(
             byXpath(

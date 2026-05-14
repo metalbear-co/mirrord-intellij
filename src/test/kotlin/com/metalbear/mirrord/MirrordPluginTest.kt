@@ -239,9 +239,13 @@ internal class MirrordPluginTest {
                         }.getOrNull()
                     }
                 }
-                // once the session has started, the debug console shows
-                // "Connected to pydev debugger"
-                debuggerConnected
+                waitFor(ofSeconds(60)) {
+                    // once the session has started, the debug console shows
+                    // "Connected to pydev debugger"
+                    debuggerConnected.isShowing
+                    // make sure app listener is ready before sending test requests
+                    appRunning.isShowing
+                }
             }
 
             step("Send traffic to pod") {
