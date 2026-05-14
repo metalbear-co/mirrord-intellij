@@ -57,9 +57,9 @@ internal class MirrordPluginTest {
 
             println("downloading IDE...")
             val pathToIde = ideDownloader.downloadAndExtract(
-                Ide.PYCHARM_COMMUNITY,
+                Ide.PYCHARM,
                 tmpDir,
-                Ide.BuildType.RELEASE,
+                Ide.BuildType.RELEASE
             )
 
             // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
