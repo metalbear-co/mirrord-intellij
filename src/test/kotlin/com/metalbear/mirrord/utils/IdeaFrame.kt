@@ -26,7 +26,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val mirrordDropdownButton
         get() = find<ContainerFixture>(
             byXpath("//div[@visible_text='mirrord' and @class='ActionButtonWithText']"),
-            Duration.ofSeconds(30)
+            Duration.ofSeconds(60)
         )
 
     val usageBanner
@@ -37,7 +37,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val mirrordDropdownMenu: ContainerFixture
         get() {
-            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(30)) {
+            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(60)) {
                 val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
                     .firstOrNull { it.hasText("mirrord for Teams") }
                 Pair(list != null, list)

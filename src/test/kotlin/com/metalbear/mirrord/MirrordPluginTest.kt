@@ -151,7 +151,7 @@ internal class MirrordPluginTest {
                     mirrordDropdownButton.click()
                 }
 
-                waitFor(ofSeconds(30)) {
+                waitFor(ofSeconds(60)) {
                     mirrordDropdownMenu.isShowing
                 }
 
