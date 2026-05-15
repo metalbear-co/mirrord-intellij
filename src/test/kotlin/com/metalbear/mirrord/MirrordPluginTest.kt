@@ -250,9 +250,7 @@ internal class MirrordPluginTest {
 
             step("Send traffic to pod") {
                 val kubeService = System.getenv("KUBE_SERVICE")
-                println("Calling KUBE_SERVICE: $kubeService")
-                val response = URI(kubeService).toURL().readText()
-                println("KUBE_SERVICE response: $response")
+                URI(kubeService).toURL().readText()
             }
 
             step("Assert breakpoint is hit") {
