@@ -7,10 +7,9 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":mirrord-backend"))
+    implementation(project(":mirrord-shared"))
 
     intellijPlatform {
-        pycharm(properties("platformVersion"))
-        plugin("PythonCore", "241.14494.240")
+        intellijIdea(properties("platformVersion"))
     }
 }

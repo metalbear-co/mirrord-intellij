@@ -10,6 +10,7 @@
 .porchlight/
 
 .gradle/
+.gradle-local/
 .qodana/
 build/
 bin/
@@ -21,4 +22,3 @@ libmirrord_layer.*
 
 .intellijPlatform/
 .kotlin/
-

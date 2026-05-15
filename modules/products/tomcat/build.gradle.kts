@@ -7,7 +7,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":mirrord-core"))
+    implementation(project(":mirrord-backend"))
 
     intellijPlatform {
         intellijIdea(properties("platformVersion"))

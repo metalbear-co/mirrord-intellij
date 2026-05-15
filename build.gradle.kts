@@ -48,6 +48,9 @@ dependencies {
     intellijPlatform {
         create(platformType, properties("platformVersion"))
 
+        pluginModule(implementation(project(":mirrord-shared")))
+        pluginModule(implementation(project(":mirrord-frontend")))
+        pluginComposedModule(implementation(project(":mirrord-backend")))
         pluginComposedModule(implementation(project(":mirrord-products-idea")))
         pluginComposedModule(implementation(project(":mirrord-products-pycharm")))
         pluginComposedModule(implementation(project(":mirrord-products-rubymine")))

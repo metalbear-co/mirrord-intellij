@@ -7,7 +7,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":mirrord-core"))
+    implementation(project(":mirrord-backend"))
     implementation("com.github.zafarkhaja:java-semver:0.9.0")
 
     intellijPlatform {

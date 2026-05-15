@@ -4,3 +4,4 @@
         <pythonCommandLineTargetEnvironmentProvider implementation="com.metalbear.mirrord.products.pycharm.PythonCommandLineProvider"/>
     </extensions>
 </idea-plugin>
+

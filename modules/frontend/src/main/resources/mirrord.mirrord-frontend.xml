@@ -1,0 +1,5 @@
+<idea-plugin>
+    <dependencies>
+        <module name="mirrord.mirrord-shared"/>
+    </dependencies>
+</idea-plugin>

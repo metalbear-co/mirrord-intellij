@@ -34,7 +34,9 @@ dependencyResolutionManagement {
 }
 
 include(
-    "modules/core",
+    "modules/shared",
+    "modules/frontend",
+    "modules/backend",
     "modules/products/idea",
     "modules/products/goland",
     "modules/products/pycharm",

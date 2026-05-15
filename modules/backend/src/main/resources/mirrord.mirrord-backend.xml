@@ -1,0 +1,61 @@
+<idea-plugin>
+    <dependencies>
+        <module name="mirrord.mirrord-shared"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="mirrord Notification Handler"
+                           displayType="BALLOON"/>
+        <notificationGroup id="mirrord Warning Notification Handler"
+                           displayType="STICKY_BALLOON"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+                serviceImplementation="com.metalbear.mirrord.MirrordSettingsState"/>
+        <toolWindow id="mirrord Logs"
+                    icon="/icons/mirrord_dark.svg"
+                    anchor="bottom"
+                    factoryClass="com.metalbear.mirrord.MirrordLogsToolWindowFactory"/>
+    </extensions>
+
+    <projectListeners>
+        <listener class="com.metalbear.mirrord.MirrordExecutionListener"
+                  topic="com.intellij.execution.ExecutionListener"/>
+    </projectListeners>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.metalbear.mirrord.MirrordSettingsConfigurable"
+                id="com.metalbear.mirrord.MirrordSettingsConfigurable"
+                displayName="mirrord"/>
+
+        <fileBasedIndex implementation="com.metalbear.mirrord.MirrordConfigIndex"/>
+
+        <postStartupActivity implementation="com.metalbear.mirrord.MirrordUsageBanner"/>
+        <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$DownloadInitializer"/>
+        <backgroundPostStartupActivity implementation="com.metalbear.mirrord.MirrordBinaryManager$WindowsNativeSupportInitializer"/>
+    </extensions>
+
+    <actions>
+        <group id="mirrord">
+            <separator/>
+            <action id="com.metalbear.mirrord.MirrordEnabler"
+                    class="com.metalbear.mirrord.MirrordEnabler"
+                    text="Enable/Disable mirrord"
+                    description="Toggles the mirrord plugin"
+                    icon="MirrordIcons.disabled"/>
+            <action id="MirrordConfigDropDown"
+                    class="com.metalbear.mirrord.MirrordDropDown"
+                    text="mirrord"
+                    description="Options for mirrord plugin"
+                    icon="AllIcons.Actions.More"/>
+            <separator/>
+
+            <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+            <add-to-group group-id="RightToolbarSideGroup" anchor="first"/>
+        </group>
+    </actions>
+
+</idea-plugin>
