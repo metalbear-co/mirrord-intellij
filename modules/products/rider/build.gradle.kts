@@ -10,6 +10,8 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("RD", properties("platformVersion"))
+        rider(properties("platformVersion")) {
+            useInstaller = false
+        }
     }
 }

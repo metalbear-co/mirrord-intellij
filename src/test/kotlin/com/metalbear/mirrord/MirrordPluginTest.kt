@@ -57,10 +57,9 @@ internal class MirrordPluginTest {
 
             println("downloading IDE...")
             val pathToIde = ideDownloader.downloadAndExtract(
-                Ide.PYCHARM_COMMUNITY,
+                Ide.PYCHARM,
                 tmpDir,
-                Ide.BuildType.RELEASE,
-                "2024.1"
+                Ide.BuildType.RELEASE
             )
 
             // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
@@ -71,16 +70,27 @@ internal class MirrordPluginTest {
                     else -> "bin"
                 }
             )
-            Files
-                .list(ideBinDir)
-                .filter {
-                    val filename = it.fileName.toString()
-                    filename.endsWith(".vmoptions") && filename.contains("64") && filename != "pycharm64.vmoptions"
-                }
-                .forEach {
-                    println("Deleting problematic file $it")
-                    Files.delete(it)
-                }
+            Files.list(ideBinDir).use { stream ->
+                val vmoptionsFiles =
+                    stream
+                        .filter { it.fileName.toString().endsWith(".vmoptions") }
+                        .toList()
+
+                val preferredVmoptions =
+                    vmoptionsFiles.firstOrNull { it.fileName.toString() == "pycharm64.vmoptions" }
+                        ?: vmoptionsFiles.firstOrNull { it.fileName.toString() == "pycharm.vmoptions" }
+                        ?: vmoptionsFiles.firstOrNull { it.fileName.toString().contains("64") }
+                        ?: vmoptionsFiles.firstOrNull()
+
+                vmoptionsFiles
+                    .filter { it != preferredVmoptions }
+                    .forEach {
+                        println("Deleting problematic file $it")
+                        Files.delete(it)
+                    }
+
+                println("Keeping vmoptions file: $preferredVmoptions")
+            }
             ideaProcess = IdeLauncher.launchIde(
                 pathToIde,
                 mapOf(
@@ -100,13 +110,15 @@ internal class MirrordPluginTest {
         @AfterAll
         @JvmStatic
         fun cleanUp() {
-            val xpathPage = URI("http://localhost:8082/").toURL().readText()
-            val xpathPageJs = URI("http://localhost:8082/xpathEditor.js").toURL().readText()
-            val xpathPageCss = URI("http://localhost:8082/styles.css").toURL().readText()
-            // create a file in build/reports
-            File("build/reports/robot-page.html").writeText(xpathPage)
-            File("build/reports/xpathEditor.js").writeText(xpathPageJs)
-            File("build/reports/styles.css").writeText(xpathPageCss)
+            runCatching {
+                val xpathPage = URI("http://localhost:8082/").toURL().readText()
+                val xpathPageJs = URI("http://localhost:8082/xpathEditor.js").toURL().readText()
+                val xpathPageCss = URI("http://localhost:8082/styles.css").toURL().readText()
+                // create a file in build/reports
+                File("build/reports/robot-page.html").writeText(xpathPage)
+                File("build/reports/xpathEditor.js").writeText(xpathPageJs)
+                File("build/reports/styles.css").writeText(xpathPageCss)
+            }
 
             ideaProcess?.destroy()
             tmpDir.toFile().deleteRecursively()
@@ -116,6 +128,9 @@ internal class MirrordPluginTest {
     @Test
     @Video
     fun testMirrordFlow() = with(remoteRobot) {
+        step("Close theme onboarding") {
+            closeMeetTheIslandsTheme()
+        }
         step("Welcome Frame") {
             welcomeFrame {
                 steps?.openProject(System.getProperty("test.workspace"))
@@ -127,9 +142,7 @@ internal class MirrordPluginTest {
             }
             step("Create config file") {
                 waitFor(ofSeconds(60)) {
-                    mirrordDropdownButton.isShowing
-                    // issue here is that elements move when git is visible
-                    git.isShowing
+                    mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
                 }
                 // as per the extension this doesn't need to be in the dumbAware block
                 // however, there can be a loading page which can only be ignored by the
@@ -138,7 +151,7 @@ internal class MirrordPluginTest {
                     mirrordDropdownButton.click()
                 }
 
-                waitFor(ofSeconds(30)) {
+                waitFor(ofSeconds(60)) {
                     mirrordDropdownMenu.isShowing
                 }
 
@@ -163,12 +176,8 @@ internal class MirrordPluginTest {
                     // blue stripe appears on top of the text window asking
                     // to set up poetry environment, we click on setup poetry
                     // option to quickly set up the environment
-                    fileIntention {
-                        val setUpPoetry = setUpPoetry
-                        setUpPoetry.click()
-                        waitFor {
-                            !setUpPoetry.isShowing
-                        }
+                    pythonSetupPrompt {
+                        click()
                     }
                     statusBar {
                         // wait for the progress bar to disappear - poetry is set up
@@ -230,11 +239,13 @@ internal class MirrordPluginTest {
                         }.getOrNull()
                     }
                 }
-                runnerTabDebugger.click()
-                // in the debugger tab of the xdebugger window, if the session has started
-                // it displays "Connected"
-                // following just checks if "Connected" is displayed
-                debuggerConnected
+                waitFor(ofSeconds(60)) {
+                    // once the session has started, the debug console shows
+                    // "Connected to pydev debugger"
+                    debuggerConnected.isShowing
+                    // make sure app listener is ready before sending test requests
+                    appRunning.isShowing
+                }
             }
 
             step("Send traffic to pod") {
@@ -243,8 +254,7 @@ internal class MirrordPluginTest {
             }
 
             step("Assert breakpoint is hit") {
-                // there is no simple way to find the blue hover of the breakpoint line
-                // but if the breakpoint is hit, the debugger frames list is populated
+                // The debugger frames list is populated and showing the right file and line number
                 waitFor {
                     xDebuggerFramesList.isShowing
                 }

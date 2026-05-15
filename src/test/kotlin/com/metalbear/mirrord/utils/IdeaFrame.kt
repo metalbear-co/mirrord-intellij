@@ -26,7 +26,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     val mirrordDropdownButton
         get() = find<ContainerFixture>(
             byXpath("//div[@visible_text='mirrord' and @class='ActionButtonWithText']"),
-            Duration.ofSeconds(30)
+            Duration.ofSeconds(60)
         )
 
     val usageBanner
@@ -35,12 +35,9 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
-    val git
-        get() = find<ContainerFixture>(byXpath("//div[@visible_text='Git:' and @class='MyLabel']"), Duration.ofSeconds(30))
-
     val mirrordDropdownMenu: ContainerFixture
         get() {
-            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(30)) {
+            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(60)) {
                 val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
                     .firstOrNull { it.hasText("mirrord for Teams") }
                 Pair(list != null, list)
@@ -56,20 +53,37 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     val stopDebugging
         get() = findAll<ContainerFixture>(
-            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop process)']")
+            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop the process)']")
         ).first()
 
-    val runnerTabDebugger
+    val debuggerConnected
         get() = find<ContainerFixture>(
-            byXpath("//div[@class='SimpleColoredComponent' and @visible_text='Debugger']"),
+            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Connected to pydev debugger')]"),
             Duration.ofSeconds(30)
         )
 
-    val debuggerConnected
-        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerTree']"))
+    val appRunning
+        get() = find<ContainerFixture>(
+            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Press CTRL+C to quit')]"),
+            Duration.ofSeconds(30)
+        )
 
     val xDebuggerFramesList
-        get() = find<ContainerFixture>(byXpath("//div[@class='XDebuggerFramesList']"))
+        get() = find<ContainerFixture>(
+            byXpath(
+                "//div[@class='XDebuggerFramesList' and contains(@visible_text, 'get') and contains(@visible_text, 'app.py') and contains(@visible_text, '8')]"
+            ),
+            Duration.ofSeconds(30)
+        )
+
+    fun ContainerFixture.isComponentEnabled(): Boolean {
+        return callJs(
+            """
+            component.isEnabled()
+        """,
+            true
+        )
+    }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
@@ -126,21 +140,17 @@ class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
     }
 }
 
-fun RemoteRobot.fileIntention(function: FileLevelIntentionComponent.() -> Unit) {
-    find<FileLevelIntentionComponent>(timeout = Duration.ofSeconds(60)).apply(function)
+fun RemoteRobot.pythonSetupPrompt(function: PythonSetupPrompt.() -> Unit) {
+    find<PythonSetupPrompt>(timeout = Duration.ofSeconds(60)).apply(function)
 }
 
-// blue hover box that appears when in the text editor asking for poetry setup
-@DefaultXpath("FileLevelIntentionComponent type", "//div[@class='FileLevelIntentionComponent']")
-class FileLevelIntentionComponent(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-
-    val setUpPoetry
-        get() = find<ContainerFixture>(
-            byXpath("//div[@accessiblename.key='sdk.set.up.poetry.environment']"),
-            Duration.ofSeconds(20)
-        )
-}
+// inline Python environment setup prompt above the editor
+@DefaultXpath(
+    "Python setup prompt",
+    "//div[@class='ActionLink' and @text='Set up Poetry environment']"
+)
+class PythonSetupPrompt(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
+    CommonContainerFixture(remoteRobot, remoteComponent)
 
 fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
     find<StatusBar>(timeout = Duration.ofSeconds(60)).apply(function)

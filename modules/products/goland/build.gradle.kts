@@ -11,7 +11,7 @@ dependencies {
     implementation("com.github.zafarkhaja:java-semver:0.9.0")
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        goland(properties("platformVersion"))
         plugin("org.jetbrains.plugins.go", "241.14494.240")
     }
 }

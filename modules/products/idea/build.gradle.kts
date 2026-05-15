@@ -10,10 +10,10 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        intellijIdea(properties("platformVersion"))
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.plugins.gradle")
         bundledPlugin("org.jetbrains.idea.maven")
-        plugin("org.intellij.scala", "2024.1.25")
+        plugin("org.intellij.scala", "2026.1.18")
     }
 }

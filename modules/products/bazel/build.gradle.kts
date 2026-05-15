@@ -10,6 +10,6 @@ dependencies {
     implementation(project(":mirrord-core"))
 
     intellijPlatform {
-        create("IC", properties("platformVersion"))
+        intellijIdea(properties("platformVersion"))
     }
 }

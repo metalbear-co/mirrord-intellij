@@ -8,7 +8,7 @@ issue.
 
 ## Building the IntelliJ plugin
 
-First, make sure you have JDK 17 installed. 
+First, make sure you have JDK 21 installed.
 
 Then [build the mirrord binaries](https://github.com/metalbear-co/mirrord/blob/main/CONTRIBUTING.md#build-and-run-mirrord) if not yet built. Then:
 

@@ -9,6 +9,7 @@ import java.nio.file.Paths
 import java.util.EnumSet
 
 fun properties(key: String) = project.findProperty(key).toString()
+val platformVersion = providers.gradleProperty("platformVersion").get()
 
 plugins {
     id("java")
@@ -22,7 +23,7 @@ group = properties("pluginGroup")
 version = properties("pluginVersion")
 
 val remoteRobotVersion = "0.11.19"
-val platformType = System.getenv("PLATFORMTYPE") ?: "IC"
+val platformType = System.getenv("PLATFORMTYPE") ?: "IU"
 
 repositories {
     mavenCentral()
@@ -64,7 +65,7 @@ dependencies {
                 .forEach { bundledPlugin(it) }
         }
 
-        testFramework(TestFrameworkType.Bundled)
+        testFramework(TestFrameworkType.Platform)
     }
 }
 
@@ -111,12 +112,11 @@ changelog {
 }
 
 intellijPlatform {
-    // RubyMine 2024.1 does not publish the java-compiler-ant-tasks artifact needed by IntelliJ code instrumentation.
-    // We do not use IntelliJ GUI Designer .form files or Java sources, so instrumentation is unnecessary.
-    instrumentCode.set(false)
-
     pluginConfiguration {
         version = providers.gradleProperty("pluginVersion")
+        ideaVersion {
+            sinceBuild = "253"
+        }
 
         description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
             val start = "<!-- Plugin description -->"

@@ -306,7 +306,7 @@ class ReflectUtils {
                     field.isAccessible = true
                     field.get(obj)
                 } catch (e: Throwable) {
-                    MirrordLogger.logger.error("[REFLECTION] reflection error: failed to get field value for $fieldName in $obj: $e")
+                    MirrordLogger.logger.warn("[REFLECTION] reflection error: failed to get field value for $fieldName in $obj: $e")
                     throw e
                 }
             }
@@ -326,7 +326,7 @@ class ReflectUtils {
                     throw RuntimeException("Field $fieldName not found in ${obj::class.qualifiedName}")
                 }
             } catch (e: Throwable) {
-                MirrordLogger.logger.error("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
+                MirrordLogger.logger.warn("[REFLECTION] reflection error: failed to set field value for $fieldName in $obj with value $value: $e")
                 throw e
             }
         }
