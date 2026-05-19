@@ -1,9 +1,9 @@
 # mirrord for JetBrains IntelliJ
 
-[![Community Slack](https://img.shields.io/badge/Join-e5f7f7?logo=slack&label=Community%20Slack)](https://metalbear.co/slack)
+[![Community Slack](https://img.shields.io/badge/Join-e5f7f7?logo=slack&label=Community%20Slack)](https://metalbear.com/slack)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
-[![Twitter Follow](https://img.shields.io/twitter/follow/metalbearco?style=social)](https://twitter.com/metalbearco)
+[![X Follow](https://img.shields.io/twitter/follow/metalbear?style=social)](https://x.com/metalbear)
 [![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-e6005c)](https://plugins.jetbrains.com/plugin/19772-mirrord)
 
 This repository is for the IntelliJ plugin.
@@ -16,12 +16,15 @@ mirrord's main repository can be found [here](https://github.com/metalbear-co/mi
 
 <!-- Plugin description -->
 
-mirrord lets developers [run local processes in the context of their cloud environment](https://mirrord.dev).
-It provides the benefits of running your service on a cloud environment (e.g. staging) without going through the
-hassle of deploying it there, and without disrupting the environment by deploying untested code.
-It comes as a Visual Studio Code extension, an IntelliJ plugin and a CLI tool.
-You can read more about what mirrord does [in our official docs](https://mirrord.dev/docs/overview/introduction/), or
-[sign up to our newsletter](https://metalbear.co/newsletter) to hear about new features.
+mirrord lets developers and AI coding agents [run local processes inside a live Kubernetes cluster](https://metalbear.com/mirrord).
+Your code stays on your machine, but mirrord routes its traffic, files, and environment through a target pod in the cluster.
+Use it to read live cluster context while writing code (real env vars, real service responses, real queue contents),
+and to run the code against those same services and data once it's written.
+You get the feedback of a deploy in seconds, without the deploy, and without disrupting the cluster for anyone else.
+
+This plugin brings that workflow to JetBrains IntelliJ. mirrord also ships as a VS Code extension and a CLI tool.
+Read more in [the docs](https://metalbear.com/mirrord/docs/overview/introduction/), or
+[sign up to our newsletter](https://metalbear.com/newsletter) to hear about new features.
 Both the [core mirrord repository](https://github.com/metalbear-co/mirrord) and
 [this plugin's code](https://github.com/metalbear-co/mirrord-intellij) can be found on GitHub.
 
@@ -35,7 +38,7 @@ Both the [core mirrord repository](https://github.com/metalbear-co/mirrord) and
 ## Configuring mirrord for IntelliJ
 
 mirrord allows for rich configuration of the environment it provides.
-The schema for it is documented [here](https://mirrord.dev/docs/reference/configuration/).
+The schema for it is documented [here](https://metalbear.com/mirrord/docs/reference/configuration/).
 The extension supports autocomplete for `json` files, but you can also use `toml` or `yaml` format.
 
 _Quick start: the easiest way to start configuring mirrord is to choose_ "Settings" _from the dropdown menu,
@@ -80,13 +83,13 @@ which will open a new `mirrord.json`._
 
 ## Helpful Links
 
-- [Official documentation for this extension](https://mirrord.dev/docs/using-mirrord/intellij-plugin/)
-- [Official language-specific guides for debugging](https://metalbear.co/guides/)
-- [Frequently Asked Questions](https://mirrord.dev/docs/faq/general)
+- [Official documentation for this extension](https://metalbear.com/mirrord/docs/using-mirrord/intellij-plugin/)
+- [Official language-specific guides for debugging](https://metalbear.com/mirrord/docs/guides)
+- [Frequently Asked Questions](https://metalbear.com/mirrord/docs/faq/general)
 
 ## Contributions, feature requests, issues and support
 
-- Feel free to join to our [Slack](https://metalbear.co/slack) if you need help using mirrord,
+- Feel free to join to our [Slack](https://metalbear.com/slack) if you need help using mirrord,
 or if you encounter an issue while using the extension.
 - Check our open issues for [the IntelliJ extension](https://github.com/metalbear-co/mirrord-intellij/issues)
 and [mirrord's core code](https://github.com/metalbear-co/mirrord/issues), and 👍 react to any that you would like to see addressed.
