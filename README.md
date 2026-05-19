@@ -3,7 +3,7 @@
 [![Community Slack](https://img.shields.io/badge/Join-e5f7f7?logo=slack&label=Community%20Slack)](https://metalbear.com/slack)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/metalbear-co/mirrord-intellij)
-[![Twitter Follow](https://img.shields.io/twitter/follow/metalbear?style=social)](https://twitter.com/metalbear)
+[![X Follow](https://img.shields.io/twitter/follow/metalbear?style=social)](https://x.com/metalbear)
 [![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Plugin%20Page-e6005c)](https://plugins.jetbrains.com/plugin/19772-mirrord)
 
 This repository is for the IntelliJ plugin.
