@@ -1,1 +1,0 @@
-Rewrite README intro to name both halves of the developer + AI coding agent feedback loop. Update website links to `metalbear.com`. Edits inside the Plugin description block also update the JetBrains Marketplace listing.

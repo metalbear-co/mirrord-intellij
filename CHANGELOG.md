@@ -8,6 +8,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.76.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.76.0) - 2026-05-20
+
+
+### Changed
+
+- Rewrite README intro to name both halves of the developer + AI coding agent
+  feedback loop. Update website links to `metalbear.com`. Edits inside the
+  Plugin description block also update the JetBrains Marketplace listing.
+
 ## [3.75.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.75.0) - 2026-05-13
 
 
