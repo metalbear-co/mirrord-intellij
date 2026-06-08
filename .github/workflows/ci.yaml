@@ -6,9 +6,10 @@ permissions:
   contents: read
 
 on:
+  merge_group:
   workflow_dispatch:
   push:
-    branches-ignore: [ staging-squash-merge.tmp ]
+    branches: [ main ]
   pull_request:
     branches: [ main, staging, trying ]
     types: [ opened, synchronize, reopened, ready_for_review ]
@@ -20,6 +21,7 @@ concurrency:
 
 jobs:
   towncrier_check:
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -75,8 +77,8 @@ jobs:
         # We have to do it in the shell since if it's in the if condition
         # then skipping is considered success by branch protection rules
         env:
-          CI_SUCCESS: ${{ (needs.towncrier_check.result == 'success') &&           
+          CI_SUCCESS: ${{ (needs.towncrier_check.result == 'success' || needs.towncrier_check.result == 'skipped') &&
             (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') &&
             (needs.lint_markdown.result == 'success' || needs.lint_markdown.result == 'skipped') &&
             (needs.lint.result == 'success' || needs.lint.result == 'skipped') }}
-        run: echo $CI_SUCCESS && if [ "$CI_SUCCESS" == "true" ]; then echo "SUCCESS" && exit 0; else echo "Failure" && exit 1; fi
+        run: echo "$CI_SUCCESS" && if [ "$CI_SUCCESS" == "true" ]; then echo "SUCCESS" && exit 0; else echo "Failure" && exit 1; fi
