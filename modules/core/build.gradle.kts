@@ -7,7 +7,7 @@ plugins {
 }
 
 dependencies {
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.github.zafarkhaja:java-semver:0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")
 
