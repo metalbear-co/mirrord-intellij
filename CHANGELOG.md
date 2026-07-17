@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.77.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.77.0) - 2026-07-17
+
+
+### Changed
+
+- Bumped plugin dependencies
+  * intellij platform
+  * org.jetbrains.kotlin.jvm
+
+
+### Fixed
+
+- Build the Windows pitm fake JDK with the platform's own `ProjectJdkImpl`
+  instead of implementing the non-extendable `Sdk` interface, which JetBrains'
+  Plugin Verifier rejects.
+
 ## [3.76.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.76.0) - 2026-05-20
 
 
