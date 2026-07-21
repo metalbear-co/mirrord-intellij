@@ -8,6 +8,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.78.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.78.0) - 2026-07-21
+
+
+### Added
+
+- Added a setting to configure the mirrord task timeout (in minutes),
+  defaulting to 2 minutes.
+
+
+### Changed
+
+- Added a "General Settings" entry to the mirrord dropdown that opens the
+  plugin settings, and renamed the "Settings" entry to "mirrord config file".
+
 ## [3.77.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.77.0) - 2026-07-17
 
 
