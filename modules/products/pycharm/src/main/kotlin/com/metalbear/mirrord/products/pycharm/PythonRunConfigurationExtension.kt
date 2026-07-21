@@ -10,44 +10,44 @@ import com.jetbrains.python.run.PythonRunConfigurationExtension
 import com.metalbear.mirrord.MirrordProjectService
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
-    override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean {
-        return true
-    }
+    override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean = true
 
     override fun isEnabledFor(
         applicableConfiguration: AbstractPythonRunConfiguration<*>,
-        runnerSettings: RunnerSettings?
-    ): Boolean {
-        return true
-    }
+        runnerSettings: RunnerSettings?,
+    ): Boolean = true
 
     override fun patchCommandLine(
         configuration: AbstractPythonRunConfiguration<*>,
         runnerSettings: RunnerSettings?,
         cmdLine: GeneralCommandLine,
-        runnerId: String
+        runnerId: String,
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val wsl =
+            when (val request = createEnvironmentRequest(configuration, configuration.project)) {
+                is WslTargetEnvironmentRequest -> request.configuration.distribution!!
+                else -> null
+            }
 
         val currentEnv = cmdLine.environment
 
-        service.execManager.wrapper("pycharm", currentEnv).apply {
-            this.wsl = wsl
-        }.start()?.let { executionInfo ->
-            for (entry in executionInfo.environment.entries.iterator()) {
-                currentEnv[entry.key] = entry.value
-            }
-            executionInfo.envToUnset?.let { envToUnset ->
-                for (key in envToUnset.iterator()) {
-                    currentEnv.remove(key)
+        service.execManager
+            .wrapper("pycharm", currentEnv)
+            .apply {
+                this.wsl = wsl
+            }.start()
+            ?.let { executionInfo ->
+                for (entry in executionInfo.environment.entries.iterator()) {
+                    currentEnv[entry.key] = entry.value
+                }
+                executionInfo.envToUnset?.let { envToUnset ->
+                    for (key in envToUnset.iterator()) {
+                        currentEnv.remove(key)
+                    }
                 }
             }
-        }
 
         currentEnv["MIRRORD_DETECT_DEBUGGER_PORT"] = "pydevd"
     }

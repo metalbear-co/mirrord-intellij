@@ -13,11 +13,17 @@ import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 
 class IdeaExecutionListener : ExecutionListener {
-    override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
-        val configuration = env.runProfile as? RunConfigurationBase<*> ?: run {
-            MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: unsupported run profile `${env.runProfile.javaClass.name}`")
-            return
-        }
+    override fun processStartScheduled(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
+        val configuration =
+            env.runProfile as? RunConfigurationBase<*> ?: run {
+                MirrordLogger.logger.debug(
+                    "[${this.javaClass.name}] processStartScheduled: unsupported run profile `${env.runProfile.javaClass.name}`",
+                )
+                return
+            }
 
         if (!isIdeaConfigurationApplicableForMirrord(configuration)) {
             MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: skipped `${configuration.name}`")
@@ -27,19 +33,24 @@ class IdeaExecutionListener : ExecutionListener {
         val alreadyContainsInitTask = configuration.beforeRunTasks.any { it is IdeaBeforeRunTaskProvider.IdeaBeforeRunTask }
 
         if (!alreadyContainsInitTask) {
-            configuration.beforeRunTasks = configuration.beforeRunTasks + IdeaBeforeRunTaskProvider.IdeaBeforeRunTask {
-                val service = env.project.service<MirrordProjectService>()
-                val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
-                    is WslTargetEnvironmentRequest -> request.configuration.distribution
-                    else -> null
-                }
+            configuration.beforeRunTasks = configuration.beforeRunTasks +
+                IdeaBeforeRunTaskProvider.IdeaBeforeRunTask {
+                    val service = env.project.service<MirrordProjectService>()
+                    val wsl =
+                        when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
+                            is WslTargetEnvironmentRequest -> request.configuration.distribution
+                            else -> null
+                        }
 
-                service.execManager.wrapper("idea", getIdeaConfigurationEnv(configuration)).apply {
-                    this.wsl = wsl
-                }.start()?.let { executionInfo ->
-                    IdeaMirrordPreparationStore.put(configuration, executionInfo)
+                    service.execManager
+                        .wrapper("idea", getIdeaConfigurationEnv(configuration))
+                        .apply {
+                            this.wsl = wsl
+                        }.start()
+                        ?.let { executionInfo ->
+                            IdeaMirrordPreparationStore.put(configuration, executionInfo)
+                        }
                 }
-            }
         }
 
         super.processStartScheduled(executorId, env)
@@ -49,13 +60,16 @@ class IdeaExecutionListener : ExecutionListener {
         executorId: String,
         env: ExecutionEnvironment,
         handler: ProcessHandler,
-        exitCode: Int
+        exitCode: Int,
     ) {
         clearState(env)
         super.processTerminated(executorId, env, handler, exitCode)
     }
 
-    override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
+    override fun processNotStarted(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         clearState(env)
         super.processNotStarted(executorId, env)
     }

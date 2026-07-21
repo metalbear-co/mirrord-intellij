@@ -48,41 +48,44 @@ internal object MirrordPitmGradle {
     fun wrap(
         configuration: ExternalSystemRunConfiguration,
         mirrordEnvVars: Map<String, String>,
-        envToUnset: List<String>?
+        envToUnset: List<String>?,
     ) {
         MirrordLogger.logger.info(
             "MirrordPitmGradle.wrap: ENTER taskNames=${configuration.settings.taskNames} " +
-                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}",
         )
 
         val project = configuration.project
-        val cliPath = service<MirrordBinaryManager>()
-            .getCliPath("idea", null, project)
-            .replace("\\", "/")
+        val cliPath =
+            service<MirrordBinaryManager>()
+                .getCliPath("idea", null, project)
+                .replace("\\", "/")
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
 
         MirrordLogger.logger.info(
-            "MirrordPitmGradle.wrap: cliPath=$cliPath childEnvPayload.len=${childEnvPayload.length}"
+            "MirrordPitmGradle.wrap: cliPath=$cliPath childEnvPayload.len=${childEnvPayload.length}",
         )
 
-        val initScript = try {
-            writeInitScript(cliPath)
-        } catch (e: Exception) {
-            MirrordLogger.logger.warn("MirrordPitmGradle.wrap: failed to create init script: ${e.message}", e)
-            project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: could not create pitm init script (${e.message}); layer will not load.",
-                NotificationType.ERROR
-            )
-            configuration.settings.env =
-                configuration.settings.env + mirrordEnvVars - envToUnset.orEmpty().toSet()
-            return
-        }
+        val initScript =
+            try {
+                writeInitScript(cliPath)
+            } catch (e: Exception) {
+                MirrordLogger.logger.warn("MirrordPitmGradle.wrap: failed to create init script: ${e.message}", e)
+                project.service<MirrordProjectService>().notifier.notifySimple(
+                    "mirrord: could not create pitm init script (${e.message}); layer will not load.",
+                    NotificationType.ERROR,
+                )
+                configuration.settings.env =
+                    configuration.settings.env + mirrordEnvVars - envToUnset.orEmpty().toSet()
+                return
+            }
 
         val envBefore = configuration.settings.env.size
         val scriptParamsBefore = configuration.settings.scriptParameters ?: ""
-        configuration.settings.env = configuration.settings.env + mapOf(
-            MirrordPitm.CHILD_ENV_VAR to childEnvPayload
-        )
+        configuration.settings.env = configuration.settings.env +
+            mapOf(
+                MirrordPitm.CHILD_ENV_VAR to childEnvPayload,
+            )
         appendInitScript(configuration, initScript)
 
         MirrordLogger.logger.info(
@@ -90,16 +93,17 @@ internal object MirrordPitmGradle {
                 "size=${initScript.length()}b, " +
                 "settings.env $envBefore → ${configuration.settings.env.size}, " +
                 "scriptParameters grew from ${scriptParamsBefore.length} to " +
-                "${(configuration.settings.scriptParameters ?: "").length} chars"
+                "${(configuration.settings.scriptParameters ?: "").length} chars",
         )
     }
 
     /** Loads the template, substitutes placeholders, writes to a temp file. */
     private fun writeInitScript(cliPath: String): File {
         val template = loadTemplate()
-        val groovy = template
-            .replace(PLACEHOLDER_CLI_PATH, cliPath)
-            .replace(PLACEHOLDER_CHILD_ENV_VAR, MirrordPitm.CHILD_ENV_VAR)
+        val groovy =
+            template
+                .replace(PLACEHOLDER_CLI_PATH, cliPath)
+                .replace(PLACEHOLDER_CHILD_ENV_VAR, MirrordPitm.CHILD_ENV_VAR)
         return File.createTempFile("mirrord-pitm-", ".gradle").apply {
             deleteOnExit()
             writeText(groovy)
@@ -107,13 +111,17 @@ internal object MirrordPitmGradle {
     }
 
     private fun loadTemplate(): String {
-        val stream = javaClass.getResourceAsStream(TEMPLATE_RESOURCE)
-            ?: error("mirrord: $TEMPLATE_RESOURCE missing from plugin jar")
+        val stream =
+            javaClass.getResourceAsStream(TEMPLATE_RESOURCE)
+                ?: error("mirrord: $TEMPLATE_RESOURCE missing from plugin jar")
         return stream.bufferedReader().use { it.readText() }
     }
 
     /** Appends `--init-script <path>` to the Gradle run configuration's script parameters. */
-    private fun appendInitScript(configuration: ExternalSystemRunConfiguration, script: File) {
+    private fun appendInitScript(
+        configuration: ExternalSystemRunConfiguration,
+        script: File,
+    ) {
         val scriptPath = script.absolutePath.replace("\\", "/")
         val existing = configuration.settings.scriptParameters ?: ""
         configuration.settings.scriptParameters = "$existing --init-script \"$scriptPath\""

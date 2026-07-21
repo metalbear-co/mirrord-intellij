@@ -7,14 +7,17 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import icons.MirrordIcons
 
-class MirrordEnabler : ToggleAction(), DumbAware {
+class MirrordEnabler :
+    ToggleAction(),
+    DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
-    override fun isSelected(e: AnActionEvent): Boolean {
-        return e.project?.service<MirrordProjectService>()?.enabled ?: false
-    }
+    override fun isSelected(e: AnActionEvent): Boolean = e.project?.service<MirrordProjectService>()?.enabled ?: false
 
-    override fun setSelected(e: AnActionEvent, state: Boolean) {
+    override fun setSelected(
+        e: AnActionEvent,
+        state: Boolean,
+    ) {
         val project = e.project ?: throw Error("mirrord requires an open project")
         project.service<MirrordProjectService>().enabled = state
         e.presentation.icon = if (state) MirrordIcons.enabled else MirrordIcons.disabled

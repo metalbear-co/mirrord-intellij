@@ -12,22 +12,29 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.swing.JComponent
 
-private const val windowName = "mirrord Logs"
+private const val WINDOW_NAME = "mirrord Logs"
 
 @Service(Service.Level.PROJECT)
-class MirrordLogsService(private val project: Project) : Disposable {
+class MirrordLogsService(
+    private val project: Project,
+) : Disposable {
     private var consoleView: ConsoleView? = null
 
     fun createConsoleComponent(): JComponent {
         if (consoleView == null) {
-            consoleView = TextConsoleBuilderFactory.getInstance()
-                .createBuilder(project)
-                .console
+            consoleView =
+                TextConsoleBuilderFactory
+                    .getInstance()
+                    .createBuilder(project)
+                    .console
         }
         return consoleView!!.component
     }
 
-    fun logMessage(message: String, contentType: ConsoleViewContentType = ConsoleViewContentType.NORMAL_OUTPUT) {
+    fun logMessage(
+        message: String,
+        contentType: ConsoleViewContentType = ConsoleViewContentType.NORMAL_OUTPUT,
+    ) {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
         val timestampedMessage = "[$timestamp] $message"
         ApplicationManager.getApplication().invokeLater {
@@ -59,7 +66,7 @@ class MirrordLogsService(private val project: Project) : Disposable {
     private fun showToolWindow() {
         ApplicationManager.getApplication().invokeLater {
             val toolWindowManager = ToolWindowManager.getInstance(project)
-            val toolWindow = toolWindowManager.getToolWindow(windowName)
+            val toolWindow = toolWindowManager.getToolWindow(WINDOW_NAME)
             toolWindow?.let {
                 if (!it.isVisible) {
                     it.activate(null)

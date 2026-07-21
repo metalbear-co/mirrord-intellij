@@ -9,67 +9,72 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 class MirrordSettingsComponent {
-
     private val versionCheckEnabled = JBCheckBox("Version check")
-    private val notificationsEnabled = MirrordSettingsState
-        .NotificationId
-        .values()
-        .associateWith { JBCheckBox(it.presentableName) }
+    private val notificationsEnabled =
+        MirrordSettingsState
+            .NotificationId
+            .values()
+            .associateWith { JBCheckBox(it.presentableName) }
 
     private val usageBannerEnabled = JBCheckBox("Show usage banner on startup")
     private val enabledOnStartup = JBCheckBox("Enable mirrord on startup")
 
     private val mirrordVersionLabel = JBLabel("mirrord binary version:")
-    private val mirrordVersion = with(JBTextField("", 10)) {
-        toolTipText = "specify mirrord binary version to use"
-        this
-    }
+    private val mirrordVersion =
+        with(JBTextField("", 10)) {
+            toolTipText = "specify mirrord binary version to use"
+            this
+        }
 
     private val mirrordBinaryPathLabel = JBLabel("mirrord binary path:")
-    private val mirrordBinaryPath = with(JBTextField("", 30)) {
-        toolTipText = "absolute path to a mirrord binary (overrides auto-update and the version setting)"
-        this
-    }
+    private val mirrordBinaryPath =
+        with(JBTextField("", 30)) {
+            toolTipText = "absolute path to a mirrord binary (overrides auto-update and the version setting)"
+            this
+        }
 
     private val taskTimeoutLabel = JBLabel("mirrord task timeout (minutes):")
-    private val taskTimeout = with(JBTextField("", 5)) {
-        toolTipText = "how long to wait for a mirrord task (e.g. starting the agent) before timing out"
-        this
-    }
-
-    private val autoUpdate = JBCheckBox("Auto update mirrord binary")
-        .apply {
-            addItemListener { e ->
-                mirrordVersion.isEnabled = e.stateChange != ItemEvent.SELECTED
-            }
+    private val taskTimeout =
+        with(JBTextField("", 5)) {
+            toolTipText = "how long to wait for a mirrord task (e.g. starting the agent) before timing out"
+            this
         }
 
-    private val autoUpdatePanel = FormBuilder
-        .createFormBuilder()
-        .addComponent(autoUpdate)
-        .addLabeledComponent(mirrordVersionLabel, mirrordVersion)
-        .addLabeledComponent(mirrordBinaryPathLabel, mirrordBinaryPath)
-        .addComponentFillVertically(JPanel(), 0)
-        .panel
-
-    val panel: JPanel = FormBuilder
-        .createFormBuilder()
-        .addComponent(usageBannerEnabled)
-        .addComponent(enabledOnStartup)
-        .addComponent(versionCheckEnabled)
-        .addLabeledComponent(taskTimeoutLabel, taskTimeout)
-        .addSeparator()
-        .addComponent(autoUpdatePanel)
-        .addSeparator()
-        .addComponent(JBLabel("Notify when:"))
-        .apply {
-            notificationsEnabled.forEach {
-                addComponent(it.value)
+    private val autoUpdate =
+        JBCheckBox("Auto update mirrord binary")
+            .apply {
+                addItemListener { e ->
+                    mirrordVersion.isEnabled = e.stateChange != ItemEvent.SELECTED
+                }
             }
-        }
-        .addSeparator()
-        .addComponentFillVertically(JPanel(), 0)
-        .panel
+
+    private val autoUpdatePanel =
+        FormBuilder
+            .createFormBuilder()
+            .addComponent(autoUpdate)
+            .addLabeledComponent(mirrordVersionLabel, mirrordVersion)
+            .addLabeledComponent(mirrordBinaryPathLabel, mirrordBinaryPath)
+            .addComponentFillVertically(JPanel(), 0)
+            .panel
+
+    val panel: JPanel =
+        FormBuilder
+            .createFormBuilder()
+            .addComponent(usageBannerEnabled)
+            .addComponent(enabledOnStartup)
+            .addComponent(versionCheckEnabled)
+            .addLabeledComponent(taskTimeoutLabel, taskTimeout)
+            .addSeparator()
+            .addComponent(autoUpdatePanel)
+            .addSeparator()
+            .addComponent(JBLabel("Notify when:"))
+            .apply {
+                notificationsEnabled.forEach {
+                    addComponent(it.value)
+                }
+            }.addSeparator()
+            .addComponentFillVertically(JPanel(), 0)
+            .panel
 
     val preferredFocusedComponent: JComponent
         get() = versionCheckEnabled
@@ -94,9 +99,10 @@ class MirrordSettingsComponent {
 
     var notificationsDisabledStatus: Set<MirrordSettingsState.NotificationId>
         get() = notificationsEnabled.filter { !it.value.isSelected }.keys
-        set(value) = notificationsEnabled.forEach {
-            it.value.isSelected = !value.contains(it.key)
-        }
+        set(value) =
+            notificationsEnabled.forEach {
+                it.value.isSelected = !value.contains(it.key)
+            }
 
     var autoUpdateEnabledStatus: Boolean
         get() = autoUpdate.isSelected
@@ -122,7 +128,11 @@ class MirrordSettingsComponent {
      * or not a positive integer.
      */
     var taskTimeoutMinutesStatus: Int
-        get() = taskTimeout.text.trim().toIntOrNull()?.takeIf { it > 0 } ?: DEFAULT_TASK_TIMEOUT_MINUTES
+        get() =
+            taskTimeout.text
+                .trim()
+                .toIntOrNull()
+                ?.takeIf { it > 0 } ?: DEFAULT_TASK_TIMEOUT_MINUTES
         set(value) {
             taskTimeout.text = value.toString()
         }

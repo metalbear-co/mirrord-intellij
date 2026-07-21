@@ -9,22 +9,25 @@ import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 
-data class RunConfigGuard(val executionId: Long) {
+data class RunConfigGuard(
+    val executionId: Long,
+) {
     var originEnv: Map<String, String> = LinkedHashMap()
     var originPackageManagerPackageRef: Any? = null
 }
 
 class MirrordNpmExecutionListener : ExecutionListener {
-
     companion object {
         val executions: MutableMap<Long, RunConfigGuard> = LinkedHashMap()
     }
 
-    private fun detectNpmRunConfiguration(env: ExecutionEnvironment): Boolean {
-        return env.runProfile::class.qualifiedName == "com.intellij.lang.javascript.buildTools.npm.rc.NpmRunConfiguration"
-    }
+    private fun detectNpmRunConfiguration(env: ExecutionEnvironment): Boolean =
+        env.runProfile::class.qualifiedName == "com.intellij.lang.javascript.buildTools.npm.rc.NpmRunConfiguration"
 
-    private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
+    private fun patchNpmEnv(
+        wslDistribution: WSLDistribution?,
+        env: ExecutionEnvironment,
+    ) {
         val service = env.project.service<MirrordProjectService>()
 
         val executionGuard = executions[env.executionId]!!
@@ -32,30 +35,34 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             val runSettings = MirrordNpmMutableRunSettings.fromRunProfile(env.project, env.runProfile)
 
-            val executablePath = if (SystemInfo.isMac) {
-                runSettings.packageManagerPackagePath
-            } else {
-                null
-            }
+            val executablePath =
+                if (SystemInfo.isMac) {
+                    runSettings.packageManagerPackagePath
+                } else {
+                    null
+                }
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-            service.execManager.wrapper("JS", executionGuard.originEnv).apply {
-                wsl = wslDistribution
-                executable = executablePath
-            }.start()?.let { executionInfo ->
-                var envs = (executionGuard.originEnv + executionInfo.environment)
+            service.execManager
+                .wrapper("JS", executionGuard.originEnv)
+                .apply {
+                    wsl = wslDistribution
+                    executable = executablePath
+                }.start()
+                ?.let { executionInfo ->
+                    var envs = (executionGuard.originEnv + executionInfo.environment)
 
-                executionInfo.envToUnset?.let { envToUnset ->
-                    envs = envs.filterKeys { !envToUnset.contains(it) }
-                }
-                runSettings.envs = envs
+                    executionInfo.envToUnset?.let { envToUnset ->
+                        envs = envs.filterKeys { !envToUnset.contains(it) }
+                    }
+                    runSettings.envs = envs
 
-                executionInfo.patchedPath?.let {
-                    executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
-                    runSettings.packageManagerPackagePath = it
+                    executionInfo.patchedPath?.let {
+                        executionGuard.originPackageManagerPackageRef = runSettings.packageManagerPackageRef
+                        runSettings.packageManagerPackagePath = it
+                    }
                 }
-            }
         } catch (e: Exception) {
             MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
             service.notifier.notifyRichError("mirrord failed to patch npm run")
@@ -83,7 +90,10 @@ class MirrordNpmExecutionListener : ExecutionListener {
         }
     }
 
-    override fun processStarting(executorId: String, env: ExecutionEnvironment) {
+    override fun processStarting(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         val service = env.project.service<MirrordProjectService>()
 
         if (!service.enabled || !this.detectNpmRunConfiguration(env)) {
@@ -92,17 +102,22 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
         executions[env.executionId] = RunConfigGuard(env.executionId)
 
-        val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val wsl =
+            when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
+                is WslTargetEnvironmentRequest -> request.configuration.distribution!!
+                else -> null
+            }
 
         patchNpmEnv(wsl, env)
 
         super.processStartScheduled(executorId, env)
     }
 
-    override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
+    override fun processStarted(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+    ) {
         if (this.detectNpmRunConfiguration(env) && executions.containsKey(env.executionId)) {
             clearNpmEnv(env)
         }
@@ -110,7 +125,10 @@ class MirrordNpmExecutionListener : ExecutionListener {
         super.processStarted(executorId, env, handler)
     }
 
-    override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
+    override fun processNotStarted(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         if (this.detectNpmRunConfiguration(env) && executions.containsKey(env.executionId)) {
             clearNpmEnv(env)
         }
@@ -118,7 +136,11 @@ class MirrordNpmExecutionListener : ExecutionListener {
         super.processNotStarted(executorId, env)
     }
 
-    override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
+    override fun processTerminating(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+    ) {
         if (this.detectNpmRunConfiguration(env) && executions.containsKey(env.executionId)) {
             clearNpmEnv(env)
         }

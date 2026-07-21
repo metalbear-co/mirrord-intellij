@@ -56,20 +56,22 @@ internal class MirrordPluginTest {
             val pluginPath = Paths.get(System.getProperty("test.plugin.path"))
 
             println("downloading IDE...")
-            val pathToIde = ideDownloader.downloadAndExtract(
-                Ide.PYCHARM,
-                tmpDir,
-                Ide.BuildType.RELEASE
-            )
+            val pathToIde =
+                ideDownloader.downloadAndExtract(
+                    Ide.PYCHARM,
+                    tmpDir,
+                    Ide.BuildType.RELEASE,
+                )
 
             // IdeLauncher fails when the IDE bin directory does not contain exactly one `.vmoptions` file for 64 arch.
             println("fixing vmoptions files...")
-            val ideBinDir = pathToIde.resolve(
-                when (Os.hostOS()) {
-                    Os.MAC -> "Contents/bin"
-                    else -> "bin"
-                }
-            )
+            val ideBinDir =
+                pathToIde.resolve(
+                    when (Os.hostOS()) {
+                        Os.MAC -> "Contents/bin"
+                        else -> "bin"
+                    },
+                )
             Files.list(ideBinDir).use { stream ->
                 val vmoptionsFiles =
                     stream
@@ -91,18 +93,19 @@ internal class MirrordPluginTest {
 
                 println("Keeping vmoptions file: $preferredVmoptions")
             }
-            ideaProcess = IdeLauncher.launchIde(
-                pathToIde,
-                mapOf(
-                    "robot-server.port" to 8082,
-                    "idea.trust.all.projects" to true,
-                    "robot-server.host.public" to true,
-                    "ide.show.tips.on.startup.default.value" to false
-                ),
-                emptyList(),
-                listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
-                tmpDir
-            )
+            ideaProcess =
+                IdeLauncher.launchIde(
+                    pathToIde,
+                    mapOf(
+                        "robot-server.port" to 8082,
+                        "idea.trust.all.projects" to true,
+                        "robot-server.host.public" to true,
+                        "ide.show.tips.on.startup.default.value" to false,
+                    ),
+                    emptyList(),
+                    listOf(ideDownloader.downloadRobotPlugin(tmpDir), pluginPath),
+                    tmpDir,
+                )
             println("waiting for IDE...")
             waitForIgnoringError(ofMinutes(3)) { remoteRobot.callJs("true") }
         }
@@ -127,145 +130,151 @@ internal class MirrordPluginTest {
 
     @Test
     @Video
-    fun testMirrordFlow() = with(remoteRobot) {
-        step("Close theme onboarding") {
-            closeMeetTheIslandsTheme()
-        }
-        step("Welcome Frame") {
-            welcomeFrame {
-                steps?.openProject(System.getProperty("test.workspace"))
+    fun testMirrordFlow() =
+        with(remoteRobot) {
+            step("Close theme onboarding") {
+                closeMeetTheIslandsTheme()
             }
-        }
-        idea {
-            step("Close usage banner") {
-                usageBanner.findText("Close").click()
+            step("Welcome Frame") {
+                welcomeFrame {
+                    steps?.openProject(System.getProperty("test.workspace"))
+                }
             }
-            step("Create config file") {
-                waitFor(ofSeconds(60)) {
-                    mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
+            idea {
+                step("Close usage banner") {
+                    usageBanner.findText("Close").click()
                 }
-                // as per the extension this doesn't need to be in the dumbAware block
-                // however, there can be a loading page which can only be ignored by the
-                // dumbAware block
-                dumbAware {
-                    mirrordDropdownButton.click()
-                }
-
-                waitFor(ofSeconds(60)) {
-                    mirrordDropdownMenu.isShowing
-                }
-
-                mirrordDropdownMenu.findText("mirrord config file").click()
-
-                editorTabs {
+                step("Create config file") {
                     waitFor(ofSeconds(60)) {
-                        isFileOpened("mirrord.json")
+                        mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
                     }
-                }
-            }
+                    // as per the extension this doesn't need to be in the dumbAware block
+                    // however, there can be a loading page which can only be ignored by the
+                    // dumbAware block
+                    dumbAware {
+                        mirrordDropdownButton.click()
+                    }
 
-            step("Open `app.py`") {
-                openFile("app.py")
-                editorTabs {
-                    waitFor {
-                        isFileOpened("app.py")
+                    waitFor(ofSeconds(60)) {
+                        mirrordDropdownMenu.isShowing
                     }
-                }
 
-                step("Set up Poetry Environment") {
-                    // blue stripe appears on top of the text window asking
-                    // to set up poetry environment, we click on setup poetry
-                    // option to quickly set up the environment
-                    pythonSetupPrompt {
-                        click()
-                    }
-                    statusBar {
-                        // wait for the progress bar to disappear - poetry is set up
-                        try {
-                            val progressIcon = progressIcon
-                            waitFor(ofSeconds(120)) {
-                                !progressIcon.isShowing
-                            }
-                        } catch (e: Exception) {
-                            waitForProgressFinished(ofSeconds(120))
+                    mirrordDropdownMenu.findText("mirrord config file").click()
+
+                    editorTabs {
+                        waitFor(ofSeconds(60)) {
+                            isFileOpened("mirrord.json")
                         }
                     }
                 }
 
-                step("Set breakpoint on line 8") {
-                    with(textEditor()) {
-                        // there is space on the right side of the line numbers
-                        // where we can click to set a breakpoint
-                        // thanks to Eugene Nizienko on intellij slack for this tip
-                        val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
-                        val lineNumberPoint = gutter.findText("8").point
-                        gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                step("Open `app.py`") {
+                    openFile("app.py")
+                    editorTabs {
+                        waitFor {
+                            isFileOpened("app.py")
+                        }
                     }
-                }
-            }
 
-            step("Enable mirrord and start debugging") {
-                waitFor(ofSeconds(30)) {
-                    enableMirrord.isShowing
-                    startDebugging.isShowing
-                }
-                enableMirrord.click()
-                dumbAware(waitAfter = false) {
-                    startDebugging.click()
-                }
-                step("Select pod to mirror traffic from") {
-                    val podToSelect = System.getenv("POD_TO_SELECT")
-                    val dialog =
-                        tryDialogContains("mirrord", ofSeconds(120)) ?: tryDialogContains("Target", ofSeconds(120))
-                    if (dialog != null) {
-                        runCatching { dialog.findText(podToSelect).click() }.getOrNull()
-                        runCatching { dialog.button("OK").click() }.getOrNull()
-                        runCatching { dialog.button("Continue").click() }.getOrNull()
-                    } else {
-                        runCatching {
-                            val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
-                                .firstOrNull { it.isShowing }
-                            if (list != null) {
-                                val item =
-                                    list.findAll<ContainerFixture>(
-                                        byXpath(".//div[@class='SimpleColoredComponent']")
-                                    ).firstOrNull { it.hasText(podToSelect) }
-                                if (item != null) {
-                                    item.click()
-                                } else {
-                                    list.click()
+                    step("Set up Poetry Environment") {
+                        // blue stripe appears on top of the text window asking
+                        // to set up poetry environment, we click on setup poetry
+                        // option to quickly set up the environment
+                        pythonSetupPrompt {
+                            click()
+                        }
+                        statusBar {
+                            // wait for the progress bar to disappear - poetry is set up
+                            try {
+                                val progressIcon = progressIcon
+                                waitFor(ofSeconds(120)) {
+                                    !progressIcon.isShowing
                                 }
+                            } catch (e: Exception) {
+                                waitForProgressFinished(ofSeconds(120))
                             }
-                        }.getOrNull()
+                        }
+                    }
+
+                    step("Set breakpoint on line 8") {
+                        with(textEditor()) {
+                            // there is space on the right side of the line numbers
+                            // where we can click to set a breakpoint
+                            // thanks to Eugene Nizienko on intellij slack for this tip
+                            val gutter = find<ContainerFixture>(GutterFixture.locator, ofSeconds(30))
+                            val lineNumberPoint = gutter.findText("8").point
+                            gutter.click(Point(lineNumberPoint.x + 5, lineNumberPoint.y))
+                        }
                     }
                 }
-                waitFor(ofSeconds(60)) {
-                    // once the session has started, the debug console shows
-                    // "Connected to pydev debugger"
-                    debuggerConnected.isShowing
-                    // make sure app listener is ready before sending test requests
-                    appRunning.isShowing
+
+                step("Enable mirrord and start debugging") {
+                    waitFor(ofSeconds(30)) {
+                        enableMirrord.isShowing
+                        startDebugging.isShowing
+                    }
+                    enableMirrord.click()
+                    dumbAware(waitAfter = false) {
+                        startDebugging.click()
+                    }
+                    step("Select pod to mirror traffic from") {
+                        val podToSelect = System.getenv("POD_TO_SELECT")
+                        val dialog =
+                            tryDialogContains("mirrord", ofSeconds(120)) ?: tryDialogContains("Target", ofSeconds(120))
+                        if (dialog != null) {
+                            runCatching { dialog.findText(podToSelect).click() }.getOrNull()
+                            runCatching { dialog.button("OK").click() }.getOrNull()
+                            runCatching { dialog.button("Continue").click() }.getOrNull()
+                        } else {
+                            runCatching {
+                                val list =
+                                    findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                                        .firstOrNull { it.isShowing }
+                                if (list != null) {
+                                    val item =
+                                        list
+                                            .findAll<ContainerFixture>(
+                                                byXpath(".//div[@class='SimpleColoredComponent']"),
+                                            ).firstOrNull { it.hasText(podToSelect) }
+                                    if (item != null) {
+                                        item.click()
+                                    } else {
+                                        list.click()
+                                    }
+                                }
+                            }.getOrNull()
+                        }
+                    }
+                    waitFor(ofSeconds(60)) {
+                        // once the session has started, the debug console shows
+                        // "Connected to pydev debugger"
+                        debuggerConnected.isShowing
+                        // make sure app listener is ready before sending test requests
+                        appRunning.isShowing
+                    }
                 }
-            }
 
-            step("Send traffic to pod") {
-                val kubeService = System.getenv("KUBE_SERVICE")
-                URI(kubeService).toURL().readText()
-            }
-
-            step("Assert breakpoint is hit") {
-                // The debugger frames list is populated and showing the right file and line number
-                waitFor {
-                    xDebuggerFramesList.isShowing
+                step("Send traffic to pod") {
+                    val kubeService = System.getenv("KUBE_SERVICE")
+                    URI(kubeService).toURL().readText()
                 }
-            }
 
-            stopDebugging.click()
+                step("Assert breakpoint is hit") {
+                    // The debugger frames list is populated and showing the right file and line number
+                    waitFor {
+                        xDebuggerFramesList.isShowing
+                    }
+                }
+
+                stopDebugging.click()
+            }
         }
-    }
 
     class IdeTestWatcher : TestWatcher {
-        override fun testFailed(context: ExtensionContext, cause: Throwable?) {
+        override fun testFailed(
+            context: ExtensionContext,
+            cause: Throwable?,
+        ) {
             ImageIO.write(remoteRobot.getScreenshot(), "png", File("build/reports", "${context.displayName}.png"))
         }
     }

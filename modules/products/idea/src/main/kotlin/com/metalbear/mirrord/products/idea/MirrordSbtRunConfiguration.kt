@@ -42,12 +42,15 @@ private const val MIRRORD_SBT_RUN_CONFIGURATION = "com.metalbear.mirrord.product
 class MirrordSbtRunConfiguration(
     project: com.intellij.openapi.project.Project,
     configurationFactory: com.intellij.execution.configurations.ConfigurationFactory,
-    name: String
+    name: String,
 ) : SbtRunConfiguration(project, configurationFactory, name) {
     @Volatile
     private var pendingMirrordExecution: MirrordExecution? = null
 
-    override fun getState(executor: Executor, env: ExecutionEnvironment): SbtCommandLineState {
+    override fun getState(
+        executor: Executor,
+        env: ExecutionEnvironment,
+    ): SbtCommandLineState {
         val executionInfo = prepareMirrordExecution() ?: return super.getState(executor, env) as SbtCommandLineState
 
         return if (useSbtShell) {
@@ -69,7 +72,7 @@ class MirrordSbtRunConfiguration(
 
         val processedCommands = buildMirrordAwareCommands()
         MirrordLogger.logger.debug(
-            "[${this.javaClass.name}] preprocessTasks: configuration=`$name`, commands=`$processedCommands`"
+            "[${this.javaClass.name}] preprocessTasks: configuration=`$name`, commands=`$processedCommands`",
         )
         return processedCommands
     }
@@ -78,22 +81,24 @@ class MirrordSbtRunConfiguration(
         val originalCommands = super.preprocessTasks()
         val executionInfo = pendingMirrordExecution.also { pendingMirrordExecution = null } ?: return originalCommands
 
-        val taskScope = resolveTaskScope(originalCommands) ?: run {
-            MirrordLogger.logger.warn(
-                "[${this.javaClass.name}] buildMirrordAwareCommands: unsupported SBT task `$originalCommands` for `$name`, running without shell env injection"
-            )
-            logWarningToUser(
-                "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
-                    "Task `$originalCommands` will run without mirrord shell env injection."
-            )
-            return originalCommands
-        }
+        val taskScope =
+            resolveTaskScope(originalCommands) ?: run {
+                MirrordLogger.logger.warn(
+                    "[${this.javaClass.name}] buildMirrordAwareCommands: unsupported SBT task `$originalCommands` for `$name`, running without shell env injection",
+                )
+                logWarningToUser(
+                    "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
+                        "Task `$originalCommands` will run without mirrord shell env injection.",
+                )
+                return originalCommands
+            }
 
         val originalEnv = getSbtConfigurationEnv(this)
-        val targetEnv = originalEnv +
-            executionInfo.environment +
-            mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent") -
-            executionInfo.envToUnset.orEmpty().toSet()
+        val targetEnv =
+            originalEnv +
+                executionInfo.environment +
+                mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent") -
+                executionInfo.envToUnset.orEmpty().toSet()
 
         val envMapLiteral = toSbtMapLiteral(targetEnv)
         return buildString {
@@ -139,7 +144,7 @@ class MirrordSbtRunConfiguration(
         return sortedEnv.entries.joinToString(
             prefix = "Map(",
             postfix = ")",
-            separator = ", "
+            separator = ", ",
         ) { (key, value) ->
             "\"${escapeSbtString(key)}\" -> \"${escapeSbtString(value)}\""
         }
@@ -164,20 +169,21 @@ class MirrordSbtRunConfiguration(
             maybeWarnAboutPlayProject()
 
             val originalCommands = super.preprocessTasks()
-            val taskScope = resolveTaskScope(originalCommands) ?: run {
-                logWarningToUser(
-                    "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
-                        "Task `$originalCommands` is not supported."
-                )
-                return null
-            }
+            val taskScope =
+                resolveTaskScope(originalCommands) ?: run {
+                    logWarningToUser(
+                        "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
+                            "Task `$originalCommands` is not supported.",
+                    )
+                    return null
+                }
 
             MirrordLogger.logger.debug(
-                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for `$name` taskScope=`$taskScope`"
+                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for `$name` taskScope=`$taskScope`",
             )
         } else {
             MirrordLogger.logger.debug(
-                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for direct SBT launch `$name`"
+                "[${this.javaClass.name}] prepareMirrordExecution: preparing mirrord for direct SBT launch `$name`",
             )
         }
 
@@ -187,13 +193,14 @@ class MirrordSbtRunConfiguration(
 
     private fun createDirectLaunchState(
         executionInfo: MirrordExecution,
-        env: ExecutionEnvironment
+        env: ExecutionEnvironment,
     ): SbtCommandLineState {
         val originalEnv = HashMap(environmentVariables())
-        val injectedEnv = originalEnv +
-            executionInfo.environment +
-            mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent") -
-            executionInfo.envToUnset.orEmpty().toSet()
+        val injectedEnv =
+            originalEnv +
+                executionInfo.environment +
+                mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent") -
+                executionInfo.envToUnset.orEmpty().toSet()
 
         environmentVariables().clear()
         environmentVariables().putAll(injectedEnv)
@@ -202,27 +209,31 @@ class MirrordSbtRunConfiguration(
             preprocessTasks(),
             this@MirrordSbtRunConfiguration,
             env,
-            Option.empty<Function1<String, BoxedUnit>>()
+            Option.empty<Function1<String, BoxedUnit>>(),
         ) {
-            override fun execute(executor: Executor, runner: ProgramRunner<*>): ExecutionResult {
-                return try {
+            override fun execute(
+                executor: Executor,
+                runner: ProgramRunner<*>,
+            ): ExecutionResult =
+                try {
                     super.execute(executor, runner).also { result ->
                         val processHandler = result.processHandler
                         if (processHandler == null) {
                             restoreEnvironment(originalEnv)
                         } else {
-                            processHandler.addProcessListener(object : ProcessAdapter() {
-                                override fun processTerminated(event: ProcessEvent) {
-                                    restoreEnvironment(originalEnv)
-                                }
-                            })
+                            processHandler.addProcessListener(
+                                object : ProcessAdapter() {
+                                    override fun processTerminated(event: ProcessEvent) {
+                                        restoreEnvironment(originalEnv)
+                                    }
+                                },
+                            )
                         }
                     }
                 } catch (t: Throwable) {
                     restoreEnvironment(originalEnv)
                     throw t
                 }
-            }
         }
     }
 
@@ -259,8 +270,8 @@ class MirrordSbtRunConfiguration(
         project.service<MirrordLogsService>().logWarning(message)
     }
 
-    private fun getSbtConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> {
-        return try {
+    private fun getSbtConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> =
+        try {
             if (configuration.javaClass.name == MIRRORD_SBT_RUN_CONFIGURATION) {
                 @Suppress("UNCHECKED_CAST")
                 configuration.javaClass.getMethod("environmentVariables").invoke(configuration) as? Map<String, String> ?: emptyMap()
@@ -270,9 +281,8 @@ class MirrordSbtRunConfiguration(
         } catch (e: ReflectiveOperationException) {
             MirrordLogger.logger.warn(
                 "Failed reading SBT run configuration environment for `${configuration.name}`: ${e.message}",
-                e
+                e,
             )
             emptyMap()
         }
-    }
 }

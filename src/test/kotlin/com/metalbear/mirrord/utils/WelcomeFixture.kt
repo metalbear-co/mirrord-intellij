@@ -32,7 +32,9 @@ fun RemoteRobot.closeMeetTheIslandsTheme() {
 @FixtureName("Welcome Frame")
 @DefaultXpath(
     "Welcome IdeFrame",
-    "//div[@class='IdeFrameImpl' and (contains(@accessiblename, 'Welcome - PyCharm') or contains(@title, 'Welcome'))]"
+    "//div[@class='IdeFrameImpl' and (contains(@accessiblename, 'Welcome - PyCharm') or contains(@title, 'Welcome'))]",
 )
-class WelcomeFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent)
+class WelcomeFrame(
+    remoteRobot: RemoteRobot,
+    remoteComponent: RemoteComponent,
+) : CommonContainerFixture(remoteRobot, remoteComponent)

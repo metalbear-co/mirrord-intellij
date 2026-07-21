@@ -13,8 +13,7 @@ import java.util.Base64
  * AND no resolved WSL distribution — WSL targets use the Linux/LD_PRELOAD path
  * regardless of host OS.
  */
-fun isWinNative(wsl: WSLDistribution?): Boolean =
-    SystemInfo.isWindows && wsl == null
+fun isWinNative(wsl: WSLDistribution?): Boolean = SystemInfo.isWindows && wsl == null
 
 /**
  * Helper for the `mirrord pitm` (Process In The Middle) Windows injection mode.
@@ -31,7 +30,6 @@ fun isWinNative(wsl: WSLDistribution?): Boolean =
  * the pitm wrapper process itself does not inherit them.
  */
 object MirrordPitm {
-
     /** Env var `mirrord pitm` reads to build the child process's environment. */
     const val CHILD_ENV_VAR = "MIRRORD_CHILD_ENV"
 
@@ -47,13 +45,13 @@ object MirrordPitm {
         commandLine: GeneralCommandLine,
         cliPath: String,
         mirrordEnvVars: Map<String, String>,
-        envToUnset: List<String>?
+        envToUnset: List<String>?,
     ) {
         MirrordLogger.logger.info(
             "MirrordPitm.wrapCommandLine: ENTER cliPath=$cliPath originalExe=${commandLine.exePath} " +
                 "originalArgsCount=${commandLine.parametersList.list.size} " +
                 "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0} " +
-                "cmdEnvSize=${commandLine.environment.size}"
+                "cmdEnvSize=${commandLine.environment.size}",
         )
 
         val childEnv = encodeChildEnv(mirrordEnvVars, envToUnset)
@@ -66,7 +64,7 @@ object MirrordPitm {
             }
         }
         MirrordLogger.logger.debug(
-            "MirrordPitm.wrapCommandLine: stripped $removedCount/${mirrordEnvVars.size} mirrord vars from wrapper env"
+            "MirrordPitm.wrapCommandLine: stripped $removedCount/${mirrordEnvVars.size} mirrord vars from wrapper env",
         )
 
         commandLine.withEnvironment(CHILD_ENV_VAR, childEnv)
@@ -83,13 +81,13 @@ object MirrordPitm {
         val leaked = commandLine.environment.keys.intersect(mirrordEnvVars.keys)
         if (leaked.isNotEmpty()) {
             MirrordLogger.logger.warn(
-                "MirrordPitm.wrapCommandLine: LEAK — mirrord env vars still present on wrapper command line: $leaked"
+                "MirrordPitm.wrapCommandLine: LEAK — mirrord env vars still present on wrapper command line: $leaked",
             )
         }
 
         MirrordLogger.logger.info(
             "MirrordPitm.wrapCommandLine: SUCCESS wrapped as `$cliPath pitm -- $originalExe <${originalArgs.size} args>`, " +
-                "CHILD_ENV payload.len=${childEnv.length}"
+                "CHILD_ENV payload.len=${childEnv.length}",
         )
     }
 
@@ -97,7 +95,10 @@ object MirrordPitm {
      * Encodes [envToSet] and [envToUnset] into the base64-JSON payload that
      * `mirrord pitm` expects in [CHILD_ENV_VAR].
      */
-    fun encodeChildEnv(envToSet: Map<String, String>, envToUnset: List<String>?): String {
+    fun encodeChildEnv(
+        envToSet: Map<String, String>,
+        envToUnset: List<String>?,
+    ): String {
         val json = JsonObject()
 
         val setObj = JsonObject()

@@ -16,13 +16,16 @@ import com.intellij.openapi.progress.Task
  * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
  * if it did, it will do nothing
  */
-class MirrordExecManager(private val service: MirrordProjectService) {
+class MirrordExecManager(
+    private val service: MirrordProjectService,
+) {
     /**
      * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
      * This is used to show a specific help popup in the case that listing targets took too long.
      */
-    class InitListingTargetsCancelledException(cause: Throwable? = null) :
-        ProcessCanceledException("Initial mirrord target listing was cancelled") {
+    class InitListingTargetsCancelledException(
+        cause: Throwable? = null,
+    ) : ProcessCanceledException("Initial mirrord target listing was cancelled") {
         init {
             cause?.let { initCause(it) }
         }
@@ -38,70 +41,84 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         cli: String,
         wslDistribution: WSLDistribution?,
         config: String?,
-        mirrordApi: MirrordApi
+        mirrordApi: MirrordApi,
     ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
-        val getTargets = { namespace: String?, targetTypes: List<String> -> mirrordApi.listTargets(cli, config, wslDistribution, namespace, targetTypes) }
+        val getTargets = { namespace: String?, targetTypes: List<String> ->
+            mirrordApi.listTargets(
+                cli,
+                config,
+                wslDistribution,
+                namespace,
+                targetTypes,
+            )
+        }
         val application = ApplicationManager.getApplication()
 
-        val selected = if (application.isDispatchThread) {
-            MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
-            val dialog = try {
-                MirrordExecDialog(service.project, getTargets)
-            } catch (e: ProcessCanceledException) {
-                throw InitListingTargetsCancelledException(e)
-            }
-            dialog.showAndGetSelection()
-        } else if (!application.isReadAccessAllowed) {
-            MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
-            var target: MirrordExecDialog.UserSelection? = null
-            application.invokeAndWait {
-                MirrordLogger.logger.debug("choosing target from invoke")
-                target = MirrordExecDialog(service.project, getTargets).showAndGetSelection()
-            }
-            target
-        } else {
-            MirrordLogger.logger.debug("read lock detected, aborting target selection")
+        val selected =
+            if (application.isDispatchThread) {
+                MirrordLogger.logger.debug("dispatch thread detected, choosing target on current thread")
+                val dialog =
+                    try {
+                        MirrordExecDialog(service.project, getTargets)
+                    } catch (e: ProcessCanceledException) {
+                        throw InitListingTargetsCancelledException(e)
+                    }
+                dialog.showAndGetSelection()
+            } else if (!application.isReadAccessAllowed) {
+                MirrordLogger.logger.debug("no read lock detected, choosing target on dispatch thread")
+                var target: MirrordExecDialog.UserSelection? = null
+                application.invokeAndWait {
+                    MirrordLogger.logger.debug("choosing target from invoke")
+                    target = MirrordExecDialog(service.project, getTargets).showAndGetSelection()
+                }
+                target
+            } else {
+                MirrordLogger.logger.debug("read lock detected, aborting target selection")
 
-            service
-                .notifier
-                .notification(
-                    "Due to a known IntelliJ platform limitation, " +
-                        "mirrord plugin was unable to display the target selection dialog. " +
-                        "You can set it manually in the configuration file.",
-                    NotificationType.WARNING
-                )
-                .apply {
-                    config.let {
-                        when {
-                            it != null -> withOpenPath(it)
-                            else -> withAction("Create") { _, _ ->
-                                WriteAction.run<InvalidProjectException> {
-                                    val newConfig = service.configApi.createDefaultConfig()
-                                    FileEditorManager.getInstance(service.project).openFile(newConfig, true)
-                                }
+                service
+                    .notifier
+                    .notification(
+                        "Due to a known IntelliJ platform limitation, " +
+                            "mirrord plugin was unable to display the target selection dialog. " +
+                            "You can set it manually in the configuration file.",
+                        NotificationType.WARNING,
+                    ).apply {
+                        config.let {
+                            when {
+                                it != null -> withOpenPath(it)
+                                else ->
+                                    withAction("Create") { _, _ ->
+                                        WriteAction.run<InvalidProjectException> {
+                                            val newConfig = service.configApi.createDefaultConfig()
+                                            FileEditorManager.getInstance(service.project).openFile(newConfig, true)
+                                        }
+                                    }
                             }
                         }
-                    }
-                }
-                .withLink("Config doc", "https://mirrord.dev/docs/reference/configuration/#root-target")
-                .fire()
+                    }.withLink("Config doc", "https://mirrord.dev/docs/reference/configuration/#root-target")
+                    .fire()
 
-            null
-        }
+                null
+            }
 
         return selected ?: throw ProcessCanceledException()
     }
 
-    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
+    private fun cliPath(
+        wslDistribution: WSLDistribution?,
+        product: String,
+    ): String {
         val path = service<MirrordBinaryManager>().getCliPath(product, wslDistribution, service.project)
         return wslPath(wslDistribution, path)
     }
 
     @Suppress("DEPRECATION")
-    private fun wslPath(wslDistribution: WSLDistribution?, path: String): String =
-        wslDistribution?.getWslPath(path) ?: path
+    private fun wslPath(
+        wslDistribution: WSLDistribution?,
+        path: String,
+    ): String = wslDistribution?.getWslPath(path) ?: path
 
     /**
      * Starts a plugin version check in a background thread.
@@ -109,19 +126,21 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     private fun dispatchPluginVersionCheck() {
         MirrordLogger.logger.debug("Plugin version check triggered")
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(service.project, "mirrord plugin version check", true) {
-            override fun run(indicator: ProgressIndicator) {
-                service.versionCheck.checkVersion()
-            }
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(service.project, "mirrord plugin version check", true) {
+                override fun run(indicator: ProgressIndicator) {
+                    service.versionCheck.checkVersion()
+                }
 
-            override fun onThrowable(error: Throwable) {
-                MirrordLogger.logger.debug("Failed to check plugin updates", error)
-                service.notifier.notifySimple(
-                    "Failed to check for plugin update",
-                    NotificationType.WARNING
-                )
-            }
-        })
+                override fun onThrowable(error: Throwable) {
+                    MirrordLogger.logger.debug("Failed to check plugin updates", error)
+                    service.notifier.notifySimple(
+                        "Failed to check for plugin update",
+                        NotificationType.WARNING,
+                    )
+                }
+            },
+        )
     }
 
     /**
@@ -133,7 +152,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         product: String,
         projectEnvVars: Map<String, String>?,
-        mirrordApi: MirrordApi
+        mirrordApi: MirrordApi,
     ): Pair<String?, MirrordExecDialog.UserSelection>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
@@ -146,22 +165,23 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         dispatchPluginVersionCheck()
 
-        val mirrordConfigPath = projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
-            if (it.contains("\$ProjectPath\$")) {
-                val projectFile = service.configApi.getProjectDir()
-                projectFile.canonicalPath?.let { path ->
-                    it.replace("\$ProjectPath\$", path)
-                } ?: run {
-                    service.notifier.notifySimple(
-                        "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
-                        NotificationType.WARNING
-                    )
+        val mirrordConfigPath =
+            projectEnvVars?.get(CONFIG_ENV_NAME)?.let {
+                if (it.contains("\$ProjectPath\$")) {
+                    val projectFile = service.configApi.getProjectDir()
+                    projectFile.canonicalPath?.let { path ->
+                        it.replace("\$ProjectPath\$", path)
+                    } ?: run {
+                        service.notifier.notifySimple(
+                            "Failed to evaluate `ProjectPath` macro used in `$CONFIG_ENV_NAME` environment variable",
+                            NotificationType.WARNING,
+                        )
+                        it
+                    }
+                } else {
                     it
                 }
-            } else {
-                it
             }
-        }
         val cli = cliPath(wslDistribution, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
@@ -171,29 +191,31 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val configPath = service.configApi.getConfigPath(mirrordConfigPath)
         MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
 
-        val verifiedConfig = configPath?.let {
-            val verifiedConfigOutput =
-                mirrordApi.verifyConfig(cli, wslPath(wslDistribution, it), wslDistribution)
-            MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
-            MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
-                MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
-                if (isError()) {
-                    MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
-                    throw InvalidConfigException(it, "Validation failed for config")
+        val verifiedConfig =
+            configPath?.let {
+                val verifiedConfigOutput =
+                    mirrordApi.verifyConfig(cli, wslPath(wslDistribution, it), wslDistribution)
+                MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
+                MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
+                    MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
+                    if (isError()) {
+                        MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
+                        throw InvalidConfigException(it, "Validation failed for config")
+                    }
                 }
             }
-        }
 
         MirrordLogger.logger.debug("Verified Config: $verifiedConfig, Target selection.")
 
         val targetSet = verifiedConfig?.let { isTargetSet(it.config) } ?: false
-        val target = if (!targetSet) {
-            // There is no config file or the config does not specify a target, so show dialog.
-            MirrordLogger.logger.debug("target not selected, showing dialog")
-            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
-        } else {
-            MirrordExecDialog.UserSelection(null, null)
-        }
+        val target =
+            if (!targetSet) {
+                // There is no config file or the config does not specify a target, so show dialog.
+                MirrordLogger.logger.debug("target not selected, showing dialog")
+                chooseTarget(cli, wslDistribution, configPath, mirrordApi)
+            } else {
+                MirrordExecDialog.UserSelection(null, null)
+            }
 
         return Pair(configPath, target)
     }
@@ -207,18 +229,18 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @param projectEnvVars Contains both system env vars, and (active) launch settings, see `Wrapper`.
      */
     @Throws(MirrordError::class)
-    private fun checkForSuspiciousEnvVars(
-        projectEnvVars: Map<String, String>?
-    ) {
-        val suspiciousMap = projectEnvVars?.filter {
-            it.key == "MIRRORD_RESOLVED_CONFIG" || ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains("libmirrord"))
-        }
+    private fun checkForSuspiciousEnvVars(projectEnvVars: Map<String, String>?) {
+        val suspiciousMap =
+            projectEnvVars?.filter {
+                it.key == "MIRRORD_RESOLVED_CONFIG" ||
+                    ((it.key == "LD_PRELOAD" || it.key == "DYLD_INSERT_LIBRARIES") && it.value.contains("libmirrord"))
+            }
 
         if (suspiciousMap?.isEmpty() == false) {
             MirrordLogger.logger.debug("Detected env var that was probably left behind! The culprits are: $suspiciousMap")
             throw MirrordError(
                 "Detected mirrord environment variables that were probably left behind by a previous execution: ${suspiciousMap.keys}!" +
-                    " Please check your project launch configuration and remove environment variables that you do not recognize."
+                    " Please check your project launch configuration and remove environment variables that you do not recognize.",
             )
         }
     }
@@ -235,7 +257,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         wslDistribution: WSLDistribution?,
         executable: String?,
         product: String,
-        projectEnvVars: Map<String, String>?
+        projectEnvVars: Map<String, String>?,
     ): MirrordExecution? {
         checkForSuspiciousEnvVars(projectEnvVars)
 
@@ -243,13 +265,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
         val cli = cliPath(wslDistribution, product)
 
-        val executionInfo = mirrordApi.exec(
-            cli,
-            target,
-            configPath,
-            executable,
-            wslDistribution
-        )
+        val executionInfo =
+            mirrordApi.exec(
+                cli,
+                target,
+                configPath,
+                executable,
+                wslDistribution,
+            )
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
@@ -263,22 +286,26 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
      * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
      */
-    fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
+    fun attach(
+        cliPath: String,
+        projectEnvVars: Map<String, String>,
+        pid: Long,
+    ): MirrordAttachExecution {
         MirrordLogger.logger.info(
-            "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}"
+            "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}",
         )
         val started = System.currentTimeMillis()
         val mirrordApi = service.mirrordApi(projectEnvVars)
         try {
             val result = mirrordApi.attach(cliPath, pid)
             MirrordLogger.logger.info(
-                "MirrordExecManager.attach: SUCCESS pid=$pid in ${System.currentTimeMillis() - started}ms"
+                "MirrordExecManager.attach: SUCCESS pid=$pid in ${System.currentTimeMillis() - started}ms",
             )
             return result
         } catch (e: Throwable) {
             MirrordLogger.logger.warn(
                 "MirrordExecManager.attach: FAILED pid=$pid after ${System.currentTimeMillis() - started}ms: ${e.message}",
-                e
+                e,
             )
             throw e
         }
@@ -287,18 +314,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     private fun containerStart(
         wslDistribution: WSLDistribution?,
         product: String,
-        projectEnvVars: Map<String, String>?
+        projectEnvVars: Map<String, String>?,
     ): MirrordContainerExecution? {
         val mirrordApi = service.mirrordApi(projectEnvVars)
         val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
         val cli = cliPath(wslDistribution, product)
 
-        val executionInfo = mirrordApi.containerExec(
-            cli,
-            target,
-            configPath,
-            wslDistribution
-        )
+        val executionInfo =
+            mirrordApi.containerExec(
+                cli,
+                target,
+                configPath,
+                wslDistribution,
+            )
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.extraArgs.add("-e")
@@ -312,18 +340,25 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * Helps to handle special cases and differences between the IDEs or language runners (like npm).
      */
-    class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
+    class Wrapper(
+        private val manager: MirrordExecManager,
+        private val product: String,
+        private val extraEnvVars: Map<String, String>?,
+    ) {
         var wsl: WSLDistribution? = null
         var executable: String? = null
 
-        fun start(): MirrordExecution? {
-            return try {
+        fun start(): MirrordExecution? =
+            try {
                 manager.start(wsl, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
             } catch (e: InitListingTargetsCancelledException) {
-                manager.service.notifier.notifySimple("mirrord was cancelled: if listing targets took too long, you can specify the target in the mirrord config", NotificationType.WARNING)
+                manager.service.notifier.notifySimple(
+                    "mirrord was cancelled: if listing targets took too long, you can specify the target in the mirrord config",
+                    NotificationType.WARNING,
+                )
                 throw e
             } catch (e: ProcessCanceledException) {
                 manager.service.notifier.notifySimple("mirrord was cancelled", NotificationType.WARNING)
@@ -333,10 +368,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 mirrordError.showHelp(manager.service.project)
                 throw e
             }
-        }
 
-        fun containerStart(): MirrordContainerExecution? {
-            return try {
+        fun containerStart(): MirrordContainerExecution? =
+            try {
                 manager.containerStart(wsl, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
@@ -349,7 +383,6 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 mirrordError.showHelp(manager.service.project)
                 throw e
             }
-        }
     }
 
     /**
@@ -362,7 +395,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * @return A `Wrapper` where you may call `start` to start running mirrord.
      */
-    fun wrapper(product: String, extraEnvVars: Map<String, String>?): Wrapper {
-        return Wrapper(this, product, extraEnvVars)
-    }
+    fun wrapper(
+        product: String,
+        extraEnvVars: Map<String, String>?,
+    ): Wrapper = Wrapper(this, product, extraEnvVars)
 }

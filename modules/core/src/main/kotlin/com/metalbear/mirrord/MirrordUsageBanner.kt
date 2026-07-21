@@ -47,19 +47,20 @@ class MirrordUsageBanner : ProjectActivity {
 
             val textPane = JTextPane(document).apply { isEditable = false }
 
-            val dialogPanel = JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                border = JBUI.Borders.empty(10, 5)
-                add(JLabel(MirrordIcons.usage).apply { alignmentX = JLabel.CENTER_ALIGNMENT })
-                add(Box.createRigidArea(Dimension(0, 20)))
-                add(JBScrollPane(textPane))
-            }
+            val dialogPanel =
+                JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                    border = JBUI.Borders.empty(10, 5)
+                    add(JLabel(MirrordIcons.usage).apply { alignmentX = JLabel.CENTER_ALIGNMENT })
+                    add(Box.createRigidArea(Dimension(0, 20)))
+                    add(JBScrollPane(textPane))
+                }
 
             return dialogPanel
         }
 
-        override fun createActions(): Array<Action> {
-            return arrayOf(
+        override fun createActions(): Array<Action> =
+            arrayOf(
                 DialogWrapperExitAction("Close", CLOSE_EXIT_CODE).apply {
                     putValue(DEFAULT_ACTION, true)
                 },
@@ -68,9 +69,8 @@ class MirrordUsageBanner : ProjectActivity {
                         MirrordSettingsState.instance.mirrordState.showUsageBanner = false
                         super.doAction(e)
                     }
-                }
+                },
             )
-        }
     }
 
     override suspend fun execute(project: Project) {

@@ -7,13 +7,17 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 
 class MirrordLogsToolWindowFactory : ToolWindowFactory {
-    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+    override fun createToolWindowContent(
+        project: Project,
+        toolWindow: ToolWindow,
+    ) {
         val logsService = project.service<MirrordLogsService>()
-        val content = ContentFactory.getInstance().createContent(
-            logsService.createConsoleComponent(),
-            "Logs",
-            false
-        )
+        val content =
+            ContentFactory.getInstance().createContent(
+                logsService.createConsoleComponent(),
+                "Logs",
+                false,
+            )
         toolWindow.contentManager.addContent(content)
     }
 

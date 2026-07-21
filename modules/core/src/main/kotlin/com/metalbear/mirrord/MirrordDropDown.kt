@@ -27,11 +27,12 @@ const val SLACK_URL = "https://metalbear.com/slack"
  * Copied from internal [com.intellij.execution.ui.TogglePopupAction].
  */
 abstract class TogglePopupAction : ToggleAction() {
-    override fun isSelected(e: AnActionEvent): Boolean {
-        return Toggleable.isSelected(e.presentation)
-    }
+    override fun isSelected(e: AnActionEvent): Boolean = Toggleable.isSelected(e.presentation)
 
-    override fun setSelected(e: AnActionEvent, state: Boolean) {
+    override fun setSelected(
+        e: AnActionEvent,
+        state: Boolean,
+    ) {
         if (!state) return
         val component = e.inputEvent?.component as? JComponent ?: return
         val popup = createPopup(e) ?: return
@@ -50,7 +51,7 @@ abstract class TogglePopupAction : ToggleAction() {
     open fun createPopup(
         actionGroup: ActionGroup,
         e: AnActionEvent,
-        disposeCallback: () -> Unit
+        disposeCallback: () -> Unit,
     ) = JBPopupFactory.getInstance().createActionGroupPopup(
         null,
         actionGroup,
@@ -60,7 +61,7 @@ abstract class TogglePopupAction : ToggleAction() {
         false,
         disposeCallback,
         30,
-        null
+        null,
     )
 
     abstract fun getActionGroup(e: AnActionEvent): ActionGroup?
@@ -71,9 +72,13 @@ fun VirtualFile.relativePath(project: Project): String {
         .substringAfter("$ELLIPSIS/") // trim leading "…/", which is confusing
 }
 
-class MirrordDropDown : TogglePopupAction(), DumbAware {
-    private class ShowActiveConfigAction(val config: VirtualFile, project: Project) :
-        AnAction("Active Config: ${config.relativePath(project)}") {
+class MirrordDropDown :
+    TogglePopupAction(),
+    DumbAware {
+    private class ShowActiveConfigAction(
+        val config: VirtualFile,
+        project: Project,
+    ) : AnAction("Active Config: ${config.relativePath(project)}") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
             FileEditorManager.getInstance(service.project).openFile(config, true)
@@ -93,18 +98,20 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
 
             val fileManager = VirtualFileManager.getInstance()
             val projectLocator = ProjectLocator.getInstance()
-            val configs = FileBasedIndex
-                .getInstance()
-                .getAllKeys(MIRRORD_CONFIG_INDEX_KEY, service.project)
-                .mapNotNull { fileManager.findFileByUrl(it) }
-                .filter { !it.isDirectory }
-                .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
-                .associateBy { it.relativePath(service.project) }
+            val configs =
+                FileBasedIndex
+                    .getInstance()
+                    .getAllKeys(MIRRORD_CONFIG_INDEX_KEY, service.project)
+                    .mapNotNull { fileManager.findFileByUrl(it) }
+                    .filter { !it.isDirectory }
+                    .filter { projectLocator.getProjectsForFile(it).contains(service.project) }
+                    .associateBy { it.relativePath(service.project) }
 
-            val selection = MirrordConfigDialog(
-                "Change mirrord active configuration",
-                configs.keys.toList().sorted()
-            ).show() ?: return
+            val selection =
+                MirrordConfigDialog(
+                    "Change mirrord active configuration",
+                    configs.keys.toList().sorted(),
+                ).show() ?: return
 
             service.activeConfig = selection.option?.let { configs[it] }
         }
@@ -142,14 +149,15 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
                 }
             }
 
-            val selected = configs
-                .keys
-                .toList()
-                .sorted()
-                .ifEmpty { null }
-                ?.let {
-                    it.singleOrNull() ?: MirrordConfigDialog("Edit mirrord configuration", it).show()?.option
-                }
+            val selected =
+                configs
+                    .keys
+                    .toList()
+                    .sorted()
+                    .ifEmpty { null }
+                    ?.let {
+                        it.singleOrNull() ?: MirrordConfigDialog("Edit mirrord configuration", it).show()?.option
+                    }
 
             selected?.let {
                 try {
@@ -234,32 +242,21 @@ private val MIRRORD_CONFIG_INDEX_KEY = ID.create<String, Void>("mirrordConfig")
  * Indexes files with names ending with `mirrord.json`.
  */
 class MirrordConfigIndex : ScalarIndexExtension<String>() {
+    override fun getName(): ID<String, Void> = MIRRORD_CONFIG_INDEX_KEY
 
-    override fun getName(): ID<String, Void> {
-        return MIRRORD_CONFIG_INDEX_KEY
-    }
-
-    override fun getIndexer(): DataIndexer<String, Void, FileContent> {
-        return DataIndexer {
+    override fun getIndexer(): DataIndexer<String, Void, FileContent> =
+        DataIndexer {
             Collections.singletonMap<String, Void>(it.file.url, null)
         }
-    }
 
-    override fun getKeyDescriptor(): KeyDescriptor<String> {
-        return EnumeratorStringDescriptor.INSTANCE
-    }
+    override fun getKeyDescriptor(): KeyDescriptor<String> = EnumeratorStringDescriptor.INSTANCE
 
-    override fun getVersion(): Int {
-        return 0
-    }
+    override fun getVersion(): Int = 0
 
-    override fun getInputFilter(): FileBasedIndex.InputFilter {
-        return FileBasedIndex.InputFilter {
+    override fun getInputFilter(): FileBasedIndex.InputFilter =
+        FileBasedIndex.InputFilter {
             it.isInLocalFileSystem && !it.isDirectory && MirrordConfigAPI.isConfigFilePath(it)
         }
-    }
 
-    override fun dependsOnFileContent(): Boolean {
-        return false
-    }
+    override fun dependsOnFileContent(): Boolean = false
 }

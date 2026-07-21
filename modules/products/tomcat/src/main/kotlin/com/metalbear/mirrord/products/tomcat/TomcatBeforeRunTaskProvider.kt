@@ -14,7 +14,9 @@ class TomcatBeforeRunTaskProvider : BeforeRunTaskProvider<TomcatBeforeRunTaskPro
      * Simple task that only executes the given callback.
      * Must throw an [Exception] in case execution should be stopped.
      */
-    class TomcatBeforeRunTask(val callback: () -> Unit) : BeforeRunTask<TomcatBeforeRunTask>(KEY)
+    class TomcatBeforeRunTask(
+        val callback: () -> Unit,
+    ) : BeforeRunTask<TomcatBeforeRunTask>(KEY)
 
     override fun getId(): Key<TomcatBeforeRunTask> = KEY
 
@@ -23,9 +25,7 @@ class TomcatBeforeRunTaskProvider : BeforeRunTaskProvider<TomcatBeforeRunTaskPro
     /**
      * Always returns null. Otherwise, the task would be visible to the users in the run configuration dialog when they add their own before launch tasks.
      */
-    override fun createTask(runConfiguration: RunConfiguration): TomcatBeforeRunTask? {
-        return null
-    }
+    override fun createTask(runConfiguration: RunConfiguration): TomcatBeforeRunTask? = null
 
     /**
      * Returning `false` here prevents the execution.
@@ -34,14 +34,13 @@ class TomcatBeforeRunTaskProvider : BeforeRunTaskProvider<TomcatBeforeRunTaskPro
         context: DataContext,
         configuration: RunConfiguration,
         environment: ExecutionEnvironment,
-        task: TomcatBeforeRunTask
-    ): Boolean {
-        return try {
+        task: TomcatBeforeRunTask,
+    ): Boolean =
+        try {
             task.callback.invoke()
             true
         } catch (_: Exception) {
             // Exceptions already handled in `MirrordExecManager`
             false
         }
-    }
 }

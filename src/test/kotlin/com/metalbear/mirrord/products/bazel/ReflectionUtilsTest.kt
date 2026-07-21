@@ -4,22 +4,17 @@ import groovy.lang.Tuple2
 import org.junit.jupiter.api.Test
 
 open class A {
+    fun callAfun(): String = "Afun"
 
-    fun callAfun(): String {
-        return "Afun"
-    }
+    fun callAfun(i: Int): String = "$i"
 
-    fun callAfun(i: Int): String {
-        return "$i"
-    }
-
-    fun callAfun(i1: Int, i2: Int): String {
-        return "$i1,$i2"
-    }
+    fun callAfun(
+        i1: Int,
+        i2: Int,
+    ): String = "$i1,$i2"
 }
 
 class ReflectionUtilsTest {
-
     @Test
     fun castFromClassNameTest() {
         val hashMap = HashMap<String, String>()
@@ -34,12 +29,13 @@ class ReflectionUtilsTest {
         assert(upcastedMap["key"] == "value")
 
         // bad cast
-        val exceptionThrown = try {
-            ReflectUtils.castFromClassName(hashMap, "java.lang.String")
-            false
-        } catch (_: ClassCastException) {
-            true
-        }
+        val exceptionThrown =
+            try {
+                ReflectUtils.castFromClassName(hashMap, "java.lang.String")
+                false
+            } catch (_: ClassCastException) {
+                true
+            }
 
         assert(exceptionThrown)
     }
@@ -50,12 +46,13 @@ class ReflectionUtilsTest {
         ReflectUtils.callFunction(hashMap, "put", "key", "value")
         assert(hashMap["key"] == "value")
 
-        val exceptionThrown = try {
-            ReflectUtils.callFunction(hashMap, "functionThatNonExist", "key", "value")
-            false
-        } catch (_: Throwable) {
-            true
-        }
+        val exceptionThrown =
+            try {
+                ReflectUtils.callFunction(hashMap, "functionThatNonExist", "key", "value")
+                false
+            } catch (_: Throwable) {
+                true
+            }
 
         assert(exceptionThrown)
 
@@ -79,12 +76,13 @@ class ReflectionUtilsTest {
         assert(time is Long)
         assert(time != null)
 
-        val exceptionThrown = try {
-            ReflectUtils.callStaticFunction("function.that.not.exist", "functionThatNonExist")
-            false
-        } catch (_: Throwable) {
-            true
-        }
+        val exceptionThrown =
+            try {
+                ReflectUtils.callStaticFunction("function.that.not.exist", "functionThatNonExist")
+                false
+            } catch (_: Throwable) {
+                true
+            }
 
         assert(exceptionThrown)
     }
@@ -101,12 +99,13 @@ class ReflectionUtilsTest {
         val entries = ReflectUtils.getPropertyByName(hashMap, "entries.size") as Int
         assert(entries == 1)
 
-        val exceptionThrown = try {
-            ReflectUtils.getPropertyByName(hashMap, "propertyThatNonExist")
-            false
-        } catch (_: Throwable) {
-            true
-        }
+        val exceptionThrown =
+            try {
+                ReflectUtils.getPropertyByName(hashMap, "propertyThatNonExist")
+                false
+            } catch (_: Throwable) {
+                true
+            }
 
         assert(exceptionThrown)
     }
@@ -122,12 +121,13 @@ class ReflectionUtilsTest {
         ReflectUtils.setPropertyByName(tuple2, "v1", 4)
         assert(tuple2.v1 == 4)
 
-        val exceptionThrown = try {
-            ReflectUtils.setPropertyByName(tuple, "propertyThatNonExist", 3)
-            false
-        } catch (_: Throwable) {
-            true
-        }
+        val exceptionThrown =
+            try {
+                ReflectUtils.setPropertyByName(tuple, "propertyThatNonExist", 3)
+                false
+            } catch (_: Throwable) {
+                true
+            }
 
         assert(exceptionThrown)
     }

@@ -15,37 +15,38 @@ import java.time.Duration
 fun ContainerFixture.dialog(
     title: String,
     timeout: Duration = Duration.ofSeconds(30),
-    function: DialogFixture.() -> Unit = {}
-): DialogFixture = step("Search for dialog with title $title") {
-    find<DialogFixture>(DialogFixture.byTitle(title), timeout).apply(function)
-}
+    function: DialogFixture.() -> Unit = {},
+): DialogFixture =
+    step("Search for dialog with title $title") {
+        find<DialogFixture>(DialogFixture.byTitle(title), timeout).apply(function)
+    }
 
 fun ContainerFixture.tryDialogContains(
     title: String,
     timeout: Duration = Duration.ofSeconds(5),
-    function: DialogFixture.() -> Unit = {}
-): DialogFixture? = step("Search for dialog containing title $title") {
-    val dialog = runCatching {
-        waitFor<DialogFixture?>(timeout) {
-            val match = findAll<DialogFixture>(DialogFixture.byTitleContains(title)).firstOrNull()
-            Pair(match != null, match)
-        }
-    }.getOrNull()
-    dialog?.apply(function)
-}
+    function: DialogFixture.() -> Unit = {},
+): DialogFixture? =
+    step("Search for dialog containing title $title") {
+        val dialog =
+            runCatching {
+                waitFor<DialogFixture?>(timeout) {
+                    val match = findAll<DialogFixture>(DialogFixture.byTitleContains(title)).firstOrNull()
+                    Pair(match != null, match)
+                }
+            }.getOrNull()
+        dialog?.apply(function)
+    }
 
 @FixtureName("Dialog")
 class DialogFixture(
     remoteRobot: RemoteRobot,
-    remoteComponent: RemoteComponent
+    remoteComponent: RemoteComponent,
 ) : CommonContainerFixture(remoteRobot, remoteComponent) {
-
     companion object {
         @JvmStatic
         fun byTitle(title: String) = byXpath("title $title", "//div[@title='$title' and @class='MyDialog']")
 
         @JvmStatic
-        fun byTitleContains(title: String) =
-            byXpath("title contains $title", "//div[contains(@title,'$title') and @class='MyDialog']")
+        fun byTitleContains(title: String) = byXpath("title contains $title", "//div[contains(@title,'$title') and @class='MyDialog']")
     }
 }

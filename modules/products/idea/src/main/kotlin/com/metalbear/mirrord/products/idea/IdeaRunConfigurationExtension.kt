@@ -65,23 +65,33 @@ private const val GRADLE_RUN_CONFIGURATION = "org.jetbrains.plugins.gradle.servi
 /**
  * Exact task names that never fork a user JVM (packaging / clean / docs / housekeeping).
  */
-private val GRADLE_BUILD_ONLY_EXACT = setOf(
-    "clean",
-    "jar", "war", "bootJar", "bootWar", "shadowJar", "distTar", "distZip",
-    "javadoc",
-    "wrapper", "init",
-    "classes", "testClasses"
-)
+private val GRADLE_BUILD_ONLY_EXACT =
+    setOf(
+        "clean",
+        "jar",
+        "war",
+        "bootJar",
+        "bootWar",
+        "shadowJar",
+        "distTar",
+        "distZip",
+        "javadoc",
+        "wrapper",
+        "init",
+        "classes",
+        "testClasses",
+    )
 
 /**
  * Prefix matches for build-only tasks. Covers multiplatform / Android / custom
  * source-set variants: `compileJava`, `compileKotlinJvm`, `compileDebugJavaWithJavac`,
  * `compileIntegrationTestJava`, `processResources`, `processTestResources`, etc.
  */
-private val GRADLE_BUILD_ONLY_PREFIXES = listOf(
-    "compile",
-    "process" // processResources, process*Resources
-)
+private val GRADLE_BUILD_ONLY_PREFIXES =
+    listOf(
+        "compile",
+        "process", // processResources, process*Resources
+    )
 
 private fun isGradleBuildOnlyTask(task: String): Boolean {
     val bare = task.removePrefix(":").substringAfterLast(':')
@@ -93,30 +103,29 @@ internal fun isIdeaConfigurationApplicableForMirrord(configuration: RunConfigura
     val skipTomcat = configuration.name.startsWith("Build ") || configuration.name.startsWith("Tomcat")
 
     val gradleTaskNames = (configuration as? ExternalSystemRunConfiguration)?.settings?.taskNames ?: emptyList()
-    val skipGradleBuild = configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
-        gradleTaskNames.isNotEmpty() &&
-        gradleTaskNames.all(::isGradleBuildOnlyTask)
+    val skipGradleBuild =
+        configuration.javaClass.name == GRADLE_RUN_CONFIGURATION &&
+            gradleTaskNames.isNotEmpty() &&
+            gradleTaskNames.all(::isGradleBuildOnlyTask)
 
     val forceRunMirrord = getForceRunMirrord(configuration)
 
     return forceRunMirrord || !(skipTomcat || skipGradleBuild)
 }
 
-internal fun getIdeaConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> {
-    return when (configuration) {
+internal fun getIdeaConfigurationEnv(configuration: RunConfigurationBase<*>): Map<String, String> =
+    when (configuration) {
         is ExternalSystemRunConfiguration -> configuration.settings.env
         is CommonProgramRunConfigurationParameters -> configuration.envs
         else -> emptyMap()
     }
-}
 
-private fun getForceRunMirrord(configuration: RunConfigurationBase<*>): Boolean {
-    return if (configuration is ExternalSystemRunConfiguration) {
+private fun getForceRunMirrord(configuration: RunConfigurationBase<*>): Boolean =
+    if (configuration is ExternalSystemRunConfiguration) {
         configuration.settings.env[FORCE_RUN_ENV_NAME].toBoolean()
     } else {
         false
     }
-}
 
 class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     /**
@@ -137,43 +146,46 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
 
     override fun isEnabledFor(
         applicableConfiguration: RunConfigurationBase<*>,
-        runnerSettings: RunnerSettings?
-    ): Boolean {
-        return true
-    }
+        runnerSettings: RunnerSettings?,
+    ): Boolean = true
 
     override fun <T : RunConfigurationBase<*>> updateJavaParameters(
         configuration: T,
         params: JavaParameters,
-        runnerSettings: RunnerSettings?
+        runnerSettings: RunnerSettings?,
     ) {
-        val configSummary = "cfg=`${configuration.name}` class=${configuration.javaClass.simpleName} " +
-            "runnerSettings=${runnerSettings?.javaClass?.simpleName ?: "null"} " +
-            "isExternal=${configuration.isExternalBuildSystem()}"
+        val configSummary =
+            "cfg=`${configuration.name}` class=${configuration.javaClass.simpleName} " +
+                "runnerSettings=${runnerSettings?.javaClass?.simpleName ?: "null"} " +
+                "isExternal=${configuration.isExternalBuildSystem()}"
         MirrordLogger.logger.info("updateJavaParameters: ENTER $configSummary")
 
-        val executionInfo = IdeaMirrordPreparationStore.consume(configuration) ?: run {
-            // Main mirrord initialization is prepared by a before-run task to avoid blocking here under read lock.
-            MirrordLogger.logger.info("updateJavaParameters: no prepared executionInfo for `${configuration.name}`, skipping (check IdeaExecutionListener/BeforeRunTask ran)")
-            return
-        }
+        val executionInfo =
+            IdeaMirrordPreparationStore.consume(configuration) ?: run {
+                // Main mirrord initialization is prepared by a before-run task to avoid blocking here under read lock.
+                MirrordLogger.logger.info(
+                    "updateJavaParameters: no prepared executionInfo for `${configuration.name}`, skipping (check IdeaExecutionListener/BeforeRunTask ran)",
+                )
+                return
+            }
 
         val mirrordEnv = executionInfo.environment + mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
         val envToUnset = executionInfo.envToUnset
         MirrordLogger.logger.info(
-            "updateJavaParameters: executionInfo consumed, mirrordEnv size=${mirrordEnv.size}, envToUnset size=${envToUnset?.size ?: 0}"
+            "updateJavaParameters: executionInfo consumed, mirrordEnv size=${mirrordEnv.size}, envToUnset size=${envToUnset?.size ?: 0}",
         )
 
         // Resolve WSL for platform gating (Windows-native-only pitm/attach paths).
         @Suppress("UnstableApiUsage")
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val wsl =
+            when (val request = createEnvironmentRequest(configuration, configuration.project)) {
+                is WslTargetEnvironmentRequest -> request.configuration.distribution!!
+                else -> null
+            }
         val winNative = isWinNative(wsl)
         val isDebug = runnerSettings.isJvmDebug
         MirrordLogger.logger.info(
-            "updateJavaParameters: platform gating winNative=$winNative wsl=${wsl?.presentableName ?: "null"} isDebug=$isDebug"
+            "updateJavaParameters: platform gating winNative=$winNative wsl=${wsl?.presentableName ?: "null"} isDebug=$isDebug",
         )
 
         // On Windows native, try to wrap the JDK with mirrord pitm. When that
@@ -185,34 +197,36 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         // params.jdk is null — Gradle manages its own JDK. For Gradle debug
         // on Windows we use mirrord-attach instead (armIdeaDebugAttach below).
         val envSizeBefore = params.env.size
-        val pitmWrapped = if (winNative && !configuration.isExternalBuildSystem()) {
-            MirrordLogger.logger.info("updateJavaParameters: branch=NON_GRADLE_WIN, attempting wrapJdkWithPitm")
-            wrapJdkWithPitm(configuration.project, params, mirrordEnv, envToUnset)
-        } else {
-            false
-        }
+        val pitmWrapped =
+            if (winNative && !configuration.isExternalBuildSystem()) {
+                MirrordLogger.logger.info("updateJavaParameters: branch=NON_GRADLE_WIN, attempting wrapJdkWithPitm")
+                wrapJdkWithPitm(configuration.project, params, mirrordEnv, envToUnset)
+            } else {
+                false
+            }
 
         if (!pitmWrapped) {
             params.env = params.env + mirrordEnv - envToUnset.orEmpty().toSet()
             MirrordLogger.logger.info(
                 "updateJavaParameters: mirrord env set on params.env directly (pitm NOT engaged), " +
-                    "params.env size $envSizeBefore → ${params.env.size}"
+                    "params.env size $envSizeBefore → ${params.env.size}",
             )
         } else {
             MirrordLogger.logger.info(
-                "updateJavaParameters: pitm JDK wrap succeeded, params.env size $envSizeBefore → ${params.env.size}"
+                "updateJavaParameters: pitm JDK wrap succeeded, params.env size $envSizeBefore → ${params.env.size}",
             )
         }
 
         // Gradle support (and external system configuration)
         if (configuration.isExternalBuildSystem()) {
-            val gradleBranch = when {
-                winNative && !isDebug -> "GRADLE_WIN_RUN"
-                winNative && isDebug -> "GRADLE_WIN_DEBUG"
-                else -> "GRADLE_PLAIN_ENV"
-            }
+            val gradleBranch =
+                when {
+                    winNative && !isDebug -> "GRADLE_WIN_RUN"
+                    winNative && isDebug -> "GRADLE_WIN_DEBUG"
+                    else -> "GRADLE_PLAIN_ENV"
+                }
             MirrordLogger.logger.info(
-                "updateJavaParameters: ExternalSystem branch=$gradleBranch taskNames=${configuration.settings.taskNames}"
+                "updateJavaParameters: ExternalSystem branch=$gradleBranch taskNames=${configuration.settings.taskNames}",
             )
 
             runningProcessEnvs[configuration] = configuration.settings.env.toMap()
@@ -221,7 +235,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             }
             MirrordLogger.logger.debug(
                 "updateJavaParameters: snapshotted settings.env size=${configuration.settings.env.size}, " +
-                    "scriptParameters=${configuration.settings.scriptParameters}"
+                    "scriptParameters=${configuration.settings.scriptParameters}",
             )
 
             if (winNative && !isDebug) {
@@ -234,7 +248,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                 val env = configuration.settings.env + mirrordEnv - envToUnset.orEmpty().toSet()
                 configuration.settings.env = env
                 MirrordLogger.logger.info(
-                    "updateJavaParameters: settings.env updated directly, now ${configuration.settings.env.size} vars"
+                    "updateJavaParameters: settings.env updated directly, now ${configuration.settings.env.size} vars",
                 )
             }
 
@@ -269,11 +283,11 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         project: Project,
         params: JavaParameters,
         mirrordEnvVars: Map<String, String>,
-        envToUnset: List<String>?
+        envToUnset: List<String>?,
     ): Boolean {
         MirrordLogger.logger.info(
             "wrapJdkWithPitm: ENTER jdk=${params.jdk?.name ?: "null"} jdkHome=${params.jdk?.homePath ?: "null"} " +
-                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}",
         )
 
         val realJdk = params.jdk
@@ -281,7 +295,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             MirrordLogger.logger.error("wrapJdkWithPitm: no JDK on run config, aborting")
             project.service<MirrordProjectService>().notifier.notifySimple(
                 "mirrord: no JDK on run config; pitm wrap failed",
-                NotificationType.ERROR
+                NotificationType.ERROR,
             )
             return false
         }
@@ -290,61 +304,68 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             MirrordLogger.logger.error("wrapJdkWithPitm: JDK `${realJdk.name}` has no homePath, aborting")
             project.service<MirrordProjectService>().notifier.notifySimple(
                 "mirrord: JDK `${realJdk.name}` has no homePath; pitm wrap failed",
-                NotificationType.ERROR
+                NotificationType.ERROR,
             )
             return false
         }
 
-        val mirrordExe = try {
-            File(service<MirrordBinaryManager>().getBinary("idea", null, project))
-        } catch (e: Exception) {
-            MirrordLogger.logger.warn("wrapJdkWithPitm: failed to resolve mirrord binary: ${e.message}", e)
-            project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: could not resolve mirrord binary for pitm wrap (${e.message}); layer will not load",
-                NotificationType.ERROR
-            )
-            return false
-        }
+        val mirrordExe =
+            try {
+                File(service<MirrordBinaryManager>().getBinary("idea", null, project))
+            } catch (e: Exception) {
+                MirrordLogger.logger.warn("wrapJdkWithPitm: failed to resolve mirrord binary: ${e.message}", e)
+                project.service<MirrordProjectService>().notifier.notifySimple(
+                    "mirrord: could not resolve mirrord binary for pitm wrap (${e.message}); layer will not load",
+                    NotificationType.ERROR,
+                )
+                return false
+            }
         MirrordLogger.logger.debug(
-            "wrapJdkWithPitm: mirrordExe=${mirrordExe.absolutePath} exists=${mirrordExe.isFile} size=${if (mirrordExe.isFile) mirrordExe.length() else -1}"
+            "wrapJdkWithPitm: mirrordExe=${mirrordExe.absolutePath} exists=${mirrordExe.isFile} size=${if (mirrordExe.isFile) {
+                mirrordExe
+                    .length()
+            } else {
+                -1
+            }}",
         )
 
-        val wrapped = MirrordPitmJdk.wrap(realJdk, mirrordExe) ?: run {
-            MirrordLogger.logger.warn("wrapJdkWithPitm: MirrordPitmJdk.wrap returned null — see MirrordPitmJdk logs above")
-            project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: fake JDK preparation failed; pitm wrap skipped",
-                NotificationType.WARNING
-            )
-            return false
-        }
+        val wrapped =
+            MirrordPitmJdk.wrap(realJdk, mirrordExe) ?: run {
+                MirrordLogger.logger.warn("wrapJdkWithPitm: MirrordPitmJdk.wrap returned null — see MirrordPitmJdk logs above")
+                project.service<MirrordProjectService>().notifier.notifySimple(
+                    "mirrord: fake JDK preparation failed; pitm wrap skipped",
+                    NotificationType.WARNING,
+                )
+                return false
+            }
 
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
 
         val envSizeBefore = params.env.size
         params.jdk = wrapped
-        params.env = params.env + mapOf(
-            MirrordPitmJdk.REAL_JAVA_ENV to "$realHome/bin/java.exe",
-            MirrordPitm.CHILD_ENV_VAR to childEnvPayload
-        )
+        params.env = params.env +
+            mapOf(
+                MirrordPitmJdk.REAL_JAVA_ENV to "$realHome/bin/java.exe",
+                MirrordPitm.CHILD_ENV_VAR to childEnvPayload,
+            )
         // Guardrail: if any raw mirrord env vars leaked onto params.env, the
         // mirrord.exe wrapper itself would inherit them. Detect and loudly warn.
         val leaked = params.env.keys.intersect(mirrordEnvVars.keys)
         if (leaked.isNotEmpty()) {
             MirrordLogger.logger.warn(
                 "wrapJdkWithPitm: LEAK — mirrord env vars present on params.env after pitm wrap: $leaked. " +
-                    "These should only live inside MIRRORD_CHILD_ENV."
+                    "These should only live inside MIRRORD_CHILD_ENV.",
             )
         }
         MirrordLogger.logger.info(
             "wrapJdkWithPitm: SUCCESS realJava=$realHome/bin/java.exe " +
                 "childEnvPayload.len=${childEnvPayload.length} " +
-                "params.env $envSizeBefore → ${params.env.size} (+REAL_JAVA, +CHILD_ENV)"
+                "params.env $envSizeBefore → ${params.env.size} (+REAL_JAVA, +CHILD_ENV)",
         )
         return true
     }
 
-    private fun resolveCliPath(project: Project): String =
-        service<MirrordBinaryManager>().getCliPath("idea", null, project)
+    private fun resolveCliPath(project: Project): String = service<MirrordBinaryManager>().getCliPath("idea", null, project)
 
     /**
      * Arms a one-shot listener that holds the target JVM suspended via JDI while
@@ -365,12 +386,12 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      */
     private fun armIdeaDebugAttach(
         targetConfiguration: RunConfigurationBase<*>,
-        envVars: Map<String, String>
+        envVars: Map<String, String>,
     ) {
         val project = targetConfiguration.project
         val cliPath = resolveCliPath(project)
         MirrordLogger.logger.info(
-            "armIdeaDebugAttach: wiring listener for config=`${targetConfiguration.name}`, cliPath=$cliPath"
+            "armIdeaDebugAttach: wiring listener for config=`${targetConfiguration.name}`, cliPath=$cliPath",
         )
 
         // connect(project) ties the bus to project lifetime — if the debug
@@ -401,7 +422,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                     if (javaProcess == null) {
                         MirrordLogger.logger.warn(
                             "armIdeaDebugAttach: processStarted for target config but not JavaDebugProcess " +
-                                "(got ${debugProcess::class.qualifiedName}), skipping"
+                                "(got ${debugProcess::class.qualifiedName}), skipping",
                         )
                         busConnection.disconnect()
                         return
@@ -413,104 +434,110 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                     // a DebuggerCommand on the manager thread → vm.suspend() to hold the
                     // VM → find target PID via netstat → mirrord attach → vm.resume().
                     val debugProcessImpl = javaProcess.debuggerSession.process
-                    debugProcessImpl.addDebugProcessListener(object : DebugProcessListener {
-                        override fun processAttached(process: DebugProcess) {
-                            val impl = process as? DebugProcessImpl ?: return
-                            debugProcessImpl.removeDebugProcessListener(this)
+                    debugProcessImpl.addDebugProcessListener(
+                        object : DebugProcessListener {
+                            override fun processAttached(process: DebugProcess) {
+                                val impl = process as? DebugProcessImpl ?: return
+                                debugProcessImpl.removeDebugProcessListener(this)
 
-                            // getVirtualMachineProxy() asserts we're on the debugger
-                            // manager thread. processAttached fires from commitVM which
-                            // may run on a connection thread or EDT, so schedule the
-                            // suspend on the manager thread. This command runs before
-                            // the auto-resume command that commitVM queues afterwards.
-                            impl.managerThread.schedule(object : DebuggerCommandImpl() {
-                                override fun action() {
-                                    val vm = try {
-                                        impl.virtualMachineProxy.virtualMachine
-                                    } catch (e: Exception) {
-                                        MirrordLogger.logger.warn(
-                                            "armIdeaDebugAttach: VM not accessible: ${e.message}"
-                                        )
-                                        busConnection.disconnect()
-                                        return
-                                    }
+                                // getVirtualMachineProxy() asserts we're on the debugger
+                                // manager thread. processAttached fires from commitVM which
+                                // may run on a connection thread or EDT, so schedule the
+                                // suspend on the manager thread. This command runs before
+                                // the auto-resume command that commitVM queues afterwards.
+                                impl.managerThread.schedule(
+                                    object : DebuggerCommandImpl() {
+                                        override fun action() {
+                                            val vm =
+                                                try {
+                                                    impl.virtualMachineProxy.virtualMachine
+                                                } catch (e: Exception) {
+                                                    MirrordLogger.logger.warn(
+                                                        "armIdeaDebugAttach: VM not accessible: ${e.message}",
+                                                    )
+                                                    busConnection.disconnect()
+                                                    return
+                                                }
 
-                                    // Extra suspend — prevents the upcoming auto-resume
-                                    // from running user code.
-                                    vm.suspend()
-                                    MirrordLogger.logger.info(
-                                        "armIdeaDebugAttach: vm.suspend() on manager thread (extra hold)"
-                                    )
+                                            // Extra suspend — prevents the upcoming auto-resume
+                                            // from running user code.
+                                            vm.suspend()
+                                            MirrordLogger.logger.info(
+                                                "armIdeaDebugAttach: vm.suspend() on manager thread (extra hold)",
+                                            )
 
-                                    val port: Int?
-                                    val debuggerListens: Boolean
-                                    try {
-                                        val conn = impl.connection
+                                            val port: Int?
+                                            val debuggerListens: Boolean
+                                            try {
+                                                val conn = impl.connection
 
-                                        @Suppress("DEPRECATION")
-                                        val address = conn.address
-                                        port = address?.toIntOrNull()
-                                        // isServerMode=true means IntelliJ (debugger) listens,
-                                        // target connects TO that port.
-                                        debuggerListens = conn.isServerMode
-                                    } catch (e: Exception) {
-                                        MirrordLogger.logger.warn(
-                                            "armIdeaDebugAttach: could not read JDWP connection: ${e.message}"
-                                        )
-                                        vm.resume()
-                                        busConnection.disconnect()
-                                        return
-                                    }
-
-                                    ApplicationManager.getApplication().executeOnPooledThread {
-                                        try {
-                                            val pid = if (port != null) findPidByJdwpPort(port, debuggerListens) else null
-                                            if (pid == null) {
+                                                @Suppress("DEPRECATION")
+                                                val address = conn.address
+                                                port = address?.toIntOrNull()
+                                                // isServerMode=true means IntelliJ (debugger) listens,
+                                                // target connects TO that port.
+                                                debuggerListens = conn.isServerMode
+                                            } catch (e: Exception) {
                                                 MirrordLogger.logger.warn(
-                                                    "armIdeaDebugAttach: could not find PID for JDWP port $port " +
-                                                        "(debuggerListens=$debuggerListens). Debug session will proceed WITHOUT mirrord layer."
+                                                    "armIdeaDebugAttach: could not read JDWP connection: ${e.message}",
                                                 )
-                                                project.service<MirrordProjectService>().notifier.notifySimple(
-                                                    "mirrord: could not identify target JVM (JDWP port $port); debug session proceeding without layer",
-                                                    NotificationType.WARNING
-                                                )
-                                                return@executeOnPooledThread
+                                                vm.resume()
+                                                busConnection.disconnect()
+                                                return
                                             }
 
-                                            MirrordLogger.logger.info(
-                                                "armIdeaDebugAttach: attaching to pid=$pid"
-                                            )
-                                            project.service<MirrordProjectService>()
-                                                .execManager
-                                                .attach(cliPath, envVars, pid)
-                                            MirrordLogger.logger.info(
-                                                "armIdeaDebugAttach: attach completed for pid $pid"
-                                            )
-                                        } catch (e: Exception) {
-                                            MirrordLogger.logger.error(
-                                                "armIdeaDebugAttach: attach failed",
-                                                e
-                                            )
-                                            project.service<MirrordProjectService>().notifier.notifySimple(
-                                                "mirrord attach failed: ${e.message}",
-                                                NotificationType.ERROR
-                                            )
-                                        } finally {
-                                            // Release our extra suspend — IntelliJ's auto-resume
-                                            // already decremented the count, so this drops it to 0.
-                                            vm.resume()
-                                            MirrordLogger.logger.info(
-                                                "armIdeaDebugAttach: vm.resume() (extra hold released)"
-                                            )
-                                            busConnection.disconnect()
+                                            ApplicationManager.getApplication().executeOnPooledThread {
+                                                try {
+                                                    val pid = if (port != null) findPidByJdwpPort(port, debuggerListens) else null
+                                                    if (pid == null) {
+                                                        MirrordLogger.logger.warn(
+                                                            "armIdeaDebugAttach: could not find PID for JDWP port $port " +
+                                                                "(debuggerListens=$debuggerListens). Debug session will proceed WITHOUT mirrord layer.",
+                                                        )
+                                                        project.service<MirrordProjectService>().notifier.notifySimple(
+                                                            "mirrord: could not identify target JVM (JDWP port $port); debug session proceeding without layer",
+                                                            NotificationType.WARNING,
+                                                        )
+                                                        return@executeOnPooledThread
+                                                    }
+
+                                                    MirrordLogger.logger.info(
+                                                        "armIdeaDebugAttach: attaching to pid=$pid",
+                                                    )
+                                                    project
+                                                        .service<MirrordProjectService>()
+                                                        .execManager
+                                                        .attach(cliPath, envVars, pid)
+                                                    MirrordLogger.logger.info(
+                                                        "armIdeaDebugAttach: attach completed for pid $pid",
+                                                    )
+                                                } catch (e: Exception) {
+                                                    MirrordLogger.logger.error(
+                                                        "armIdeaDebugAttach: attach failed",
+                                                        e,
+                                                    )
+                                                    project.service<MirrordProjectService>().notifier.notifySimple(
+                                                        "mirrord attach failed: ${e.message}",
+                                                        NotificationType.ERROR,
+                                                    )
+                                                } finally {
+                                                    // Release our extra suspend — IntelliJ's auto-resume
+                                                    // already decremented the count, so this drops it to 0.
+                                                    vm.resume()
+                                                    MirrordLogger.logger.info(
+                                                        "armIdeaDebugAttach: vm.resume() (extra hold released)",
+                                                    )
+                                                    busConnection.disconnect()
+                                                }
+                                            }
                                         }
-                                    }
-                                }
-                            })
-                        }
-                    })
+                                    },
+                                )
+                            }
+                        },
+                    )
                 }
-            }
+            },
         )
     }
 
@@ -522,58 +549,71 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
      *   target connects to it (match REMOTE port, ESTABLISHED). When false
      *   the target JVM listens on [port] (match LOCAL port, LISTENING).
      */
-    private fun findPidByJdwpPort(port: Int, debuggerListens: Boolean): Long? {
+    private fun findPidByJdwpPort(
+        port: Int,
+        debuggerListens: Boolean,
+    ): Long? {
         val started = System.currentTimeMillis()
-        val process = try {
-            ProcessBuilder("cmd", "/c", "netstat -ano")
-                .redirectErrorStream(true)
-                .start()
-        } catch (e: Exception) {
-            MirrordLogger.logger.warn("findPidByJdwpPort: failed to spawn netstat for port $port: ${e.message}", e)
-            return null
-        }
+        val process =
+            try {
+                ProcessBuilder("cmd", "/c", "netstat -ano")
+                    .redirectErrorStream(true)
+                    .start()
+            } catch (e: Exception) {
+                MirrordLogger.logger.warn("findPidByJdwpPort: failed to spawn netstat for port $port: ${e.message}", e)
+                return null
+            }
 
         return try {
             val output = process.inputStream.bufferedReader().use { it.readText() }
             val exited = process.waitFor(10, TimeUnit.SECONDS)
             val elapsed = System.currentTimeMillis() - started
             MirrordLogger.logger.info(
-                "findPidByJdwpPort: netstat completed in ${elapsed}ms exited=$exited exitCode=${if (exited) process.exitValue() else -1} outputLen=${output.length}"
+                "findPidByJdwpPort: netstat completed in ${elapsed}ms exited=$exited exitCode=${if (exited) process.exitValue() else -1} outputLen=${output.length}",
             )
             if (!exited) {
                 MirrordLogger.logger.warn("findPidByJdwpPort: netstat did not exit within 10s for port $port")
             }
 
-            val pid = if (debuggerListens) {
-                // IntelliJ listens on :port → target is the side whose REMOTE addr is :port.
-                // netstat: TCP  <local>:<localPort>  <remote>:<remotePort>  ESTABLISHED  <pid>
-                // We want lines where REMOTE ends with :<port> but LOCAL is NOT :<port>
-                // (to exclude IntelliJ's own side of the connection).
-                val pattern = Regex("""\s+TCP\s+(\S+)\s+\S+:$port\s+ESTABLISHED\s+(\d+)""")
-                val all = pattern.findAll(output).toList()
-                val filtered = all.filter { !it.groupValues[1].endsWith(":$port") }
-                MirrordLogger.logger.info(
-                    "findPidByJdwpPort: serverMode — ESTABLISHED matches total=${all.size} after-excluding-IDE-side=${filtered.size}"
-                )
-                if (filtered.size > 1) {
-                    MirrordLogger.logger.warn(
-                        "findPidByJdwpPort: AMBIGUOUS — ${filtered.size} distinct PIDs connect to :$port. Picking first: " +
-                            filtered.joinToString(", ") { "${it.groupValues[2]}@${it.groupValues[1]}" }
+            val pid =
+                if (debuggerListens) {
+                    // IntelliJ listens on :port → target is the side whose REMOTE addr is :port.
+                    // netstat: TCP  <local>:<localPort>  <remote>:<remotePort>  ESTABLISHED  <pid>
+                    // We want lines where REMOTE ends with :<port> but LOCAL is NOT :<port>
+                    // (to exclude IntelliJ's own side of the connection).
+                    val pattern = Regex("""\s+TCP\s+(\S+)\s+\S+:$port\s+ESTABLISHED\s+(\d+)""")
+                    val all = pattern.findAll(output).toList()
+                    val filtered = all.filter { !it.groupValues[1].endsWith(":$port") }
+                    MirrordLogger.logger.info(
+                        "findPidByJdwpPort: serverMode — ESTABLISHED matches total=${all.size} after-excluding-IDE-side=${filtered.size}",
                     )
+                    if (filtered.size > 1) {
+                        MirrordLogger.logger.warn(
+                            "findPidByJdwpPort: AMBIGUOUS — ${filtered.size} distinct PIDs connect to :$port. Picking first: " +
+                                filtered.joinToString(", ") { "${it.groupValues[2]}@${it.groupValues[1]}" },
+                        )
+                    }
+                    filtered
+                        .firstOrNull()
+                        ?.groupValues
+                        ?.get(2)
+                        ?.toLongOrNull()
+                } else {
+                    // Target listens on :port → match LOCAL port, LISTENING
+                    val pattern = Regex("""\s+TCP\s+\S+:$port\s+\S+\s+LISTENING\s+(\d+)""")
+                    val matches = pattern.findAll(output).toList()
+                    MirrordLogger.logger.info(
+                        "findPidByJdwpPort: clientMode — LISTENING matches=${matches.size}",
+                    )
+                    matches
+                        .firstOrNull()
+                        ?.groupValues
+                        ?.get(1)
+                        ?.toLongOrNull()
                 }
-                filtered.firstOrNull()?.groupValues?.get(2)?.toLongOrNull()
-            } else {
-                // Target listens on :port → match LOCAL port, LISTENING
-                val pattern = Regex("""\s+TCP\s+\S+:$port\s+\S+\s+LISTENING\s+(\d+)""")
-                val matches = pattern.findAll(output).toList()
-                MirrordLogger.logger.info(
-                    "findPidByJdwpPort: clientMode — LISTENING matches=${matches.size}"
-                )
-                matches.firstOrNull()?.groupValues?.get(1)?.toLongOrNull()
-            }
 
             MirrordLogger.logger.info(
-                "findPidByJdwpPort: RESULT port=$port debuggerListens=$debuggerListens → pid=$pid"
+                "findPidByJdwpPort: RESULT port=$port debuggerListens=$debuggerListens → pid=$pid",
             )
             pid
         } catch (e: Exception) {
@@ -593,25 +633,30 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
     override fun attachToProcess(
         configuration: RunConfigurationBase<*>,
         handler: ProcessHandler,
-        runnerSettings: RunnerSettings?
+        runnerSettings: RunnerSettings?,
     ) {
         if (configuration.isExternalBuildSystem()) {
             val envsToRestore = runningProcessEnvs.remove(configuration) ?: return
             val scriptParamsToRestore = runningProcessScriptParams.remove(configuration)
 
-            handler.addProcessListener(object : ProcessListener {
-                override fun processTerminated(event: ProcessEvent) {
-                    configuration.settings.env.apply {
-                        clear()
-                        putAll(envsToRestore)
+            handler.addProcessListener(
+                object : ProcessListener {
+                    override fun processTerminated(event: ProcessEvent) {
+                        configuration.settings.env.apply {
+                            clear()
+                            putAll(envsToRestore)
+                        }
+                        configuration.settings.scriptParameters = scriptParamsToRestore // null if key wasn't present
                     }
-                    configuration.settings.scriptParameters = scriptParamsToRestore // null if key wasn't present
-                }
 
-                override fun startNotified(event: ProcessEvent) {}
+                    override fun startNotified(event: ProcessEvent) {}
 
-                override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {}
-            })
+                    override fun onTextAvailable(
+                        event: ProcessEvent,
+                        outputType: Key<*>,
+                    ) {}
+                },
+            )
         }
     }
 }

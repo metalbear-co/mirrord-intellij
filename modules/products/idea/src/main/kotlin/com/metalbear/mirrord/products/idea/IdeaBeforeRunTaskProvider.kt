@@ -14,7 +14,9 @@ class IdeaBeforeRunTaskProvider : BeforeRunTaskProvider<IdeaBeforeRunTaskProvide
      * Simple task that only executes the given callback.
      * Must throw an [Exception] in case execution should be stopped.
      */
-    class IdeaBeforeRunTask(val callback: () -> Unit) : BeforeRunTask<IdeaBeforeRunTask>(IDEA_BEFORE_RUN_KEY)
+    class IdeaBeforeRunTask(
+        val callback: () -> Unit,
+    ) : BeforeRunTask<IdeaBeforeRunTask>(IDEA_BEFORE_RUN_KEY)
 
     override fun getId(): Key<IdeaBeforeRunTask> = IDEA_BEFORE_RUN_KEY
 
@@ -23,9 +25,7 @@ class IdeaBeforeRunTaskProvider : BeforeRunTaskProvider<IdeaBeforeRunTaskProvide
     /**
      * Always returns null. Otherwise, the task would be visible in the run configuration UI.
      */
-    override fun createTask(runConfiguration: RunConfiguration): IdeaBeforeRunTask? {
-        return null
-    }
+    override fun createTask(runConfiguration: RunConfiguration): IdeaBeforeRunTask? = null
 
     /**
      * Returning `false` here prevents the execution.
@@ -34,14 +34,13 @@ class IdeaBeforeRunTaskProvider : BeforeRunTaskProvider<IdeaBeforeRunTaskProvide
         context: DataContext,
         configuration: RunConfiguration,
         environment: ExecutionEnvironment,
-        task: IdeaBeforeRunTask
-    ): Boolean {
-        return try {
+        task: IdeaBeforeRunTask,
+    ): Boolean =
+        try {
             task.callback.invoke()
             true
         } catch (_: Exception) {
             // Exceptions already handled in `MirrordExecManager`.
             false
         }
-    }
 }

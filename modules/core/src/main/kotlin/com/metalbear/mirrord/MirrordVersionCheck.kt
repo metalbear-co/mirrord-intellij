@@ -19,7 +19,9 @@ private val VERSION_CHECK_ENDPOINT: String =
     "https://version.mirrord.dev/get-latest-version?source=3&version=$VERSION&platform=$OS"
 private const val LAST_CHECK_KEY = "lastCheck"
 
-class MirrordVersionCheck(private val service: MirrordProjectService) {
+class MirrordVersionCheck(
+    private val service: MirrordProjectService,
+) {
     /**
      * Fetch the latest version number, compare to local version. If there is a later version available, notify.
      * Return early without checking if already performed full check in the last 3 minutes.
@@ -44,22 +46,20 @@ class MirrordVersionCheck(private val service: MirrordProjectService) {
         val localVersion = Version.parse(VERSION)
         if (localVersion.isLowerThan(remoteVersion)) {
             ApplicationManager.getApplication().invokeLater {
-                service.notifier.notification(
-                    "The version of the mirrord plugin is outdated. Would you like to update it now?",
-                    NotificationType.INFORMATION
-                )
-                    .withAction("Update") { _, n ->
+                service.notifier
+                    .notification(
+                        "The version of the mirrord plugin is outdated. Would you like to update it now?",
+                        NotificationType.INFORMATION,
+                    ).withAction("Update") { _, n ->
                         try {
                             PluginManagerConfigurable.showPluginConfigurable(service.project, listOf(PLUGIN_ID))
                         } finally {
                             n.expire()
                         }
-                    }
-                    .withAction("Don't show again") { _, n ->
+                    }.withAction("Don't show again") { _, n ->
                         MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
                         n.expire()
-                    }
-                    .fire()
+                    }.fire()
             }
         }
         return

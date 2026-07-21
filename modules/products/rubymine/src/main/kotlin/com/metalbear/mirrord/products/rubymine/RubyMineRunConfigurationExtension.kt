@@ -18,73 +18,73 @@ import kotlin.io.path.pathString
 import kotlin.io.path.writeText
 
 class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
-
-    override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean {
-        return true
-    }
+    override fun isApplicableFor(configuration: AbstractRubyRunConfiguration<*>): Boolean = true
 
     override fun isEnabledFor(
         applicableConfiguration: AbstractRubyRunConfiguration<*>,
-        runnerSettings: RunnerSettings?
-    ): Boolean {
-        return true
-    }
+        runnerSettings: RunnerSettings?,
+    ): Boolean = true
 
     override fun patchCommandLine(
         configuration: AbstractRubyRunConfiguration<*>,
         runnerSettings: RunnerSettings?,
         cmdLine: GeneralCommandLine,
-        runnerId: String
+        runnerId: String,
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 
         val isMac = SystemInfo.isMac
 
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val wsl =
+            when (val request = createEnvironmentRequest(configuration, configuration.project)) {
+                is WslTargetEnvironmentRequest -> request.configuration.distribution!!
+                else -> null
+            }
 
         val currentEnv = cmdLine.environment
-        service.execManager.wrapper("rubymine", configuration.envs).apply {
-            this.wsl = wsl
-            if (isMac) {
-                this.executable = cmdLine.exePath
-            }
-        }.start()?.let { executionInfo ->
-            // this is the env the Ruby app and the layer see, at least with RVM.
-            cmdLine.withEnvironment(executionInfo.environment)
-
-            for (key in executionInfo.envToUnset.orEmpty()) {
-                cmdLine.environment.remove(key)
-            }
-
-            if (isMac) {
-                executionInfo.patchedPath?.let {
-                    cmdLine.exePath = it
+        service.execManager
+            .wrapper("rubymine", configuration.envs)
+            .apply {
+                this.wsl = wsl
+                if (isMac) {
+                    this.executable = cmdLine.exePath
                 }
-                MirrordLogger.logger.info("RubyMineRunConfigurationExtension.patchCommandLine: cmdLine=${cmdLine.exePath}")
-                // asdf-ruby compiles the ruby interpreter locally and so doesn't any special SIP handling because the
-                // binary isn't signed at all
-                val isAsdf = cmdLine.exePath.contains("/.asdf/")
-                // TODO: would be nice to have a more robust RVM detection mechanism.
-                val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
-                if (isRvm) {
-                    val path = createTempFile("mirrord-ruby-launcher-", ".sh")
-                    // Using patched exe inside the launcher script.
-                    path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
-                    cmdLine.exePath = path.pathString
-                    path.toFile().setExecutable(true)
-                } else if (!isAsdf) {
-                    val e = MirrordError(
-                        "At the moment, only RVM and ASDF ruby installs are supported by mirrord on RubyMine on macOS, due to SIP.",
-                        "Support for other Rubies is tracked on " +
-                            "https://github.com/metalbear-co/mirrord-intellij/issues/134."
-                    )
-                    e.showHelp(configuration.project)
-                    throw e
+            }.start()
+            ?.let { executionInfo ->
+                // this is the env the Ruby app and the layer see, at least with RVM.
+                cmdLine.withEnvironment(executionInfo.environment)
+
+                for (key in executionInfo.envToUnset.orEmpty()) {
+                    cmdLine.environment.remove(key)
+                }
+
+                if (isMac) {
+                    executionInfo.patchedPath?.let {
+                        cmdLine.exePath = it
+                    }
+                    MirrordLogger.logger.info("RubyMineRunConfigurationExtension.patchCommandLine: cmdLine=${cmdLine.exePath}")
+                    // asdf-ruby compiles the ruby interpreter locally and so doesn't any special SIP handling because the
+                    // binary isn't signed at all
+                    val isAsdf = cmdLine.exePath.contains("/.asdf/")
+                    // TODO: would be nice to have a more robust RVM detection mechanism.
+                    val isRvm = cmdLine.exePath.contains("/.rvm/rubies/")
+                    if (isRvm) {
+                        val path = createTempFile("mirrord-ruby-launcher-", ".sh")
+                        // Using patched exe inside the launcher script.
+                        path.writeText("DYLD_INSERT_LIBRARIES=${currentEnv["DYLD_INSERT_LIBRARIES"]} ${cmdLine.exePath} $@")
+                        cmdLine.exePath = path.pathString
+                        path.toFile().setExecutable(true)
+                    } else if (!isAsdf) {
+                        val e =
+                            MirrordError(
+                                "At the moment, only RVM and ASDF ruby installs are supported by mirrord on RubyMine on macOS, due to SIP.",
+                                "Support for other Rubies is tracked on " +
+                                    "https://github.com/metalbear-co/mirrord-intellij/issues/134.",
+                            )
+                        e.showHelp(configuration.project)
+                        throw e
+                    }
                 }
             }
-        }
     }
 }

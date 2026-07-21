@@ -14,7 +14,9 @@ import com.intellij.openapi.project.Project
  * shell-backed runs need command rewriting, while direct launches need environment injection into
  * the SBT run configuration before the Scala plugin builds the JVM command line.
  */
-class MirrordSbtConfigurationType : ConfigurationType, DumbAware {
+class MirrordSbtConfigurationType :
+    ConfigurationType,
+    DumbAware {
     private val configurationFactory = MirrordSbtConfigurationFactory(this)
 
     override fun getDisplayName(): String = "mirrord SBT"
@@ -29,9 +31,10 @@ class MirrordSbtConfigurationType : ConfigurationType, DumbAware {
     override fun getConfigurationFactories(): Array<ConfigurationFactory> = arrayOf(configurationFactory)
 }
 
-class MirrordSbtConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(type) {
-    override fun createTemplateConfiguration(project: Project): RunConfiguration =
-        MirrordSbtRunConfiguration(project, this, "mirrord SBT")
+class MirrordSbtConfigurationFactory(
+    type: ConfigurationType,
+) : ConfigurationFactory(type) {
+    override fun createTemplateConfiguration(project: Project): RunConfiguration = MirrordSbtRunConfiguration(project, this, "mirrord SBT")
 
     override fun getId(): String = "mirrord-sbt"
 

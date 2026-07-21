@@ -11,7 +11,10 @@ import com.intellij.util.asSafely
  *
  * The command outputs either a `type = "Success"` or `type = "Fail"`.
  */
-class MirrordVerifiedConfig(private val verified: String, private val notifier: MirrordNotifier) {
+class MirrordVerifiedConfig(
+    private val verified: String,
+    private val notifier: MirrordNotifier,
+) {
     /**
      * The errors when the output is `type = "Fail"`.
      */
@@ -25,22 +28,22 @@ class MirrordVerifiedConfig(private val verified: String, private val notifier: 
     init {
         val gson = Gson()
 
-        this.config = gson.fromJson(this.verified, Map::class.java).let { verified ->
-            verified["warnings"].asSafely<List<String>>().also { warnings ->
-                warnings?.forEach { this.notifier.notifySimple(it, NotificationType.WARNING) }
-            }
+        this.config =
+            gson.fromJson(this.verified, Map::class.java).let { verified ->
+                verified["warnings"].asSafely<List<String>>().also { warnings ->
+                    warnings?.forEach { this.notifier.notifySimple(it, NotificationType.WARNING) }
+                }
 
-            val errors = verified["errors"].asSafely<List<String>>().also { errors ->
-                errors?.forEach { this.notifier.notifySimple(it, NotificationType.ERROR) }
-            }
-            this.errors = errors
+                val errors =
+                    verified["errors"].asSafely<List<String>>().also { errors ->
+                        errors?.forEach { this.notifier.notifySimple(it, NotificationType.ERROR) }
+                    }
+                this.errors = errors
 
-            verified["config"].toString()
-        }
+                verified["config"].toString()
+            }
         MirrordLogger.logger.debug("verified config ${this.config}")
     }
 
-    fun isError(): Boolean {
-        return !this.errors.isNullOrEmpty()
-    }
+    fun isError(): Boolean = !this.errors.isNullOrEmpty()
 }

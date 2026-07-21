@@ -18,17 +18,12 @@ import com.metalbear.mirrord.MirrordProjectService
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
-
-    override fun isApplicableFor(configuration: GoRunConfigurationBase<*>): Boolean {
-        return true
-    }
+    override fun isApplicableFor(configuration: GoRunConfigurationBase<*>): Boolean = true
 
     override fun isEnabledFor(
         applicableConfiguration: GoRunConfigurationBase<*>,
-        runnerSettings: RunnerSettings?
-    ): Boolean {
-        return true
-    }
+        runnerSettings: RunnerSettings?,
+    ): Boolean = true
 
     override fun patchCommandLine(
         configuration: GoRunConfigurationBase<*>,
@@ -36,34 +31,38 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         cmdLine: TargetedCommandLineBuilder,
         runnerId: String,
         state: GoRunningState<out GoRunConfigurationBase<*>>,
-        commandLineType: GoRunningState.CommandLineType
+        commandLineType: GoRunningState.CommandLineType,
     ) {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
             val service = configuration.getProject().service<MirrordProjectService>()
 
-            val wsl = state.targetEnvironmentRequest?.let {
-                if (it is WslTargetEnvironmentRequest) {
-                    it.configuration.distribution
-                } else {
-                    null
-                }
-            }
-
-            service.execManager.wrapper("goland", configuration.getCustomEnvironment()).apply {
-                this.wsl = wsl
-            }.start()?.let { executionInfo ->
-
-                for (entry in executionInfo.environment.entries.iterator()) {
-                    cmdLine.addEnvironmentVariable(entry.key, entry.value)
-                }
-                cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
-
-                executionInfo.envToUnset?.let { keys ->
-                    for (key in keys.iterator()) {
-                        cmdLine.removeEnvironmentVariable(key)
+            val wsl =
+                state.targetEnvironmentRequest?.let {
+                    if (it is WslTargetEnvironmentRequest) {
+                        it.configuration.distribution
+                    } else {
+                        null
                     }
                 }
-            }
+
+            service.execManager
+                .wrapper("goland", configuration.getCustomEnvironment())
+                .apply {
+                    this.wsl = wsl
+                }.start()
+                ?.let { executionInfo ->
+
+                    for (entry in executionInfo.environment.entries.iterator()) {
+                        cmdLine.addEnvironmentVariable(entry.key, entry.value)
+                    }
+                    cmdLine.addEnvironmentVariable("MIRRORD_SKIP_PROCESSES", "dlv;debugserver;go")
+
+                    executionInfo.envToUnset?.let { keys ->
+                        for (key in keys.iterator()) {
+                            cmdLine.removeEnvironmentVariable(key)
+                        }
+                    }
+                }
         }
         super.patchCommandLine(configuration, runnerSettings, cmdLine, runnerId, state, commandLineType)
     }
@@ -78,7 +77,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         executor: GoExecutor,
         runnerId: String,
         state: GoRunningState<out GoRunConfigurationBase<*>>,
-        commandLineType: GoRunningState.CommandLineType
+        commandLineType: GoRunningState.CommandLineType,
     ) {
         val service = configuration.getProject().service<MirrordProjectService>()
 
@@ -90,10 +89,11 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         val ourDelvePath = getCustomDelvePath()
         val delveExecutable = Paths.get(ourDelvePath).toFile()
         if (!delveExecutable.exists()) {
-            val error = MirrordError(
-                "Failed to find delve bundled with mirrord plugin ($ourDelvePath",
-                "This is a bug, please contact us."
-            )
+            val error =
+                MirrordError(
+                    "Failed to find delve bundled with mirrord plugin ($ourDelvePath",
+                    "This is a bug, please contact us.",
+                )
             error.showHelp(configuration.getProject())
             throw error
         }
@@ -102,13 +102,14 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
             delveExecutable.setExecutable(true)
         }
 
-        val ourDelveVersion = try {
-            getDelveVersion(ourDelvePath)
-        } catch (e: Throwable) {
-            MirrordLogger.logger.error("Failed to get version delve bundled with mirrord plugin ($ourDelvePath)", e)
-            super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
-            return
-        }
+        val ourDelveVersion =
+            try {
+                getDelveVersion(ourDelvePath)
+            } catch (e: Throwable) {
+                MirrordLogger.logger.error("Failed to get version delve bundled with mirrord plugin ($ourDelvePath)", e)
+                super.patchExecutor(configuration, runnerSettings, executor, runnerId, state, commandLineType)
+                return
+            }
 
         // parameters returns a copy, and we can't modify it so need to reset it.
         val patchedParameters = executor.parameters
@@ -122,14 +123,15 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
                 continue
             }
 
-            val delveVersion = try {
-                getDelveVersion(foundDelvePath)
-            } catch (e: Throwable) {
-                MirrordLogger
-                    .logger
-                    .error("Failed to get version of delve found in executor parameters ($foundDelvePath)", e)
-                continue
-            }
+            val delveVersion =
+                try {
+                    getDelveVersion(foundDelvePath)
+                } catch (e: Throwable) {
+                    MirrordLogger
+                        .logger
+                        .error("Failed to get version of delve found in executor parameters ($foundDelvePath)", e)
+                    continue
+                }
 
             if (delveVersion.lessThan(ourDelveVersion)) {
                 patchedParameters[i] = PathParameter(delveExecutable.toString())
@@ -144,29 +146,29 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
     /**
      * Return path to custom delve bundled with mirrord plugin.
      */
-    private fun getCustomDelvePath(): String {
-        return MirrordPathManager.getBinary("dlv", false)!!
-    }
+    private fun getCustomDelvePath(): String = MirrordPathManager.getBinary("dlv", false)!!
 
     /**
      * Get version of the given delve.
      */
     private fun getDelveVersion(path: String): Version {
-        val process = ProcessBuilder(path, "version")
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .start()
+        val process =
+            ProcessBuilder(path, "version")
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
 
         val exitCode = process.waitFor()
         if (exitCode != 0) {
             throw Exception("dlv version command exited with code $exitCode")
         }
 
-        val versionLine = process
-            .inputStream
-            .bufferedReader()
-            .readLines()
-            .find { it.startsWith("Version: ") } ?: throw Exception("no output line starts with 'Version: '")
+        val versionLine =
+            process
+                .inputStream
+                .bufferedReader()
+                .readLines()
+                .find { it.startsWith("Version: ") } ?: throw Exception("no output line starts with 'Version: '")
 
         return Version.valueOf(versionLine.removePrefix("Version: "))
     }

@@ -4,7 +4,13 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.openapi.project.Project
 
-class MirrordNpmMutableRunSettings(project: Project, private val runSettings: Any) {
+// The reflection class-holder properties below are intentionally named to mirror the
+// IntelliJ classes they reference, so the property-naming rule is suppressed for this class.
+@Suppress("ktlint:standard:property-naming")
+class MirrordNpmMutableRunSettings(
+    project: Project,
+    private val runSettings: Any,
+) {
     private val myEnvData = runSettings.javaClass.getDeclaredField("myEnvData")
     private val myPackageManagerPackageRef = runSettings.javaClass.getDeclaredField("myPackageManagerPackageRef")
 
@@ -20,7 +26,10 @@ class MirrordNpmMutableRunSettings(project: Project, private val runSettings: An
     }
 
     companion object {
-        fun fromRunProfile(project: Project, runProfile: RunProfile): MirrordNpmMutableRunSettings {
+        fun fromRunProfile(
+            project: Project,
+            runProfile: RunProfile,
+        ): MirrordNpmMutableRunSettings {
             val getRunSettings = runProfile.javaClass.getMethod("getRunSettings")
             val runSettings = getRunSettings.invoke(runProfile)
 
@@ -79,7 +88,11 @@ class MirrordNpmMutableRunSettings(project: Project, private val runSettings: An
         set(value) {
             value?.let {
                 val patchedPackageManager = NpmNodePackage.getConstructor(Class.forName("java.lang.String"))?.newInstance(it)
-                val createPackageManagerPackageRef = NodePackageRef.methods.find { m -> m.name == "create" && m.parameterTypes[0].name != "java.lang.String" }
+                val createPackageManagerPackageRef =
+                    NodePackageRef.methods.find { m ->
+                        m.name == "create" &&
+                            m.parameterTypes[0].name != "java.lang.String"
+                    }
 
                 if (createPackageManagerPackageRef != null && patchedPackageManager != null) {
                     packageManagerPackageRef = createPackageManagerPackageRef.invoke(null, patchedPackageManager)

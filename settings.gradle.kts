@@ -13,7 +13,7 @@ pluginManagement {
         id("org.jetbrains.intellij.platform") version "2.18.1"
         id("org.jetbrains.intellij.platform.module") version "2.18.1"
         id("org.jetbrains.changelog") version "2.+"
-        id("org.jlleitschuh.gradle.ktlint") version "11.5.0"
+        id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     }
 }
 
@@ -42,7 +42,7 @@ include(
     "modules/products/nodejs",
     "modules/products/rider",
     "modules/products/tomcat",
-    "modules/products/bazel"
+    "modules/products/bazel",
 )
 
 // Rename modules to mirrord-<module>, I think this is required IntelliJ wise.

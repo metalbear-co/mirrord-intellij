@@ -6,29 +6,18 @@ import com.jetbrains.jsonSchema.impl.JsonSchemaVersion
 import com.jetbrains.jsonSchema.remote.JsonFileResolver
 
 class MirrordSchemaFileProvider : JsonSchemaFileProvider {
-
     override fun isAvailable(file: VirtualFile): Boolean {
         val path = file.path
         return MirrordConfigAPI.isConfigFilePath(file) && path.endsWith(".json")
     }
 
-    override fun getName(): String {
-        return "mirrord"
-    }
+    override fun getName(): String = "mirrord"
 
-    override fun getSchemaFile(): VirtualFile? {
-        return JsonFileResolver.urlToFile(this.remoteSource)
-    }
+    override fun getSchemaFile(): VirtualFile? = JsonFileResolver.urlToFile(this.remoteSource)
 
-    override fun getSchemaType(): SchemaType {
-        return SchemaType.remoteSchema
-    }
+    override fun getSchemaType(): SchemaType = SchemaType.remoteSchema
 
-    override fun getRemoteSource(): String {
-        return "https://raw.githubusercontent.com/metalbear-co/mirrord/latest/mirrord-schema.json"
-    }
+    override fun getRemoteSource(): String = "https://raw.githubusercontent.com/metalbear-co/mirrord/latest/mirrord-schema.json"
 
-    override fun getSchemaVersion(): JsonSchemaVersion {
-        return JsonSchemaVersion.SCHEMA_7
-    }
+    override fun getSchemaVersion(): JsonSchemaVersion = JsonSchemaVersion.SCHEMA_7
 }

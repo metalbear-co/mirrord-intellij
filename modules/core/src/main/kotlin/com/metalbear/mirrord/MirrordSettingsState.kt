@@ -21,16 +21,16 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
 
     var mirrordState: MirrordState = MirrordState()
 
-    override fun getState(): MirrordState {
-        return mirrordState
-    }
+    override fun getState(): MirrordState = mirrordState
 
     // after automatically loading our save state,  we will keep reference to it
     override fun loadState(state: MirrordState) {
         mirrordState = state
     }
 
-    enum class NotificationId(val presentableName: String) {
+    enum class NotificationId(
+        val presentableName: String,
+    ) {
         RUNNING_TARGETLESS("mirrord running targetless"),
         ACTIVE_CONFIG_REMOVED("active mirrord config is removed"),
         ACTIVE_CONFIG_USED("active mirrord config is used"),
@@ -43,7 +43,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         SLACK_INVITE("mirrord offers a Slack server invitation"),
         MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams"),
         NEWSLETTER_SIGNUP("mirrord occasionally informs about the mirrord newsletter"),
-        MIRRORD_BINARY_PATH_INVALID("custom mirrord binary path is invalid or not executable")
+        MIRRORD_BINARY_PATH_INVALID("custom mirrord binary path is invalid or not executable"),
     }
 
     class MirrordState {
@@ -66,8 +66,6 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
             disabledNotifications = disabledNotifications.orEmpty() + id
         }
 
-        fun isNotificationDisabled(id: NotificationId): Boolean {
-            return disabledNotifications?.contains(id) ?: false
-        }
+        fun isNotificationDisabled(id: NotificationId): Boolean = disabledNotifications?.contains(id) ?: false
     }
 }

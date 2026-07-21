@@ -18,7 +18,7 @@ import javax.swing.text.StyleContext
 
 class MirrordWindowsUnsupportedDialog private constructor(
     private val bodyText: String,
-    private val link: Pair<String, String>?
+    private val link: Pair<String, String>?,
 ) : DialogWrapper(true) {
     init {
         title = "mirrord: Windows-native support unavailable"
@@ -48,19 +48,18 @@ class MirrordWindowsUnsupportedDialog private constructor(
                     HyperlinkLabel(label).apply {
                         setHyperlinkTarget(url)
                         alignmentX = 0f
-                    }
+                    },
                 )
             }
         }
     }
 
-    override fun createActions(): Array<Action> {
-        return arrayOf(
+    override fun createActions(): Array<Action> =
+        arrayOf(
             DialogWrapperExitAction("Close", CLOSE_EXIT_CODE).apply {
                 putValue(DEFAULT_ACTION, true)
-            }
+            },
         )
-    }
 
     companion object {
         private const val ARCH_ISSUE_URL = "https://github.com/metalbear-co/mirrord/issues/4162"
@@ -71,32 +70,45 @@ class MirrordWindowsUnsupportedDialog private constructor(
         @Volatile
         private var versionShownThisSession = false
 
-        fun showVersionUnsupportedOnce(required: String, found: String, path: String? = null) {
+        fun showVersionUnsupportedOnce(
+            required: String,
+            found: String,
+            path: String? = null,
+        ) {
             if (versionShownThisSession) return
             versionShownThisSession = true
             val body = buildVersionUnsupportedBody(required, found, path)
             show(body, null)
         }
 
-        fun buildVersionUnsupportedBody(required: String, found: String, path: String?): String {
-            val core = "Windows-native mirrord requires binary version $required or newer.\n" +
-                "Found: $found\n\n" +
-                "Non-WSL run/debug configurations will not work until the binary is upgraded. " +
-                "WSL-based configurations continue to work.\n\n" +
-                "Enable auto-update in mirrord settings, or pin a version ≥ $required."
+        fun buildVersionUnsupportedBody(
+            required: String,
+            found: String,
+            path: String?,
+        ): String {
+            val core =
+                "Windows-native mirrord requires binary version $required or newer.\n" +
+                    "Found: $found\n\n" +
+                    "Non-WSL run/debug configurations will not work until the binary is upgraded. " +
+                    "WSL-based configurations continue to work.\n\n" +
+                    "Enable auto-update in mirrord settings, or pin a version ≥ $required."
             return if (path != null) "$core\n\nmirrord path: $path" else core
         }
 
         fun showArchUnsupportedOnce(arch: String) {
             if (archShownThisSession) return
             archShownThisSession = true
-            val body = "mirrord does not currently provide a Windows $arch build.\n\n" +
-                "If you require $arch support, please upvote or comment on the issue below " +
-                "so we can gauge interest."
+            val body =
+                "mirrord does not currently provide a Windows $arch build.\n\n" +
+                    "If you require $arch support, please upvote or comment on the issue below " +
+                    "so we can gauge interest."
             show(body, "Upvote $arch support on GitHub" to ARCH_ISSUE_URL)
         }
 
-        private fun show(bodyText: String, link: Pair<String, String>?) {
+        private fun show(
+            bodyText: String,
+            link: Pair<String, String>?,
+        ) {
             ApplicationManager.getApplication().invokeLater {
                 MirrordWindowsUnsupportedDialog(bodyText, link).show()
             }

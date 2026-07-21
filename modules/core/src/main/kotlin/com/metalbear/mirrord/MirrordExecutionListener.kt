@@ -22,28 +22,37 @@ class MirrordExecutionListener : ExecutionListener {
     }
 
     private enum class DelegateKind {
-        NPM, IDEA, TOMCAT, BAZEL
+        NPM,
+        IDEA,
+        TOMCAT,
+        BAZEL,
     }
 
     private enum class ExecutionKind {
-        NPM, BAZEL, TOMCAT, IDEA, OTHER
+        NPM,
+        BAZEL,
+        TOMCAT,
+        IDEA,
+        OTHER,
     }
 
-    private val delegateClassNames = mapOf(
-        DelegateKind.NPM to "com.metalbear.mirrord.MirrordNpmExecutionListener",
-        DelegateKind.IDEA to "com.metalbear.mirrord.products.idea.IdeaExecutionListener",
-        DelegateKind.TOMCAT to "com.metalbear.mirrord.products.tomcat.TomcatExecutionListener",
-        DelegateKind.BAZEL to "com.metalbear.mirrord.products.bazel.BazelExecutionListener"
-    )
+    private val delegateClassNames =
+        mapOf(
+            DelegateKind.NPM to "com.metalbear.mirrord.MirrordNpmExecutionListener",
+            DelegateKind.IDEA to "com.metalbear.mirrord.products.idea.IdeaExecutionListener",
+            DelegateKind.TOMCAT to "com.metalbear.mirrord.products.tomcat.TomcatExecutionListener",
+            DelegateKind.BAZEL to "com.metalbear.mirrord.products.bazel.BazelExecutionListener",
+        )
 
     private val delegates: Map<DelegateKind, ExecutionListener> by lazy {
-        delegateClassNames.mapNotNull { (kind, className) ->
-            createDelegate(className)?.let { kind to it }
-        }.toMap()
+        delegateClassNames
+            .mapNotNull { (kind, className) ->
+                createDelegate(className)?.let { kind to it }
+            }.toMap()
     }
 
-    private fun createDelegate(className: String): ExecutionListener? {
-        return try {
+    private fun createDelegate(className: String): ExecutionListener? =
+        try {
             val clazz = javaClass.classLoader.loadClass(className)
             val instance = clazz.getDeclaredConstructor().newInstance()
             val listener = instance as? ExecutionListener
@@ -55,9 +64,12 @@ class MirrordExecutionListener : ExecutionListener {
             // Expected when optional product dependencies are absent.
             null
         }
-    }
 
-    private fun dispatch(kind: DelegateKind, actionName: String, action: (ExecutionListener) -> Unit) {
+    private fun dispatch(
+        kind: DelegateKind,
+        actionName: String,
+        action: (ExecutionListener) -> Unit,
+    ) {
         val delegate = delegates[kind] ?: return
 
         try {
@@ -77,7 +89,11 @@ class MirrordExecutionListener : ExecutionListener {
             return ExecutionKind.BAZEL
         }
 
-        val settingsClassName = env.configurationSettings?.javaClass?.name.orEmpty()
+        val settingsClassName =
+            env.configurationSettings
+                ?.javaClass
+                ?.name
+                .orEmpty()
         if (runProfileClassName.contains("tomcat", ignoreCase = true) ||
             settingsClassName.contains("tomcat", ignoreCase = true) ||
             settingsClassName == RUNNER_SPECIFIC_LOCAL_CONFIGURATION_BIT
@@ -94,7 +110,10 @@ class MirrordExecutionListener : ExecutionListener {
         return ExecutionKind.OTHER
     }
 
-    private fun implementsInterface(clazz: Class<*>, interfaceName: String): Boolean {
+    private fun implementsInterface(
+        clazz: Class<*>,
+        interfaceName: String,
+    ): Boolean {
         var current: Class<*>? = clazz
         while (current != null) {
             if (current.interfaces.any { it.name == interfaceName || implementsInterface(it, interfaceName) }) {
@@ -105,23 +124,32 @@ class MirrordExecutionListener : ExecutionListener {
         return false
     }
 
-    override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
+    override fun processStartScheduled(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         when (resolveExecutionKind(env)) {
-            ExecutionKind.BAZEL -> dispatch(DelegateKind.BAZEL, "processStartScheduled") {
-                it.processStartScheduled(executorId, env)
-            }
-            ExecutionKind.TOMCAT -> dispatch(DelegateKind.TOMCAT, "processStartScheduled") {
-                it.processStartScheduled(executorId, env)
-            }
-            ExecutionKind.IDEA -> dispatch(DelegateKind.IDEA, "processStartScheduled") {
-                it.processStartScheduled(executorId, env)
-            }
+            ExecutionKind.BAZEL ->
+                dispatch(DelegateKind.BAZEL, "processStartScheduled") {
+                    it.processStartScheduled(executorId, env)
+                }
+            ExecutionKind.TOMCAT ->
+                dispatch(DelegateKind.TOMCAT, "processStartScheduled") {
+                    it.processStartScheduled(executorId, env)
+                }
+            ExecutionKind.IDEA ->
+                dispatch(DelegateKind.IDEA, "processStartScheduled") {
+                    it.processStartScheduled(executorId, env)
+                }
             else -> {}
         }
         super.processStartScheduled(executorId, env)
     }
 
-    override fun processStarting(executorId: String, env: ExecutionEnvironment) {
+    override fun processStarting(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         if (resolveExecutionKind(env) == ExecutionKind.NPM) {
             dispatch(DelegateKind.NPM, "processStarting") {
                 it.processStarting(executorId, env)
@@ -130,7 +158,11 @@ class MirrordExecutionListener : ExecutionListener {
         super.processStarting(executorId, env)
     }
 
-    override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
+    override fun processStarted(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+    ) {
         if (resolveExecutionKind(env) == ExecutionKind.NPM) {
             dispatch(DelegateKind.NPM, "processStarted") {
                 it.processStarted(executorId, env, handler)
@@ -139,43 +171,62 @@ class MirrordExecutionListener : ExecutionListener {
         super.processStarted(executorId, env, handler)
     }
 
-    override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
+    override fun processNotStarted(
+        executorId: String,
+        env: ExecutionEnvironment,
+    ) {
         when (resolveExecutionKind(env)) {
-            ExecutionKind.NPM -> dispatch(DelegateKind.NPM, "processNotStarted") {
-                it.processNotStarted(executorId, env)
-            }
-            ExecutionKind.TOMCAT -> dispatch(DelegateKind.TOMCAT, "processNotStarted") {
-                it.processNotStarted(executorId, env)
-            }
-            ExecutionKind.IDEA -> dispatch(DelegateKind.IDEA, "processNotStarted") {
-                it.processNotStarted(executorId, env)
-            }
+            ExecutionKind.NPM ->
+                dispatch(DelegateKind.NPM, "processNotStarted") {
+                    it.processNotStarted(executorId, env)
+                }
+            ExecutionKind.TOMCAT ->
+                dispatch(DelegateKind.TOMCAT, "processNotStarted") {
+                    it.processNotStarted(executorId, env)
+                }
+            ExecutionKind.IDEA ->
+                dispatch(DelegateKind.IDEA, "processNotStarted") {
+                    it.processNotStarted(executorId, env)
+                }
             else -> {}
         }
         super.processNotStarted(executorId, env)
     }
 
-    override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
+    override fun processTerminating(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+    ) {
         when (resolveExecutionKind(env)) {
-            ExecutionKind.NPM -> dispatch(DelegateKind.NPM, "processTerminating") {
-                it.processTerminating(executorId, env, handler)
-            }
-            ExecutionKind.BAZEL -> dispatch(DelegateKind.BAZEL, "processTerminating") {
-                it.processTerminating(executorId, env, handler)
-            }
+            ExecutionKind.NPM ->
+                dispatch(DelegateKind.NPM, "processTerminating") {
+                    it.processTerminating(executorId, env, handler)
+                }
+            ExecutionKind.BAZEL ->
+                dispatch(DelegateKind.BAZEL, "processTerminating") {
+                    it.processTerminating(executorId, env, handler)
+                }
             else -> {}
         }
         super.processTerminating(executorId, env, handler)
     }
 
-    override fun processTerminated(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler, exitCode: Int) {
+    override fun processTerminated(
+        executorId: String,
+        env: ExecutionEnvironment,
+        handler: ProcessHandler,
+        exitCode: Int,
+    ) {
         when (resolveExecutionKind(env)) {
-            ExecutionKind.TOMCAT -> dispatch(DelegateKind.TOMCAT, "processTerminated") {
-                it.processTerminated(executorId, env, handler, exitCode)
-            }
-            ExecutionKind.IDEA -> dispatch(DelegateKind.IDEA, "processTerminated") {
-                it.processTerminated(executorId, env, handler, exitCode)
-            }
+            ExecutionKind.TOMCAT ->
+                dispatch(DelegateKind.TOMCAT, "processTerminated") {
+                    it.processTerminated(executorId, env, handler, exitCode)
+                }
+            ExecutionKind.IDEA ->
+                dispatch(DelegateKind.IDEA, "processTerminated") {
+                    it.processTerminated(executorId, env, handler, exitCode)
+                }
             else -> {}
         }
         super.processTerminated(executorId, env, handler, exitCode)

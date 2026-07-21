@@ -56,20 +56,28 @@ class MirrordBinaryManager {
                 val child = Runtime.getRuntime().exec(cmd)
                 val result = child.waitFor()
                 if (result != 0) return null
-                child.inputReader().readLine()?.trim()?.takeIf { it.isNotBlank() }
+                child
+                    .inputReader()
+                    .readLine()
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
             } catch (_: Exception) {
                 null
             }
         }
 
         @Suppress("DEPRECATION")
-        internal fun wslPath(wslDistribution: WSLDistribution, path: String): String =
-            wslDistribution.getWslPath(path) ?: path
+        internal fun wslPath(
+            wslDistribution: WSLDistribution,
+            path: String,
+        ): String = wslDistribution.getWslPath(path) ?: path
     }
 
-    fun getCliPath(product: String, wslDistribution: WSLDistribution?, project: Project): String {
-        return getBinary(product, wslDistribution, project)
-    }
+    fun getCliPath(
+        product: String,
+        wslDistribution: WSLDistribution?,
+        project: Project,
+    ): String = getBinary(product, wslDistribution, project)
 
     /**
      * Schedules the update task at project startup.
@@ -93,8 +101,10 @@ class MirrordBinaryManager {
         }
     }
 
-    private class WindowsNativeSupportCheckTask(project: Project) :
-        Task.Backgroundable(project, "mirrord: Windows-native support check", true), DumbAware {
+    private class WindowsNativeSupportCheckTask(
+        project: Project,
+    ) : Task.Backgroundable(project, "mirrord: Windows-native support check", true),
+        DumbAware {
         override fun run(indicator: ProgressIndicator) {
             service<MirrordBinaryManager>().checkWindowsNativeSupport(project, indicator)
         }
@@ -109,8 +119,9 @@ class MirrordBinaryManager {
         private val project: Project,
         private val product: String?,
         private val wslDistribution: WSLDistribution?,
-        private val checkInPath: Boolean
-    ) : Task.Backgroundable(project, "mirrord", true), DumbAware {
+        private val checkInPath: Boolean,
+    ) : Task.Backgroundable(project, "mirrord", true),
+        DumbAware {
         companion object State {
             /**
              * Only one download may be happening at the same time.
@@ -135,7 +146,7 @@ class MirrordBinaryManager {
         product: String?,
         wslDistribution: WSLDistribution?,
         checkInPath: Boolean,
-        indicator: ProgressIndicator
+        indicator: ProgressIndicator,
     ) {
         indicator.isIndeterminate = false
 
@@ -149,34 +160,36 @@ class MirrordBinaryManager {
             return
         }
 
-        val version = when {
-            // auto update -> false -> use mirrordVersion if it's not empty
-            !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
-                try {
-                    Version.parse(userSelectedMirrordVersion)
-                } catch (e: Exception) {
-                    project
-                        .service<MirrordProjectService>()
-                        .notifier
-                        .notification("mirrord version format is invalid!", NotificationType.WARNING)
-                        .fire()
-                    return
+        val version =
+            when {
+                // auto update -> false -> use mirrordVersion if it's not empty
+                !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
+                    try {
+                        Version.parse(userSelectedMirrordVersion)
+                    } catch (e: Exception) {
+                        project
+                            .service<MirrordProjectService>()
+                            .notifier
+                            .notification("mirrord version format is invalid!", NotificationType.WARNING)
+                            .fire()
+                        return
+                    }
+                    userSelectedMirrordVersion
                 }
-                userSelectedMirrordVersion
+                // auto update -> false -> mirrordVersion is empty -> needs check in the path
+                // if not in path -> fetch latest version
+                !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
+
+                // auto update -> true -> fetch latest version
+                else -> latestSupportedVersion
             }
-            // auto update -> false -> mirrordVersion is empty -> needs check in the path
-            // if not in path -> fetch latest version
-            !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
-            // auto update -> true -> fetch latest version
-            else -> latestSupportedVersion
-        }
-
-        val local = if (checkInPath) {
-            getLocalBinary(version, wslDistribution)
-        } else {
-            findBinaryInStorage(version, wslDistribution)
-        }
+        val local =
+            if (checkInPath) {
+                getLocalBinary(version, wslDistribution)
+            } else {
+                findBinaryInStorage(version, wslDistribution)
+            }
 
         if (local != null) {
             return
@@ -199,7 +212,7 @@ class MirrordBinaryManager {
                     .notifier
                     .notifySimple(
                         "downloaded mirrord binary version $downloaded",
-                        NotificationType.INFORMATION
+                        NotificationType.INFORMATION,
                     )
             }
         } catch (e: Throwable) {
@@ -208,38 +221,44 @@ class MirrordBinaryManager {
                 .service<MirrordProjectService>()
                 .notifier
                 .notifyRichError(
-                    "failed to update the mirrord binary: ${e.message ?: e.toString()}"
+                    "failed to update the mirrord binary: ${e.message ?: e.toString()}",
                 )
         } finally {
             UpdateTask.downloadInProgress.set(false)
         }
     }
 
-    private fun fetchLatestSupportedVersion(product: String?, indicator: ProgressIndicator): String {
-        val pluginVersion = if (
-            System.getenv("CI_BUILD_PLUGIN") == "true" ||
-            System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
-        ) {
-            "test"
-        } else {
-            VERSION ?: "unknown"
-        }
+    private fun fetchLatestSupportedVersion(
+        product: String?,
+        indicator: ProgressIndicator,
+    ): String {
+        val pluginVersion =
+            if (
+                System.getenv("CI_BUILD_PLUGIN") == "true" ||
+                System.getenv("PLUGIN_TESTING_ENVIRONMENT") == "true"
+            ) {
+                "test"
+            } else {
+                VERSION ?: "unknown"
+            }
 
         indicator.text = "mirrord is checking the latest supported binary version..."
 
-        val url = StringBuilder(VERSION_ENDPOINT)
-            .append("?source=3")
-            .append("&version=")
-            .append(URLEncoder.encode(pluginVersion, Charset.defaultCharset()))
-            .append("&platform=")
-            .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
-            .toString()
+        val url =
+            StringBuilder(VERSION_ENDPOINT)
+                .append("?source=3")
+                .append("&version=")
+                .append(URLEncoder.encode(pluginVersion, Charset.defaultCharset()))
+                .append("&platform=")
+                .append(URLEncoder.encode(SystemInfo.OS_NAME, Charset.defaultCharset()))
+                .toString()
 
         val client = HttpClient.newHttpClient()
-        val builder = HttpRequest
-            .newBuilder(URI(url))
-            .timeout(Duration.ofSeconds(10L))
-            .GET()
+        val builder =
+            HttpRequest
+                .newBuilder(URI(url))
+                .timeout(Duration.ofSeconds(10L))
+                .GET()
 
         product?.let { builder.header("user-agent", it) }
 
@@ -248,30 +267,34 @@ class MirrordBinaryManager {
         return response.body()
     }
 
-    private fun updateBinary(indicator: ProgressIndicator, wslDistribution: WSLDistribution? = null) {
+    private fun updateBinary(
+        indicator: ProgressIndicator,
+        wslDistribution: WSLDistribution? = null,
+    ) {
         val version = downloadVersion ?: return
 
-        val url = if (SystemInfo.isMac) {
-            "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
-        } else if (isWinNative(wslDistribution)) {
-            if (CpuArch.isIntel64()) {
-                "$DOWNLOAD_ENDPOINT/$version/mirrord.exe"
+        val url =
+            if (SystemInfo.isMac) {
+                "$DOWNLOAD_ENDPOINT/$version/mirrord_mac_universal"
+            } else if (isWinNative(wslDistribution)) {
+                if (CpuArch.isIntel64()) {
+                    "$DOWNLOAD_ENDPOINT/$version/mirrord.exe"
+                } else {
+                    throw RuntimeException("Unsupported architecture: ${CpuArch.CURRENT.name}")
+                }
+            } else if (SystemInfo.isLinux || SystemInfo.isWindows) {
+                // Native Linux, or Windows host targeting WSL — both use the Linux
+                // binary. WSL inherits host arch, so CpuArch is the right proxy.
+                if (CpuArch.isArm64()) {
+                    "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
+                } else if (CpuArch.isIntel64()) {
+                    "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
+                } else {
+                    throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
+                }
             } else {
-                throw RuntimeException("Unsupported architecture: ${CpuArch.CURRENT.name}")
+                throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
             }
-        } else if (SystemInfo.isLinux || SystemInfo.isWindows) {
-            // Native Linux, or Windows host targeting WSL — both use the Linux
-            // binary. WSL inherits host arch, so CpuArch is the right proxy.
-            if (CpuArch.isArm64()) {
-                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_aarch64"
-            } else if (CpuArch.isIntel64()) {
-                "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
-            } else {
-                throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
-            }
-        } else {
-            throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
-        }
 
         indicator.text = "mirrord is downloading binary version $version..."
         indicator.fraction = 0.0
@@ -308,54 +331,67 @@ class MirrordBinaryManager {
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
     }
 
-    private class MirrordBinary(val command: String, wslDistribution: WSLDistribution?) {
+    private class MirrordBinary(
+        val command: String,
+        wslDistribution: WSLDistribution?,
+    ) {
         val version: String
 
         init {
-            version = if (wslDistribution != null) {
-                val command = wslPath(wslDistribution, command)
-                val output = wslDistribution.executeOnWsl(5000, command, "--version")
-                output.stdout.split(' ')[1].trim()
-            } else {
-                val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
-                val result = child.waitFor()
-                if (result != 0) {
-                    MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
-                    throw RuntimeException("failed to get mirrord version")
-                }
+            version =
+                if (wslDistribution != null) {
+                    val command = wslPath(wslDistribution, command)
+                    val output = wslDistribution.executeOnWsl(5000, command, "--version")
+                    output.stdout.split(' ')[1].trim()
+                } else {
+                    val child = Runtime.getRuntime().exec(arrayOf(command, "--version"))
+                    val result = child.waitFor()
+                    if (result != 0) {
+                        MirrordLogger.logger.debug("`mirrord --version` failed with code $result")
+                        throw RuntimeException("failed to get mirrord version")
+                    }
 
-                child.inputReader().readLine().split(' ')[1].trim()
-            }
+                    child
+                        .inputReader()
+                        .readLine()
+                        .split(' ')[1]
+                        .trim()
+                }
         }
     }
 
     /**
      * @return executable found with `which mirrord`
      */
-    private fun findBinaryInPath(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
+    private fun findBinaryInPath(
+        requiredVersion: String?,
+        wslDistribution: WSLDistribution?,
+    ): MirrordBinary? {
         try {
-            val output = if (wslDistribution == null) {
-                which("mirrord") ?: throw RuntimeException("mirrord not found in PATH")
-            } else {
-                val output = wslDistribution.executeOnWsl(5000, "which", "mirrord")
-                if (output.exitCode != 0) {
-                    throw RuntimeException("`which` failed with code ${output.exitCode}")
+            val output =
+                if (wslDistribution == null) {
+                    which("mirrord") ?: throw RuntimeException("mirrord not found in PATH")
+                } else {
+                    val output = wslDistribution.executeOnWsl(5000, "which", "mirrord")
+                    if (output.exitCode != 0) {
+                        throw RuntimeException("`which` failed with code ${output.exitCode}")
+                    }
+                    output.stdoutLines.first().trim()
                 }
-                output.stdoutLines.first().trim()
-            }
 
             val binary = MirrordBinary(output, wslDistribution)
-            val isRequiredVersion = try {
-                // for release CI, the tag can be greater than the latest release
-                if (System.getenv("CI_BUILD_PLUGIN") == "true") {
-                    Version.parse(binary.version).isHigherThanOrEquivalentTo(Version.parse(requiredVersion))
-                } else {
-                    Version.parse(binary.version).equals(Version.parse(requiredVersion))
+            val isRequiredVersion =
+                try {
+                    // for release CI, the tag can be greater than the latest release
+                    if (System.getenv("CI_BUILD_PLUGIN") == "true") {
+                        Version.parse(binary.version).isHigherThanOrEquivalentTo(Version.parse(requiredVersion))
+                    } else {
+                        Version.parse(binary.version).equals(Version.parse(requiredVersion))
+                    }
+                } catch (e: Exception) {
+                    MirrordLogger.logger.debug("failed to parse version", e)
+                    false
                 }
-            } catch (e: Exception) {
-                MirrordLogger.logger.debug("failed to parse version", e)
-                false
-            }
             if (requiredVersion == null || isRequiredVersion) {
                 return binary
             }
@@ -368,16 +404,20 @@ class MirrordBinaryManager {
     /**
      * @return executable found in plugin storage
      */
-    private fun findBinaryInStorage(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
+    private fun findBinaryInStorage(
+        requiredVersion: String?,
+        wslDistribution: WSLDistribution?,
+    ): MirrordBinary? {
         try {
             MirrordPathManager.getBinary(CLI_BINARY, true, wslDistribution)?.let {
                 val binary = MirrordBinary(it, wslDistribution)
-                val isRequiredVersion = try {
-                    Version.parse(binary.version).equals(Version.parse(requiredVersion))
-                } catch (e: Exception) {
-                    MirrordLogger.logger.debug("failed to parse version", e)
-                    false
-                }
+                val isRequiredVersion =
+                    try {
+                        Version.parse(binary.version).equals(Version.parse(requiredVersion))
+                    } catch (e: Exception) {
+                        MirrordLogger.logger.debug("failed to parse version", e)
+                        false
+                    }
                 if (requiredVersion == null || isRequiredVersion) {
                     return binary
                 }
@@ -391,9 +431,10 @@ class MirrordBinaryManager {
     /**
      * @return the local installation of mirrord, either in `PATH` or in plugin storage
      */
-    private fun getLocalBinary(requiredVersion: String?, wslDistribution: WSLDistribution?): MirrordBinary? {
-        return findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion, wslDistribution)
-    }
+    private fun getLocalBinary(
+        requiredVersion: String?,
+        wslDistribution: WSLDistribution?,
+    ): MirrordBinary? = findBinaryInPath(requiredVersion, wslDistribution) ?: findBinaryInStorage(requiredVersion, wslDistribution)
 
     /**
      * Verifies the local mirrord binary is at least [MIN_WINDOWS_NATIVE_VERSION].
@@ -405,7 +446,10 @@ class MirrordBinaryManager {
      * architecture-specific error early (same interest-gauge message as
      * [updateBinary]) and returns.
      */
-    fun checkWindowsNativeSupport(project: Project, indicator: ProgressIndicator) {
+    fun checkWindowsNativeSupport(
+        project: Project,
+        indicator: ProgressIndicator,
+    ) {
         if (!SystemInfo.isWindows) return
 
         if (!CpuArch.isIntel64()) {
@@ -413,38 +457,42 @@ class MirrordBinaryManager {
             return
         }
 
-        val required = try {
-            Version.parse(MIN_WINDOWS_NATIVE_VERSION)
-        } catch (e: Exception) {
-            MirrordLogger.logger.error(
-                "checkWindowsNativeSupport: failed to parse the hardcoded minimum Windows-native mirrord version " +
-                    "(\"$MIN_WINDOWS_NATIVE_VERSION\"). This is a bug in the plugin — please report it.",
-                e
-            )
-            return
-        }
-
-        fun resolveLocal(): MirrordBinary? = try {
-            getLocalBinary(null, null)
-        } catch (e: Exception) {
-            MirrordLogger.logger.debug("checkWindowsNativeSupport: local lookup failed", e)
-            null
-        }
-
-        fun Version?.satisfies(): Boolean = this != null && this.isHigherThanOrEquivalentTo(required)
-        fun parse(raw: String?): Version? = raw?.let {
+        val required =
             try {
-                Version.parse(it)
-            } catch (_: Exception) {
+                Version.parse(MIN_WINDOWS_NATIVE_VERSION)
+            } catch (e: Exception) {
+                MirrordLogger.logger.error(
+                    "checkWindowsNativeSupport: failed to parse the hardcoded minimum Windows-native mirrord version " +
+                        "(\"$MIN_WINDOWS_NATIVE_VERSION\"). This is a bug in the plugin — please report it.",
+                    e,
+                )
+                return
+            }
+
+        fun resolveLocal(): MirrordBinary? =
+            try {
+                getLocalBinary(null, null)
+            } catch (e: Exception) {
+                MirrordLogger.logger.debug("checkWindowsNativeSupport: local lookup failed", e)
                 null
             }
-        }
+
+        fun Version?.satisfies(): Boolean = this != null && this.isHigherThanOrEquivalentTo(required)
+
+        fun parse(raw: String?): Version? =
+            raw?.let {
+                try {
+                    Version.parse(it)
+                } catch (_: Exception) {
+                    null
+                }
+            }
 
         val currentBinary = resolveLocal()
         val current = parse(currentBinary?.version)
         if (current.satisfies()) {
             MirrordLogger.logger.info(
-                "checkWindowsNativeSupport: binary $current satisfies >= $MIN_WINDOWS_NATIVE_VERSION"
+                "checkWindowsNativeSupport: binary $current satisfies >= $MIN_WINDOWS_NATIVE_VERSION",
             )
             return
         }
@@ -455,7 +503,7 @@ class MirrordBinaryManager {
         if (!autoUpdate) {
             MirrordLogger.logger.warn(
                 "checkWindowsNativeSupport: local binary ${current ?: "none"} < $MIN_WINDOWS_NATIVE_VERSION, " +
-                    "auto-update is OFF in settings; surfacing error without download"
+                    "auto-update is OFF in settings; surfacing error without download",
             )
             notifyWindowsNativeUnsupported(currentBinary)
             return
@@ -463,7 +511,7 @@ class MirrordBinaryManager {
 
         MirrordLogger.logger.warn(
             "checkWindowsNativeSupport: local binary ${current ?: "none"} < $MIN_WINDOWS_NATIVE_VERSION, " +
-                "triggering auto-update"
+                "triggering auto-update",
         )
 
         // Take the download lock so we don't race a concurrent DownloadInitializer.
@@ -474,7 +522,7 @@ class MirrordBinaryManager {
         if (!acquired) {
             MirrordLogger.logger.info(
                 "checkWindowsNativeSupport: another download is in progress (auto-update); " +
-                    "deferring to it and skipping the Windows-native recheck"
+                    "deferring to it and skipping the Windows-native recheck",
             )
             return
         }
@@ -495,7 +543,7 @@ class MirrordBinaryManager {
         val after = parse(afterBinary?.version)
         if (after.satisfies()) {
             MirrordLogger.logger.info(
-                "checkWindowsNativeSupport: after update, binary $after satisfies >= $MIN_WINDOWS_NATIVE_VERSION"
+                "checkWindowsNativeSupport: after update, binary $after satisfies >= $MIN_WINDOWS_NATIVE_VERSION",
             )
             return
         }
@@ -508,7 +556,7 @@ class MirrordBinaryManager {
         MirrordWindowsUnsupportedDialog.showVersionUnsupportedOnce(
             MIN_WINDOWS_NATIVE_VERSION,
             actual,
-            binary?.command
+            binary?.command,
         )
     }
 
@@ -519,25 +567,30 @@ class MirrordBinaryManager {
      * or unparseable. The error body uses the same wording as the proactive
      * startup dialog so users see the same warning + path on both surfaces.
      */
-    private fun enforceWindowsNativeMin(binary: MirrordBinary, wslDistribution: WSLDistribution?) {
+    private fun enforceWindowsNativeMin(
+        binary: MirrordBinary,
+        wslDistribution: WSLDistribution?,
+    ) {
         if (!isWinNative(wslDistribution)) return
-        val parsed = try {
-            Version.parse(binary.version)
-        } catch (_: Exception) {
-            null
-        }
+        val parsed =
+            try {
+                Version.parse(binary.version)
+            } catch (_: Exception) {
+                null
+            }
         val required = Version.parse(MIN_WINDOWS_NATIVE_VERSION)
         if (parsed != null && parsed.isHigherThanOrEquivalentTo(required)) return
 
         val found = parsed?.toString() ?: binary.version.ifBlank { "none" }
-        val body = MirrordWindowsUnsupportedDialog.buildVersionUnsupportedBody(
-            MIN_WINDOWS_NATIVE_VERSION,
-            found,
-            binary.command
-        )
+        val body =
+            MirrordWindowsUnsupportedDialog.buildVersionUnsupportedBody(
+                MIN_WINDOWS_NATIVE_VERSION,
+                found,
+                binary.command,
+            )
         throw MirrordError(
             body,
-            "Update mirrord to version >= $MIN_WINDOWS_NATIVE_VERSION (enable auto-update or pin a newer version)."
+            "Update mirrord to version >= $MIN_WINDOWS_NATIVE_VERSION (enable auto-update or pin a newer version).",
         )
     }
 
@@ -551,8 +604,14 @@ class MirrordBinaryManager {
      * @throws MirrordError if no local binary could be resolved
      * @return the path to the binary
      */
-    fun getBinary(product: String, wslDistribution: WSLDistribution?, project: Project): String {
-        val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
+    fun getBinary(
+        product: String,
+        wslDistribution: WSLDistribution?,
+        project: Project,
+    ): String {
+        val customPath =
+            MirrordSettingsState.instance.mirrordState.mirrordBinaryPath
+                .trim()
         if (customPath.isNotEmpty()) {
             validateCustomBinary(customPath, wslDistribution, project)?.let {
                 enforceWindowsNativeMin(it, wslDistribution)
@@ -565,11 +624,12 @@ class MirrordBinaryManager {
 
         val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
         val userVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-        val wantedVersion = when {
-            autoUpdate -> latestSupportedVersion
-            userVersion.isNotEmpty() -> userVersion
-            else -> null
-        }
+        val wantedVersion =
+            when {
+                autoUpdate -> latestSupportedVersion
+                userVersion.isNotEmpty() -> userVersion
+                else -> null
+            }
 
         getLocalBinary(wantedVersion, wslDistribution)?.let {
             enforceWindowsNativeMin(it, wslDistribution)
@@ -578,16 +638,16 @@ class MirrordBinaryManager {
 
         throw MirrordError(
             "no local installation of mirrord binary was found",
-            "mirrord binary will be downloaded in the background"
+            "mirrord binary will be downloaded in the background",
         )
     }
 
     private fun validateCustomBinary(
         path: String,
         wslDistribution: WSLDistribution?,
-        project: Project
-    ): MirrordBinary? {
-        return try {
+        project: Project,
+    ): MirrordBinary? =
+        try {
             MirrordBinary(path, wslDistribution)
         } catch (e: Exception) {
             MirrordLogger.logger.debug("custom mirrord binary path is invalid: $path", e)
@@ -596,11 +656,9 @@ class MirrordBinaryManager {
                 .notifier
                 .notification(
                     "custom mirrord binary path is invalid: $path",
-                    NotificationType.WARNING
-                )
-                .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
+                    NotificationType.WARNING,
+                ).withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
                 .fire()
             null
         }
-    }
 }

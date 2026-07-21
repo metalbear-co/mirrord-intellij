@@ -17,80 +17,89 @@ fun RemoteRobot.idea(function: IdeaFrame.() -> Unit) {
 
 @FixtureName("Idea frame")
 @DefaultXpath("IdeFrameImpl type", "//div[@class='IdeFrameImpl']")
-class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-
+class IdeaFrame(
+    remoteRobot: RemoteRobot,
+    remoteComponent: RemoteComponent,
+) : CommonContainerFixture(remoteRobot, remoteComponent) {
     val enableMirrord
         get() = find<ContainerFixture>(byXpath("//div[@myicon='mirrord_disabled.svg']"), Duration.ofSeconds(30))
 
     val mirrordDropdownButton
-        get() = find<ContainerFixture>(
-            byXpath("//div[@visible_text='mirrord' and @class='ActionButtonWithText']"),
-            Duration.ofSeconds(60)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@visible_text='mirrord' and @class='ActionButtonWithText']"),
+                Duration.ofSeconds(60),
+            )
 
     val usageBanner
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='MyDialog' and @title='How to use mirrord']"),
-            Duration.ofSeconds(30)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@class='MyDialog' and @title='How to use mirrord']"),
+                Duration.ofSeconds(30),
+            )
 
     val mirrordDropdownMenu: ContainerFixture
         get() {
-            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(60)) {
-                val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
-                    .firstOrNull { it.hasText("mirrord for Teams") }
-                Pair(list != null, list)
-            }
+            val list =
+                waitFor<ContainerFixture?>(Duration.ofSeconds(60)) {
+                    val list =
+                        findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                            .firstOrNull { it.hasText("mirrord for Teams") }
+                    Pair(list != null, list)
+                }
 
             return list!!
         }
 
     val startDebugging
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']")
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']"),
+            )
 
     val stopDebugging
-        get() = findAll<ContainerFixture>(
-            byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop the process)']")
-        ).first()
+        get() =
+            findAll<ContainerFixture>(
+                byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop the process)']"),
+            ).first()
 
     val debuggerConnected
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Connected to pydev debugger')]"),
-            Duration.ofSeconds(30)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Connected to pydev debugger')]"),
+                Duration.ofSeconds(30),
+            )
 
     val appRunning
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Press CTRL+C to quit')]"),
-            Duration.ofSeconds(30)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Press CTRL+C to quit')]"),
+                Duration.ofSeconds(30),
+            )
 
     val xDebuggerFramesList
-        get() = find<ContainerFixture>(
-            byXpath(
-                "//div[@class='XDebuggerFramesList' and contains(@visible_text, 'get') and contains(@visible_text, 'app.py') and contains(@visible_text, '8')]"
-            ),
-            Duration.ofSeconds(30)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath(
+                    "//div[@class='XDebuggerFramesList' and contains(@visible_text, 'get') and contains(@visible_text, 'app.py') and contains(@visible_text, '8')]",
+                ),
+                Duration.ofSeconds(30),
+            )
 
-    fun ContainerFixture.isComponentEnabled(): Boolean {
-        return callJs(
+    fun ContainerFixture.isComponentEnabled(): Boolean =
+        callJs(
             """
             component.isEnabled()
         """,
-            true
+            true,
         )
-    }
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
     fun dumbAware(
         timeout: Duration = Duration.ofMinutes(5),
         waitAfter: Boolean = true,
-        function: () -> Unit
+        function: () -> Unit,
     ) {
         step("Wait for smart mode") {
             waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
@@ -107,8 +116,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
         }
     }
 
-    private fun isDumbMode(): Boolean {
-        return callJs(
+    private fun isDumbMode(): Boolean =
+        callJs(
             """
             const frameHelper = com.intellij.openapi.wm.impl.ProjectFrameHelper.getFrameHelper(component)
             if (frameHelper) {
@@ -118,9 +127,8 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
                 true 
             }
         """,
-            true
+            true,
         )
-    }
 }
 
 fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
@@ -129,15 +137,15 @@ fun RemoteRobot.editorTabs(function: EditorTabs.() -> Unit) {
 
 // represents the open tabs in the editor
 @DefaultXpath("EditorTabs type", "//div[@class='EditorTabs']")
-class EditorTabs(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-
-    fun isFileOpened(fileName: String): Boolean {
-        return find<ContainerFixture>(
+class EditorTabs(
+    remoteRobot: RemoteRobot,
+    remoteComponent: RemoteComponent,
+) : CommonContainerFixture(remoteRobot, remoteComponent) {
+    fun isFileOpened(fileName: String): Boolean =
+        find<ContainerFixture>(
             byXpath("//div[@visible_text='$fileName' and @class='SimpleColoredComponent']"),
-            Duration.ofSeconds(10)
+            Duration.ofSeconds(10),
         ).isShowing
-    }
 }
 
 fun RemoteRobot.pythonSetupPrompt(function: PythonSetupPrompt.() -> Unit) {
@@ -147,10 +155,12 @@ fun RemoteRobot.pythonSetupPrompt(function: PythonSetupPrompt.() -> Unit) {
 // inline Python environment setup prompt above the editor
 @DefaultXpath(
     "Python setup prompt",
-    "//div[@class='ActionLink' and @text='Set up Poetry environment']"
+    "//div[@class='ActionLink' and @text='Set up Poetry environment']",
 )
-class PythonSetupPrompt(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent)
+class PythonSetupPrompt(
+    remoteRobot: RemoteRobot,
+    remoteComponent: RemoteComponent,
+) : CommonContainerFixture(remoteRobot, remoteComponent)
 
 fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
     find<StatusBar>(timeout = Duration.ofSeconds(60)).apply(function)
@@ -158,20 +168,23 @@ fun RemoteRobot.statusBar(function: StatusBar.() -> Unit) {
 
 // represents the status bar at the bottom of the IDE, showing tasks like indexing
 @DefaultXpath("IdeStatusBarImpl type", "//div[@class='IdeStatusBarImpl']")
-class StatusBar(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
-    CommonContainerFixture(remoteRobot, remoteComponent) {
-
+class StatusBar(
+    remoteRobot: RemoteRobot,
+    remoteComponent: RemoteComponent,
+) : CommonContainerFixture(remoteRobot, remoteComponent) {
     val progressIcon
-        get() = find<ContainerFixture>(
-            byXpath("//div[@class='AsyncProcessIcon']"),
-            Duration.ofSeconds(30)
-        )
+        get() =
+            find<ContainerFixture>(
+                byXpath("//div[@class='AsyncProcessIcon']"),
+                Duration.ofSeconds(30),
+            )
 
     fun waitForProgressFinished(timeout: Duration) {
         waitFor(duration = timeout, errorMessage = "There are still some active background processes") {
-            val found = find<ContainerFixture>(
-                byXpath("//div[@class='InlineProgressPanel']")
-            ).findAllText().map { it.text }
+            val found =
+                find<ContainerFixture>(
+                    byXpath("//div[@class='InlineProgressPanel']"),
+                ).findAllText().map { it.text }
             found.isEmpty()
         }
     }
@@ -205,6 +218,6 @@ fun RemoteRobot.openFile(path: String) {
                 ApplicationManager.getApplication().invokeLater(openFileFunction)
             }
         """,
-        true
+        true,
     )
 }

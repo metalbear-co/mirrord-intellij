@@ -14,7 +14,9 @@ import com.metalbear.mirrord.MirrordProjectService
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     // Wrapper for docker variant of TargetEnvironmentRequest because the variant is dynamically loaded from another
     // plugin so we need to perform our operations via reflection api
-    private class DockerRuntimeConfig(val inner: TargetEnvironmentRequest) {
+    private class DockerRuntimeConfig(
+        val inner: TargetEnvironmentRequest,
+    ) {
         var runCliOptions: String?
             get() {
                 val runCliOptionsField = inner.javaClass.getDeclaredField("myRunCliOptions")
@@ -32,7 +34,11 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
             }
     }
 
-    private fun extendContainerTargetEnvironment(project: Project, runParams: PythonRunParams, docker: DockerRuntimeConfig) {
+    private fun extendContainerTargetEnvironment(
+        project: Project,
+        runParams: PythonRunParams,
+        docker: DockerRuntimeConfig,
+    ) {
         val service = project.service<MirrordProjectService>()
 
         service.execManager.wrapper("pycharm", runParams.getEnvs()).containerStart()?.let { executionInfo ->
@@ -48,43 +54,48 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
         project: Project,
         helpersAwareTargetRequest: HelpersAwareTargetEnvironmentRequest,
         pythonExecution: PythonExecution,
-        runParams: PythonRunParams
+        runParams: PythonRunParams,
     ) {
         val service = project.service<MirrordProjectService>()
 
         if (runParams is AbstractPythonRunConfiguration<*>) {
-            val docker = helpersAwareTargetRequest.targetEnvironmentRequest.let {
-                if (it.javaClass.name.startsWith("com.intellij.docker")) {
-                    DockerRuntimeConfig(it)
-                } else {
-                    null
-                }
-            }
-
-            if (docker != null) {
-                extendContainerTargetEnvironment(project, runParams, docker)
-            } else {
-                val wsl = helpersAwareTargetRequest.targetEnvironmentRequest.let {
-                    if (it is WslTargetEnvironmentRequest) {
-                        it.configuration.distribution
+            val docker =
+                helpersAwareTargetRequest.targetEnvironmentRequest.let {
+                    if (it.javaClass.name.startsWith("com.intellij.docker")) {
+                        DockerRuntimeConfig(it)
                     } else {
                         null
                     }
                 }
 
-                service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
-                    this.wsl = wsl
-                }.start()?.let { executionInfo ->
-                    for (entry in executionInfo.environment.entries.iterator()) {
-                        pythonExecution.addEnvironmentVariable(entry.key, entry.value)
+            if (docker != null) {
+                extendContainerTargetEnvironment(project, runParams, docker)
+            } else {
+                val wsl =
+                    helpersAwareTargetRequest.targetEnvironmentRequest.let {
+                        if (it is WslTargetEnvironmentRequest) {
+                            it.configuration.distribution
+                        } else {
+                            null
+                        }
                     }
 
-                    for (key in executionInfo.envToUnset.orEmpty()) {
-                        pythonExecution.envs.remove(key)
-                    }
+                service.execManager
+                    .wrapper("pycharm", runParams.getEnvs())
+                    .apply {
+                        this.wsl = wsl
+                    }.start()
+                    ?.let { executionInfo ->
+                        for (entry in executionInfo.environment.entries.iterator()) {
+                            pythonExecution.addEnvironmentVariable(entry.key, entry.value)
+                        }
 
-                    pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
-                }
+                        for (key in executionInfo.envToUnset.orEmpty()) {
+                            pythonExecution.envs.remove(key)
+                        }
+
+                        pythonExecution.addEnvironmentVariable("MIRRORD_DETECT_DEBUGGER_PORT", "pydevd")
+                    }
             }
         }
     }

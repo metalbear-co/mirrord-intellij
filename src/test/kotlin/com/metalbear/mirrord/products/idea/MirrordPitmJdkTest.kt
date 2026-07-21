@@ -14,12 +14,12 @@ import java.io.File
  * Windows-native only, like the pitm path itself.
  */
 class MirrordPitmJdkTest : BasePlatformTestCase() {
-
-    private fun realJdk() = JavaSdk.getInstance().createJdk(
-        "mirrord-test-real",
-        System.getProperty("java.home"),
-        false
-    )
+    private fun realJdk() =
+        JavaSdk.getInstance().createJdk(
+            "mirrord-test-real",
+            System.getProperty("java.home"),
+            false,
+        )
 
     /** Stand-in for mirrord.exe. [MirrordPitmJdk.wrap] only copies its bytes, never runs it. */
     private fun fakeMirrordExe(): File =
@@ -47,16 +47,18 @@ class MirrordPitmJdkTest : BasePlatformTestCase() {
         assertEquals(realJdk.sdkType, wrapped.sdkType)
         assertEquals(realJdk.versionString, wrapped.versionString)
 
-        val commandLine = JavaParameters().apply {
-            jdk = wrapped
-            mainClass = "com.example.Main"
-            classPath.add(File(System.getProperty("java.home"), "lib").absolutePath)
-        }.toCommandLine()
+        val commandLine =
+            JavaParameters()
+                .apply {
+                    jdk = wrapped
+                    mainClass = "com.example.Main"
+                    classPath.add(File(System.getProperty("java.home"), "lib").absolutePath)
+                }.toCommandLine()
 
         assertEquals(
             "platform did not launch the fake java.exe",
             fakeJavaExe.canonicalPath,
-            File(commandLine.exePath).canonicalPath
+            File(commandLine.exePath).canonicalPath,
         )
     }
 

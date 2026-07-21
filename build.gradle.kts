@@ -95,12 +95,13 @@ allprojects {
 
 gradle.taskGraph.whenReady(
     closureOf<TaskExecutionGraph> {
-        val ignoreSubprojectTasks = listOf(
-            "buildSearchableOptions",
-            "publishPlugin",
-            "runIde",
-            "verifyPlugin"
-        )
+        val ignoreSubprojectTasks =
+            listOf(
+                "buildSearchableOptions",
+                "publishPlugin",
+                "runIde",
+                "verifyPlugin",
+            )
 
         // Don't run some tasks for subprojects
         for (task in allTasks) {
@@ -108,7 +109,7 @@ gradle.taskGraph.whenReady(
                 task.enabled = false
             }
         }
-    }
+    },
 )
 
 changelog {
@@ -123,28 +124,30 @@ intellijPlatform {
             sinceBuild = "253"
         }
 
-        description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
-            val start = "<!-- Plugin description -->"
-            val end = "<!-- Plugin description end -->"
+        description =
+            providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
+                val start = "<!-- Plugin description -->"
+                val end = "<!-- Plugin description end -->"
 
-            with(it.lines()) {
-                if (!containsAll(listOf(start, end))) {
-                    throw GradleException("Plugin description section not found in README.md:\n$start ... $end")
+                with(it.lines()) {
+                    if (!containsAll(listOf(start, end))) {
+                        throw GradleException("Plugin description section not found in README.md:\n$start ... $end")
+                    }
+                    subList(indexOf(start) + 1, indexOf(end)).joinToString("\n").let(::markdownToHTML)
                 }
-                subList(indexOf(start) + 1, indexOf(end)).joinToString("\n").let(::markdownToHTML)
             }
-        }
 
         if (!System.getenv("CI_BUILD_PLUGIN").toBoolean()) {
             val changelog = project.changelog
-            changeNotes = providers.gradleProperty("pluginVersion").map { pluginVersion ->
-                with(changelog) {
-                    renderItem(
-                        getOrNull(pluginVersion) ?: getLatest(),
-                        Changelog.OutputType.HTML
-                    )
+            changeNotes =
+                providers.gradleProperty("pluginVersion").map { pluginVersion ->
+                    with(changelog) {
+                        renderItem(
+                            getOrNull(pluginVersion) ?: getLatest(),
+                            Changelog.OutputType.HTML,
+                        )
+                    }
                 }
-            }
         }
     }
 
@@ -173,9 +176,9 @@ intellijPlatformTesting {
                             "-Djb.privacy.policy.text=\"<!--999.999-->\"",
                             "-Djb.consents.confirmation.enabled=false",
                             "-Didea.trust.all.projects=true",
-                            "-Dide.show.tips.on.startup.default.value=false"
+                            "-Dide.show.tips.on.startup.default.value=false",
                         )
-                    }
+                    },
                 )
             }
 
@@ -207,7 +210,15 @@ tasks {
         // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
         // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
         channels.set(listOf("beta"))
-        channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
+        channels.set(
+            listOf(
+                properties("pluginVersion")
+                    .split('-')
+                    .getOrElse(1) { "default" }
+                    .split('.')
+                    .first(),
+            ),
+        )
     }
 
     test {

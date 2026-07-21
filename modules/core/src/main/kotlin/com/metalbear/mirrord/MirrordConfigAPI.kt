@@ -23,7 +23,10 @@ private const val DEFAULT_CONFIG =
     }
 }"""
 
-class InvalidConfigException(path: String, reason: String) : MirrordError("failed to process config $path - $reason")
+class InvalidConfigException(
+    path: String,
+    reason: String,
+) : MirrordError("failed to process config $path - $reason")
 
 /**
  * Searches mirrord config for target.
@@ -40,12 +43,17 @@ fun isTargetSet(config: String?): Boolean {
     return path != "null"
 }
 
-class InvalidProjectException(project: Project, reason: String) : MirrordError("${project.name} - $reason")
+class InvalidProjectException(
+    project: Project,
+    reason: String,
+) : MirrordError("${project.name} - $reason")
 
 /**
  * Object for interacting with the mirrord config file.
  */
-class MirrordConfigAPI(private val service: MirrordProjectService) {
+class MirrordConfigAPI(
+    private val service: MirrordProjectService,
+) {
     /**
      * Searches for correct mirrord config path for a run configuration.
      * Displays notifications to the user.
@@ -53,12 +61,13 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      */
     fun getConfigPath(configFromEnv: String?): String? {
         service.activeConfig?.let {
-            service.notifier.notification(
-                "Using mirrord active config",
-                NotificationType.INFORMATION
-            )
-                .withOpenFile(it)
-                .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_USED).fire()
+            service.notifier
+                .notification(
+                    "Using mirrord active config",
+                    NotificationType.INFORMATION,
+                ).withOpenFile(it)
+                .withDontShowAgain(MirrordSettingsState.NotificationId.ACTIVE_CONFIG_USED)
+                .fire()
 
             return it.path
         }
@@ -68,11 +77,11 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         }
 
         getDefaultConfig()?.let {
-            service.notifier.notification(
-                "Using mirrord config from default path",
-                NotificationType.INFORMATION
-            )
-                .withOpenFile(it)
+            service.notifier
+                .notification(
+                    "Using mirrord config from default path",
+                    NotificationType.INFORMATION,
+                ).withOpenFile(it)
                 .withDontShowAgain(MirrordSettingsState.NotificationId.DEFAULT_CONFIG_USED)
                 .fire()
             return it.path
@@ -87,18 +96,20 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * @throws InvalidProjectException if the directory could not be found.
      */
     fun getProjectDir(): VirtualFile {
-        val knownLocationFile = service.project.projectFile
-            ?: service.project.workspaceFile
-            ?: throw InvalidProjectException(
-                service.project,
-                "could not determine parent directory for mirrord files, project must contain a project file or a workspace file"
-            )
+        val knownLocationFile =
+            service.project.projectFile
+                ?: service.project.workspaceFile
+                ?: throw InvalidProjectException(
+                    service.project,
+                    "could not determine parent directory for mirrord files, project must contain a project file or a workspace file",
+                )
 
-        val dir = if (knownLocationFile.extension == "xml") {
-            knownLocationFile.parent?.parent
-        } else {
-            knownLocationFile.parent
-        }
+        val dir =
+            if (knownLocationFile.extension == "xml") {
+                knownLocationFile.parent?.parent
+            } else {
+                knownLocationFile.parent
+            }
 
         return dir
             ?: throw InvalidProjectException(service.project, "could not determine parent directory for mirrord files")
@@ -108,9 +119,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * Searches for the `.mirrord` directory in the project.
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
-    private fun getMirrordDir(): VirtualFile? {
-        return getProjectDir().findChild(".mirrord")?.takeIf { it.isDirectory }
-    }
+    private fun getMirrordDir(): VirtualFile? = getProjectDir().findChild(".mirrord")?.takeIf { it.isDirectory }
 
     /**
      * Searches for a default mirrord config in the project.
@@ -118,12 +127,11 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      * Candidates are sorted alphabetically and the first one is picked.
      * @throws InvalidProjectException if parent directory for `.mirrord` could not be found.
      */
-    fun getDefaultConfig(): VirtualFile? {
-        return getMirrordDir()
+    fun getDefaultConfig(): VirtualFile? =
+        getMirrordDir()
             ?.children
             ?.filter { isValidConfigExt(it) }
             ?.minByOrNull { it.name }
-    }
 
     /**
      * Creates a default mirrord config in the given project.
@@ -133,18 +141,17 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
     fun createDefaultConfig(): VirtualFile {
         val mirrordDir = getMirrordDir() ?: getProjectDir().createChildDirectory(this, ".mirrord")
 
-        return mirrordDir.createChildData(this, "mirrord.json")
+        return mirrordDir
+            .createChildData(this, "mirrord.json")
             .apply { bom = null }
             .apply { charset = Charset.forName("UTF-8") }
             .apply { setBinaryContent(DEFAULT_CONFIG.toByteArray()) }
     }
-    companion object {
-        fun isConfigFilePath(file: VirtualFile): Boolean {
-            return file.path.contains("mirrord") && isValidConfigExt(file)
-        }
 
-        fun isValidConfigExt(file: VirtualFile): Boolean {
-            return file.name.endsWith(".json") || file.name.endsWith(".yaml") || file.name.endsWith(".toml")
-        }
+    companion object {
+        fun isConfigFilePath(file: VirtualFile): Boolean = file.path.contains("mirrord") && isValidConfigExt(file)
+
+        fun isValidConfigExt(file: VirtualFile): Boolean =
+            file.name.endsWith(".json") || file.name.endsWith(".yaml") || file.name.endsWith(".toml")
     }
 }

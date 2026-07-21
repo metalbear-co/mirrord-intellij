@@ -11,7 +11,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
 internal object IdeaMirrordPreparationStore {
     private val queueByConfiguration = ConcurrentHashMap<RunConfigurationBase<*>, ConcurrentLinkedQueue<MirrordExecution>>()
 
-    fun put(configuration: RunConfigurationBase<*>, execution: MirrordExecution) {
+    fun put(
+        configuration: RunConfigurationBase<*>,
+        execution: MirrordExecution,
+    ) {
         queueByConfiguration.computeIfAbsent(configuration) { ConcurrentLinkedQueue() }.add(execution)
     }
 

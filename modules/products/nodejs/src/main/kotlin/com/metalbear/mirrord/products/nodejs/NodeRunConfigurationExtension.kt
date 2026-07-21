@@ -13,55 +13,56 @@ import com.metalbear.mirrord.MirrordProjectService
 import javax.swing.JPanel
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
-
-    override fun <P : AbstractNodeTargetRunProfile> createEditor(configuration: P): SettingsEditor<P> {
-        return object : SettingsEditor<P>() {
+    override fun <P : AbstractNodeTargetRunProfile> createEditor(configuration: P): SettingsEditor<P> =
+        object : SettingsEditor<P>() {
             override fun resetEditorFrom(s: P) {}
 
             override fun applyEditorTo(s: P) {}
 
             override fun createEditor() = JPanel()
         }
-    }
 
-    override fun getEditorTitle(): String? {
-        return null
-    }
+    override fun getEditorTitle(): String? = null
 
-    override fun createLaunchSession(configuration: AbstractNodeTargetRunProfile, environment: ExecutionEnvironment): NodeRunConfigurationLaunchSession {
-        return object : NodeRunConfigurationLaunchSession() {
+    override fun createLaunchSession(
+        configuration: AbstractNodeTargetRunProfile,
+        environment: ExecutionEnvironment,
+    ): NodeRunConfigurationLaunchSession =
+        object : NodeRunConfigurationLaunchSession() {
             override fun addNodeOptionsTo(targetRun: NodeTargetRun) {
                 val service = targetRun.project.service<MirrordProjectService>()
-                val wsl = when (val request = targetRun.request) {
-                    is WslTargetEnvironmentRequest -> request.configuration.distribution
-                    else -> null
-                }
+                val wsl =
+                    when (val request = targetRun.request) {
+                        is WslTargetEnvironmentRequest -> request.configuration.distribution
+                        else -> null
+                    }
 
                 // following try-catch is to maintain backward compatibility with older versions of webstorm
-                val extraEnvVars = try {
-                    targetRun.envData.envs
-                } catch (e: NoSuchMethodError) {
-                    val config = configuration as NodeJsRunConfiguration
-                    config.envs
-                }
-
-                service.execManager.wrapper("nodejs", extraEnvVars).apply {
-                    this.wsl = wsl
-                }.start()?.let { executionInfo ->
-                    executionInfo.environment.forEach { (key, value) ->
-                        targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
+                val extraEnvVars =
+                    try {
+                        targetRun.envData.envs
+                    } catch (e: NoSuchMethodError) {
+                        val config = configuration as NodeJsRunConfiguration
+                        config.envs
                     }
-                    executionInfo.envToUnset?.let { keys ->
-                        for (key in keys.iterator()) {
-                            targetRun.commandLineBuilder.removeEnvironmentVariable(key)
+
+                service.execManager
+                    .wrapper("nodejs", extraEnvVars)
+                    .apply {
+                        this.wsl = wsl
+                    }.start()
+                    ?.let { executionInfo ->
+                        executionInfo.environment.forEach { (key, value) ->
+                            targetRun.commandLineBuilder.addEnvironmentVariable(key, value)
+                        }
+                        executionInfo.envToUnset?.let { keys ->
+                            for (key in keys.iterator()) {
+                                targetRun.commandLineBuilder.removeEnvironmentVariable(key)
+                            }
                         }
                     }
-                }
             }
         }
-    }
 
-    override fun isApplicableFor(profile: AbstractNodeTargetRunProfile): Boolean {
-        return profile is NodeJsRunConfiguration
-    }
+    override fun isApplicableFor(profile: AbstractNodeTargetRunProfile): Boolean = profile is NodeJsRunConfiguration
 }

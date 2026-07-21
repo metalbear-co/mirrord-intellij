@@ -22,29 +22,36 @@ object MirrordPathManager {
      * runs are treated like native Linux (linux folder, no `.exe`) regardless
      * of host OS. Windows-native runs pass `wslDistribution = null`.
      */
-    fun getPath(name: String, universalOnMac: Boolean, wslDistribution: WSLDistribution? = null): Path {
+    fun getPath(
+        name: String,
+        universalOnMac: Boolean,
+        wslDistribution: WSLDistribution? = null,
+    ): Path {
         val treatAsLinux = SystemInfo.isLinux || wslDistribution != null
-        val os = when {
-            treatAsLinux -> "linux"
-            SystemInfo.isMac -> "macos"
-            SystemInfo.isWindows -> "windows"
-            else -> throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
-        }
+        val os =
+            when {
+                treatAsLinux -> "linux"
+                SystemInfo.isMac -> "macos"
+                SystemInfo.isWindows -> "windows"
+                else -> throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
+            }
 
-        val arch = when {
-            // WSL inherits the host architecture on Windows, so CpuArch is the
-            // right proxy for both native Linux and Windows+WSL.
-            CpuArch.isIntel64() -> "x86-64"
-            CpuArch.isArm64() -> "arm64"
-            else -> throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
-        }
+        val arch =
+            when {
+                // WSL inherits the host architecture on Windows, so CpuArch is the
+                // right proxy for both native Linux and Windows+WSL.
+                CpuArch.isIntel64() -> "x86-64"
+                CpuArch.isArm64() -> "arm64"
+                else -> throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
+            }
 
         val binaryName = if (isWinNative(wslDistribution)) "$name.exe" else name
 
-        val format = when {
-            SystemInfo.isMac && universalOnMac -> "bin/$os/$binaryName"
-            else -> "bin/$os/$arch/$binaryName"
-        }
+        val format =
+            when {
+                SystemInfo.isMac && universalOnMac -> "bin/$os/$binaryName"
+                else -> "bin/$os/$arch/$binaryName"
+            }
 
         return pluginDir().resolve(format)
     }
@@ -53,7 +60,11 @@ object MirrordPathManager {
      * Get matching binary based on platform and architecture. See [getPath]
      * for the semantics of [wslDistribution].
      */
-    fun getBinary(name: String, universalOnMac: Boolean, wslDistribution: WSLDistribution? = null): String? {
+    fun getBinary(
+        name: String,
+        universalOnMac: Boolean,
+        wslDistribution: WSLDistribution? = null,
+    ): String? {
         val binaryPath = this.getPath(name, universalOnMac, wslDistribution).takeIf { Files.exists(it) } ?: return null
         return if (Files.isExecutable(binaryPath) || binaryPath.toFile().setExecutable(true)) {
             return binaryPath.toString()

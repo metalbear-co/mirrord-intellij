@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap
  * Windows-native only. Caller must gate on [com.metalbear.mirrord.isWinNative].
  */
 object MirrordPitmJdk {
-
     const val REAL_JAVA_ENV = "MIRRORD_PITM_REAL_JAVA"
 
     private val fakeJdkDir: File =
@@ -55,11 +54,15 @@ object MirrordPitmJdk {
      *         `realJdk.homePath` is null, source `mirrordExe` doesn't exist, or
      *         the copy failed). The caller then falls back to the non-pitm path.
      */
-    fun wrap(realJdk: Sdk, mirrordExe: File): Sdk? {
-        val realHome = realJdk.homePath ?: run {
-            MirrordLogger.logger.warn("MirrordPitmJdk: real JDK home is null, cannot wrap")
-            return null
-        }
+    fun wrap(
+        realJdk: Sdk,
+        mirrordExe: File,
+    ): Sdk? {
+        val realHome =
+            realJdk.homePath ?: run {
+                MirrordLogger.logger.warn("MirrordPitmJdk: real JDK home is null, cannot wrap")
+                return null
+            }
         val realJavaExe = File(realHome, "bin/java.exe")
         if (!realJavaExe.exists()) {
             MirrordLogger.logger.warn("MirrordPitmJdk: real java.exe not found at ${realJavaExe.absolutePath}")
@@ -79,25 +82,25 @@ object MirrordPitmJdk {
                 Files.copy(mirrordExe.toPath(), fakeJavaExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 MirrordLogger.logger.info(
                     "MirrordPitmJdk: copied ${mirrordExe.absolutePath} (size=${mirrordExe.length()}) → " +
-                        "${fakeJavaExe.absolutePath} (existed=$dstExisted prevSize=$dstSizeBefore)"
+                        "${fakeJavaExe.absolutePath} (existed=$dstExisted prevSize=$dstSizeBefore)",
                 )
             } else {
                 MirrordLogger.logger.info(
-                    "MirrordPitmJdk: fake java.exe up-to-date at ${fakeJavaExe.absolutePath} (size=$dstSizeBefore), skipping copy"
+                    "MirrordPitmJdk: fake java.exe up-to-date at ${fakeJavaExe.absolutePath} (size=$dstSizeBefore), skipping copy",
                 )
             }
         } catch (e: Exception) {
             MirrordLogger.logger.error(
                 "MirrordPitmJdk: failed to copy mirrord.exe (${mirrordExe.absolutePath}) into fake JDK " +
                     "(${fakeJavaExe.absolutePath}): ${e.message}",
-                e
+                e,
             )
             return null
         }
 
         MirrordLogger.logger.info(
             "MirrordPitmJdk: wrapping Sdk ${realJdk.name}, " +
-                "realHome=$realHome, fakeHome=${fakeJdkDir.absolutePath}"
+                "realHome=$realHome, fakeHome=${fakeJdkDir.absolutePath}",
         )
 
         return fakeSdkFor(realJdk)
@@ -120,12 +123,15 @@ object MirrordPitmJdk {
                 realJdk.name,
                 realJdk.sdkType,
                 FileUtil.toSystemIndependentName(fakeJdkDir.absolutePath),
-                realJdk.versionString
+                realJdk.versionString,
             )
         }
     }
 
-    private fun needsCopy(src: File, dst: File): Boolean {
+    private fun needsCopy(
+        src: File,
+        dst: File,
+    ): Boolean {
         if (!dst.exists()) return true
         if (src.length() != dst.length()) return true
         return !md5(src).contentEquals(md5(dst))

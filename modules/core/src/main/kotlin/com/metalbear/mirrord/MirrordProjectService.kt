@@ -10,16 +10,16 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 
 @Service(Service.Level.PROJECT)
-class MirrordProjectService(val project: Project) : Disposable {
+class MirrordProjectService(
+    val project: Project,
+) : Disposable {
     val configApi: MirrordConfigAPI = MirrordConfigAPI(this)
 
     val execManager: MirrordExecManager = MirrordExecManager(this)
 
     val versionCheck: MirrordVersionCheck = MirrordVersionCheck(this)
 
-    fun mirrordApi(environment: Map<String, String>?): MirrordApi {
-        return MirrordApi(this, environment)
-    }
+    fun mirrordApi(environment: Map<String, String>?): MirrordApi = MirrordApi(this, environment)
 
     val notifier: MirrordNotifier = MirrordNotifier(this)
 
@@ -57,17 +57,14 @@ class MirrordProjectService(val project: Project) : Disposable {
             notifier
                 .notification(
                     "Allow mirrord plugin version check",
-                    NotificationType.INFORMATION
-                )
-                .withAction("Deny") { _, n ->
+                    NotificationType.INFORMATION,
+                ).withAction("Deny") { _, n ->
                     MirrordSettingsState.instance.mirrordState.versionCheckEnabled = false
                     n.expire()
-                }
-                .withAction("Allow") { _, n ->
+                }.withAction("Allow") { _, n ->
                     MirrordSettingsState.instance.mirrordState.versionCheckEnabled = true
                     n.expire()
-                }
-                .withCollapseDirection(Notification.CollapseActionsDirection.KEEP_RIGHTMOST)
+                }.withCollapseDirection(Notification.CollapseActionsDirection.KEEP_RIGHTMOST)
                 .fire()
         }
     }
