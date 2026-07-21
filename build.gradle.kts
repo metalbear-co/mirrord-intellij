@@ -22,7 +22,10 @@ plugins {
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
-val remoteRobotVersion = "0.11.24.506"
+// Pinned to 0.11.19: newer remote-robot releases (0.11.24.x) break the e2e UI-component
+// lookups against the 2026.1 platform. This test harness is version-coupled to the IDE,
+// so it is intentionally excluded from the "bump everything to latest" change.
+val remoteRobotVersion = "0.11.19"
 val platformType = System.getenv("PLATFORMTYPE") ?: "IU"
 
 repositories {
@@ -37,7 +40,7 @@ repositories {
 dependencies {
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
-    testImplementation("com.intellij.remoterobot:ide-launcher:$remoteRobotVersion")
+    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.2")
