@@ -224,7 +224,7 @@ jobs:
 
           gh api \
             --method POST \
-            repos/metalbear-co/infra/actions/workflows/update-vscode-version.yml/dispatches \
+            repos/metalbear-co/infra/actions/workflows/update-jetbrains-version.yml/dispatches \
             -f ref=main \
             -f inputs[jetbrains_version]=${{ needs.release.outputs.version }}
 
