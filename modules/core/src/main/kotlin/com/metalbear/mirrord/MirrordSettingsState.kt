@@ -6,6 +6,12 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
 
+/**
+ * Default timeout (in minutes) for a mirrord task, i.e. the `mirrord ext` execution that
+ * spins up the agent and returns the patched environment.
+ */
+const val DEFAULT_TASK_TIMEOUT_MINUTES: Int = 2
+
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
     companion object {
@@ -54,6 +60,7 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var runsCounter: Int = 0
         var operatorUsed: Boolean = false
         var enabledByDefault: Boolean = false
+        var taskTimeoutMinutes: Int = DEFAULT_TASK_TIMEOUT_MINUTES
 
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id

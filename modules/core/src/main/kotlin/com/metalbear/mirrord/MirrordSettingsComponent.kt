@@ -31,6 +31,12 @@ class MirrordSettingsComponent {
         this
     }
 
+    private val taskTimeoutLabel = JBLabel("mirrord task timeout (minutes):")
+    private val taskTimeout = with(JBTextField("", 5)) {
+        toolTipText = "how long to wait for a mirrord task (e.g. starting the agent) before timing out"
+        this
+    }
+
     private val autoUpdate = JBCheckBox("Auto update mirrord binary")
         .apply {
             addItemListener { e ->
@@ -51,6 +57,7 @@ class MirrordSettingsComponent {
         .addComponent(usageBannerEnabled)
         .addComponent(enabledOnStartup)
         .addComponent(versionCheckEnabled)
+        .addLabeledComponent(taskTimeoutLabel, taskTimeout)
         .addSeparator()
         .addComponent(autoUpdatePanel)
         .addSeparator()
@@ -108,5 +115,15 @@ class MirrordSettingsComponent {
         get() = mirrordBinaryPath.text
         set(value) {
             mirrordBinaryPath.text = value.trim()
+        }
+
+    /**
+     * The configured task timeout in minutes. Falls back to the default if the field is empty
+     * or not a positive integer.
+     */
+    var taskTimeoutMinutesStatus: Int
+        get() = taskTimeout.text.trim().toIntOrNull()?.takeIf { it > 0 } ?: DEFAULT_TASK_TIMEOUT_MINUTES
+        set(value) {
+            taskTimeout.text = value.toString()
         }
 }
