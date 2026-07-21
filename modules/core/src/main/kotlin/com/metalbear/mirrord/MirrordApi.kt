@@ -859,6 +859,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
     fun run(project: Project): T {
         val commandLine = prepareCommandLine(project)
         val logsService = project.service<MirrordLogsService>()
+        val taskTimeoutMinutes = MirrordSettingsState.instance.mirrordState.taskTimeoutMinutes.toLong()
 
         MirrordLogger.logger.info("running mirrord task with following command line: ${commandLine.commandLineString}")
 
@@ -911,7 +912,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             })
 
             try {
-                env.get(2, TimeUnit.MINUTES)
+                env.get(taskTimeoutMinutes, TimeUnit.MINUTES)
             } catch (e: ExecutionException) {
                 throw e.cause ?: e
             } catch (e: CancellationException) {
@@ -928,7 +929,7 @@ private abstract class MirrordCliTask<T>(private val cli: String, private val co
             // (to update the UI with a progress indicator).
             // EDT thread requires a write lock, so using a background task here would cause a deadlock.
             try {
-                computeWithResponsiveCancel(project, process, TimeoutProgressChecker(2, TimeUnit.MINUTES))
+                computeWithResponsiveCancel(project, process, TimeoutProgressChecker(taskTimeoutMinutes, TimeUnit.MINUTES))
             } catch (e: ProcessCanceledException) {
                 // In this case, process is canceled only after a timeout.
                 process.destroy()

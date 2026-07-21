@@ -21,7 +21,8 @@ class MirrordSettingsConfigurable : Configurable {
                 (autoUpdateEnabledStatus != settings.autoUpdate) ||
                 (mirrordVersionStatus != settings.mirrordVersion) ||
                 (mirrordBinaryPathStatus != settings.mirrordBinaryPath) ||
-                (enabledOnStartupStatus != settings.enabledByDefault)
+                (enabledOnStartupStatus != settings.enabledByDefault) ||
+                (taskTimeoutMinutesStatus != settings.taskTimeoutMinutes)
         }
     }
 
@@ -35,6 +36,7 @@ class MirrordSettingsConfigurable : Configurable {
             settings.mirrordVersion = mirrordVersionStatus
             settings.mirrordBinaryPath = mirrordBinaryPathStatus
             settings.enabledByDefault = enabledOnStartupStatus
+            settings.taskTimeoutMinutes = taskTimeoutMinutesStatus
         }
     }
 
@@ -48,6 +50,7 @@ class MirrordSettingsConfigurable : Configurable {
             notificationsDisabledStatus = settings.disabledNotifications.orEmpty()
             usageBannerEnabledStatus = settings.showUsageBanner
             enabledOnStartupStatus = settings.enabledByDefault
+            taskTimeoutMinutesStatus = settings.taskTimeoutMinutes
         }
     }
 
