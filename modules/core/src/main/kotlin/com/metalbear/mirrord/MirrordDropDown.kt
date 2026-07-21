@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.*
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -116,7 +117,7 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         override fun getActionUpdateThread() = ActionUpdateThread.BGT
     }
 
-    private class SettingsAction : AnAction("Settings") {
+    private class SettingsAction : AnAction("mirrord config file") {
         override fun actionPerformed(e: AnActionEvent) {
             val service = e.project?.service<MirrordProjectService>() ?: return
 
@@ -160,6 +161,13 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
+    private class GeneralSettingsAction : AnAction("General Settings") {
+        override fun actionPerformed(e: AnActionEvent) {
+            val project = e.project ?: return
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, MirrordSettingsConfigurable::class.java)
+        }
+    }
+
     private class NavigateToMirrodForTeamsIntroAction : AnAction("Try It Now") {
         override fun actionPerformed(e: AnActionEvent) {
             BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
@@ -190,6 +198,7 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
             }
             add(SelectActiveConfigAction())
             add(SettingsAction())
+            add(GeneralSettingsAction())
 
             if (!MirrordSettingsState.instance.mirrordState.operatorUsed) {
                 addSeparator("mirrord for Teams")
