@@ -34,15 +34,15 @@ class MirrordVersionCheck(private val service: MirrordProjectService) {
         }
         val nowEpoch = nowUTC.toEpochSecond(ZoneOffset.UTC)
         pc.setValue(LAST_CHECK_KEY, nowEpoch.toString())
-        val remoteVersion = Version.valueOf(URL(VERSION_CHECK_ENDPOINT).readText())
+        val remoteVersion = Version.parse(URL(VERSION_CHECK_ENDPOINT).readText())
 
         // Don't show user anything
         if (MirrordSettingsState.instance.mirrordState.versionCheckEnabled != true) {
             return
         }
 
-        val localVersion = Version.valueOf(VERSION)
-        if (localVersion.lessThan(remoteVersion)) {
+        val localVersion = Version.parse(VERSION)
+        if (localVersion.isLowerThan(remoteVersion)) {
             ApplicationManager.getApplication().invokeLater {
                 service.notifier.notification(
                     "The version of the mirrord plugin is outdated. Would you like to update it now?",

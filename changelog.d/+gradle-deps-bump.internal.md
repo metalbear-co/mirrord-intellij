@@ -1,0 +1,1 @@
+Bumped Gradle, build plugins, and third-party dependencies to their latest versions (Gradle 9.6.1, Kotlin 2.4.10, IntelliJ Platform Gradle plugin 2.18.1, JUnit 6.1.2, remote-robot 0.11.24.506, java-semver 0.10.2, kotlinx-collections-immutable 0.5.1).

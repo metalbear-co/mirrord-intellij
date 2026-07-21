@@ -22,7 +22,7 @@ plugins {
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
-val remoteRobotVersion = "0.11.19"
+val remoteRobotVersion = "0.11.24.506"
 val platformType = System.getenv("PLATFORMTYPE") ?: "IU"
 
 repositories {
@@ -37,13 +37,13 @@ repositories {
 dependencies {
     testImplementation("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
-    testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
+    testImplementation("com.intellij.remoterobot:ide-launcher:$remoteRobotVersion")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.2")
     // BasePlatformTestCase is JUnit3; the other tests are JUnit5.
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.2")
     testImplementation("com.squareup.okhttp3:logging-interceptor:5.4.0")
     testImplementation("junit:junit:4.13.2")
 

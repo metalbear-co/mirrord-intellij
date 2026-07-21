@@ -153,7 +153,7 @@ class MirrordBinaryManager {
             // auto update -> false -> use mirrordVersion if it's not empty
             !autoUpdate && (userSelectedMirrordVersion.isNotEmpty()) -> {
                 try {
-                    Version.valueOf(userSelectedMirrordVersion)
+                    Version.parse(userSelectedMirrordVersion)
                 } catch (e: Exception) {
                     project
                         .service<MirrordProjectService>()
@@ -348,9 +348,9 @@ class MirrordBinaryManager {
             val isRequiredVersion = try {
                 // for release CI, the tag can be greater than the latest release
                 if (System.getenv("CI_BUILD_PLUGIN") == "true") {
-                    Version.valueOf(binary.version).greaterThanOrEqualTo(Version.valueOf(requiredVersion))
+                    Version.parse(binary.version).isHigherThanOrEquivalentTo(Version.parse(requiredVersion))
                 } else {
-                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                    Version.parse(binary.version).equals(Version.parse(requiredVersion))
                 }
             } catch (e: Exception) {
                 MirrordLogger.logger.debug("failed to parse version", e)
@@ -373,7 +373,7 @@ class MirrordBinaryManager {
             MirrordPathManager.getBinary(CLI_BINARY, true, wslDistribution)?.let {
                 val binary = MirrordBinary(it, wslDistribution)
                 val isRequiredVersion = try {
-                    Version.valueOf(binary.version).equals(Version.valueOf(requiredVersion))
+                    Version.parse(binary.version).equals(Version.parse(requiredVersion))
                 } catch (e: Exception) {
                     MirrordLogger.logger.debug("failed to parse version", e)
                     false
@@ -414,7 +414,7 @@ class MirrordBinaryManager {
         }
 
         val required = try {
-            Version.valueOf(MIN_WINDOWS_NATIVE_VERSION)
+            Version.parse(MIN_WINDOWS_NATIVE_VERSION)
         } catch (e: Exception) {
             MirrordLogger.logger.error(
                 "checkWindowsNativeSupport: failed to parse the hardcoded minimum Windows-native mirrord version " +
@@ -431,10 +431,10 @@ class MirrordBinaryManager {
             null
         }
 
-        fun Version?.satisfies(): Boolean = this != null && this.greaterThanOrEqualTo(required)
+        fun Version?.satisfies(): Boolean = this != null && this.isHigherThanOrEquivalentTo(required)
         fun parse(raw: String?): Version? = raw?.let {
             try {
-                Version.valueOf(it)
+                Version.parse(it)
             } catch (_: Exception) {
                 null
             }
@@ -522,12 +522,12 @@ class MirrordBinaryManager {
     private fun enforceWindowsNativeMin(binary: MirrordBinary, wslDistribution: WSLDistribution?) {
         if (!isWinNative(wslDistribution)) return
         val parsed = try {
-            Version.valueOf(binary.version)
+            Version.parse(binary.version)
         } catch (_: Exception) {
             null
         }
-        val required = Version.valueOf(MIN_WINDOWS_NATIVE_VERSION)
-        if (parsed != null && parsed.greaterThanOrEqualTo(required)) return
+        val required = Version.parse(MIN_WINDOWS_NATIVE_VERSION)
+        if (parsed != null && parsed.isHigherThanOrEquivalentTo(required)) return
 
         val found = parsed?.toString() ?: binary.version.ifBlank { "none" }
         val body = MirrordWindowsUnsupportedDialog.buildVersionUnsupportedBody(

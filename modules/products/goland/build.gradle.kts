@@ -8,7 +8,7 @@ plugins {
 
 dependencies {
     implementation(project(":mirrord-core"))
-    implementation("com.github.zafarkhaja:java-semver:0.9.0")
+    implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
     intellijPlatform {
         goland(properties("platformVersion"))
