@@ -155,7 +155,7 @@ internal class MirrordPluginTest {
                     mirrordDropdownMenu.isShowing
                 }
 
-                mirrordDropdownMenu.findText("Settings").click()
+                mirrordDropdownMenu.findText("mirrord config file").click()
 
                 editorTabs {
                     waitFor(ofSeconds(60)) {
