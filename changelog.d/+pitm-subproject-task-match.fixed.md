@@ -1,0 +1,1 @@
+Fix the Windows pitm Gradle init script silently skipping subproject tasks: IntelliJ passes qualified task names without a leading colon (`sub:bootRun`), which never matched Gradle's absolute `task.path` (`:sub:bootRun`), so the layer was never injected and the app ran without mirrord. Task paths are now compared colon-normalized.

@@ -10,9 +10,17 @@ import com.metalbear.mirrord.MirrordProjectService
 import java.io.File
 
 /**
- * Windows-native Gradle wrapping: generates a Gradle init script that replaces
- * `JavaExec`'s built-in action with `mirrord pitm -- <java> @<argfile>` so the
- * user JVM launches suspended for layer injection.
+ * Windows-native Gradle layer injection: generates the init script that arranges
+ * for the mirrord layer to end up in the forked user JVM. There is no `LD_PRELOAD`
+ * on Windows, so the injected script replaces each matched `JavaExec` task's
+ * built-in action with `mirrord pitm -- <java> @<argfile>`, launching the JVM
+ * suspended so the layer DLL is injected before it resumes.
+ *
+ * This covers both Run and Debug. In Debug the forked JVM keeps IntelliJ's
+ * dispatched `-agentlib:jdwp` argument (pitm forwards `task.allJvmArgs`
+ * verbatim), so the debugger still attaches to the now-injected JVM. Debug does
+ * not use `mirrord attach` here — that path exists only in Rider, where the
+ * debugger, not Gradle, owns process creation.
  *
  * Kept separate from [IdeaRunConfigurationExtension] so the Groovy template
  * lives as a standalone resource (with real syntax highlighting) rather than a
@@ -25,25 +33,24 @@ import java.io.File
  * IDE. No task names flow from the Kotlin side.
  *
  * Call [wrap] once per run configuration in `updateJavaParameters` when on
- * Windows-native + non-debug Gradle. See caller for the isWinNative / !isDebug
- * gating.
+ * Windows-native Gradle. See the caller for the `isWinNative` gating.
  */
-internal object MirrordPitmGradle {
-    private const val TEMPLATE_RESOURCE = "mirrord-pitm-init.gradle.template"
+internal object MirrordWinGradleInjector {
+    private const val TEMPLATE_RESOURCE = "mirrord-win-gradle-init.gradle.template"
 
     private const val PLACEHOLDER_CLI_PATH = "__MIRRORD_CLI_PATH__"
     private const val PLACEHOLDER_CHILD_ENV_VAR = "__MIRRORD_CHILD_ENV_VAR__"
 
     /**
-     * Generates the pitm init script for [configuration], appends it to the
-     * Gradle `--init-script` chain, and adds [MirrordPitm.CHILD_ENV_VAR] to
-     * the configuration's environment. Mirrord env vars reach the user JVM via
-     * that single base64-JSON payload — the Gradle daemon itself does not see
-     * them.
+     * Generates the init script for [configuration], appends it to the Gradle
+     * `--init-script` chain, and adds [MirrordPitm.CHILD_ENV_VAR] to the
+     * configuration's environment. Mirrord env vars reach the user JVM via that
+     * single base64-JSON payload, which `mirrord pitm` decodes — the Gradle
+     * daemon itself never sees them.
      *
      * On failure to create the init script, falls back to setting [mirrordEnvVars]
-     * directly on the configuration (no pitm), so the Gradle run still executes
-     * without mirrord rather than failing outright.
+     * directly on the configuration, so the Gradle run still executes (without the
+     * layer) rather than failing outright.
      */
     fun wrap(
         configuration: ExternalSystemRunConfiguration,
@@ -51,7 +58,7 @@ internal object MirrordPitmGradle {
         envToUnset: List<String>?
     ) {
         MirrordLogger.logger.info(
-            "MirrordPitmGradle.wrap: ENTER taskNames=${configuration.settings.taskNames} " +
+            "MirrordWinGradleInjector.wrap: ENTER taskNames=${configuration.settings.taskNames} " +
                 "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
         )
 
@@ -62,15 +69,15 @@ internal object MirrordPitmGradle {
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
 
         MirrordLogger.logger.info(
-            "MirrordPitmGradle.wrap: cliPath=$cliPath childEnvPayload.len=${childEnvPayload.length}"
+            "MirrordWinGradleInjector.wrap: cliPath=$cliPath childEnvPayload.len=${childEnvPayload.length}"
         )
 
         val initScript = try {
             writeInitScript(cliPath)
         } catch (e: Exception) {
-            MirrordLogger.logger.warn("MirrordPitmGradle.wrap: failed to create init script: ${e.message}", e)
+            MirrordLogger.logger.warn("MirrordWinGradleInjector.wrap: failed to create init script: ${e.message}", e)
             project.service<MirrordProjectService>().notifier.notifySimple(
-                "mirrord: could not create pitm init script (${e.message}); layer will not load.",
+                "mirrord: could not create the Gradle init script (${e.message}); layer will not load.",
                 NotificationType.ERROR
             )
             configuration.settings.env =
@@ -86,7 +93,7 @@ internal object MirrordPitmGradle {
         appendInitScript(configuration, initScript)
 
         MirrordLogger.logger.info(
-            "MirrordPitmGradle.wrap: SUCCESS initScript=${initScript.absolutePath} " +
+            "MirrordWinGradleInjector.wrap: SUCCESS initScript=${initScript.absolutePath} " +
                 "size=${initScript.length()}b, " +
                 "settings.env $envBefore → ${configuration.settings.env.size}, " +
                 "scriptParameters grew from ${scriptParamsBefore.length} to " +
@@ -100,7 +107,7 @@ internal object MirrordPitmGradle {
         val groovy = template
             .replace(PLACEHOLDER_CLI_PATH, cliPath)
             .replace(PLACEHOLDER_CHILD_ENV_VAR, MirrordPitm.CHILD_ENV_VAR)
-        return File.createTempFile("mirrord-pitm-", ".gradle").apply {
+        return File.createTempFile("mirrord-win-gradle-", ".gradle").apply {
             deleteOnExit()
             writeText(groovy)
         }

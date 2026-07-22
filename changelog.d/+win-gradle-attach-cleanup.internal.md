@@ -1,0 +1,1 @@
+Unified Windows-native Gradle Run and Debug onto the single `mirrord pitm` init-script path and removed the vestigial `attach` mode from the Gradle injector (`mirrord attach` is now used only by Rider).
