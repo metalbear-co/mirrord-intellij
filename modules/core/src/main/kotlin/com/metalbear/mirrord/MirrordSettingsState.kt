@@ -12,6 +12,15 @@ import com.intellij.openapi.components.service
  */
 const val DEFAULT_TASK_TIMEOUT_MINUTES: Int = 2
 
+/** Layer log filter (deliberately not `RUST_LOG`, so a Rust app's own logging is unaffected). */
+private const val MIRRORD_LOG_ENV = "MIRRORD_LOG"
+
+/** Log filter for mirrord's other Rust processes (CLI/intproxy/agent). */
+private const val RUST_LOG_ENV = "RUST_LOG"
+
+/** Directory the layer writes a per-process trace log file into. */
+private const val MIRRORD_LAYER_LOG_PATH_ENV = "MIRRORD_LAYER_LOG_PATH"
+
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
     companion object {
@@ -62,6 +71,12 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var enabledByDefault: Boolean = false
         var taskTimeoutMinutes: Int = DEFAULT_TASK_TIMEOUT_MINUTES
 
+        /** When on, every mirrord run enables trace logging in mirrord's processes. */
+        var troubleshootingLogsEnabled: Boolean = false
+
+        /** Directory the layer writes its per-process trace log into ([MIRRORD_LAYER_LOG_PATH_ENV]). */
+        var troubleshootingLogsPath: String = ""
+
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id
         }
@@ -69,5 +84,33 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         fun isNotificationDisabled(id: NotificationId): Boolean {
             return disabledNotifications?.contains(id) ?: false
         }
+
+        /**
+         * Environment variables that turn on verbose layer logging for troubleshooting.
+         *
+         * These are merged into the launched process's mirrord environment, including through the
+         * Windows `MIRRORD_CHILD_ENV` payload. `RUST_LOG` is deliberately excluded because it
+         * belongs on the mirrord CLI and intproxy, not on a user's Rust application.
+         *
+         * `MIRRORD_LAYER_LOG_PATH` is omitted when blank, so layer logging falls back to stderr.
+         */
+        fun troubleshootingLayerEnvVars(): Map<String, String> {
+            if (!troubleshootingLogsEnabled) {
+                return emptyMap()
+            }
+            val env = linkedMapOf(MIRRORD_LOG_ENV to "trace")
+            troubleshootingLogsPath.trim().takeIf { it.isNotEmpty() }?.let {
+                env[MIRRORD_LAYER_LOG_PATH_ENV] = it
+            }
+            return env
+        }
+
+        /** Trace logging applied only to mirrord's CLI process and the intproxy it starts. */
+        fun troubleshootingCliEnvVars(): Map<String, String> =
+            if (troubleshootingLogsEnabled) {
+                mapOf(RUST_LOG_ENV to "trace")
+            } else {
+                emptyMap()
+            }
     }
 }
