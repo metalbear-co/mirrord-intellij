@@ -1,26 +1,30 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
   outputs =
     inputs:
-    inputs.flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import inputs.nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-        };
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            jdk21
-            jetbrains.idea
-          ];
-        };
-      }
-    );
+    let
+      inherit (inputs.nixpkgs) lib;
+    in
+    {
+      devShells = lib.genAttrs lib.systems.flakeExposed (
+        system:
+        let
+          pkgs = import inputs.nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        in
+        {
+          default = pkgs.mkShell {
+            packages = with pkgs; [
+              jdk21
+              jetbrains.idea
+            ];
+          };
+        }
+      );
+    };
 }
