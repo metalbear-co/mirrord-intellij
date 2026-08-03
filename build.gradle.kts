@@ -210,6 +210,7 @@ tasks {
     test {
         useJUnitPlatform()
         systemProperty("test.workspace", projectDir.resolve("test-workspace").absolutePath)
+        systemProperty("test.ide.version", platformVersion)
         val pluginFileName = properties("pluginName") + "-" + properties("pluginVersion") + ".zip"
         systemProperty("test.plugin.path", projectDir.resolve("build/distributions/$pluginFileName").absolutePath)
         testLogging {
