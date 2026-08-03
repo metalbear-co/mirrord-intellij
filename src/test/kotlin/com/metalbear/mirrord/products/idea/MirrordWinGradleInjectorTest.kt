@@ -340,10 +340,275 @@ class MirrordWinGradleInjectorTest {
     }
 
     @Test
+    fun detectsLegacyJdwpPort() {
+        assert(
+            detectDebuggerPort(
+                listOf("-Xrunjdwp:server=n,address=127.0.0.1:5006,transport=dt_socket,suspend=y")
+            ) == "5006"
+        )
+    }
+
+    @Test
+    fun detectsExplicitJdwpAgentPathPort() {
+        assert(
+            detectDebuggerPort(
+                listOf(
+                    "-agentpath:C:\\Java\\bin\\jdwp.dll=" +
+                        "server=n,address=127.0.0.1:5008,transport=dt_socket,suspend=y"
+                )
+            ) == "5008"
+        )
+    }
+
+    @Test
     fun returnsNullWhenNotDebugging() {
         assert(detectDebuggerPort(listOf("-Xmx512m", "-Dfoo=bar")) == null) {
             "no jdwp agent (Run mode) must yield null so MIRRORD_IGNORE_DEBUGGER_PORTS is not set"
         }
+    }
+
+    @Test
+    fun rejectsInvalidJdwpPorts() {
+        listOf("0", "65536", "not-a-port").forEach { port ->
+            assert(
+                detectDebuggerPort(
+                    listOf("-agentlib:jdwp=transport=dt_socket,address=$port")
+                ) == null
+            ) {
+                "invalid JDWP port `$port` must not pass the Debug launch guard"
+            }
+        }
+    }
+
+    private fun debuggerState(
+        jvmArgs: List<String>,
+        environment: Map<String, String> = emptyMap()
+    ): Map<String, Any?> {
+        val binding = Binding().apply {
+            setVariable("jvmArgs", jvmArgs)
+            setVariable("environment", environment)
+        }
+        val script =
+            block("debugger-port") +
+                block("debugger-state") +
+                "\nmirrordDebuggerState(jvmArgs, environment)"
+
+        @Suppress("UNCHECKED_CAST")
+        return GroovyShell(binding).evaluate(script) as Map<String, Any?>
+    }
+
+    private fun debuggerFailureReason(summary: Map<String, Any?>): String? {
+        val binding = Binding().apply { setVariable("summary", summary) }
+        val script =
+            block("debugger-guard") +
+                "\nmirrordDebuggerFailureReason(summary)"
+        return GroovyShell(binding).evaluate(script) as String?
+    }
+
+    @Test
+    fun reportsMissingJdwpWithoutLoggingJvmArguments() {
+        val result = debuggerState(listOf("-Xmx512m", "-Dcustomer.secret=do-not-log"))
+
+        assert(result["jdwpPresent"] == false)
+        assert(result["jdwpArgumentCount"] == 0)
+        assert(result["transportPresent"] == false)
+        assert(result["dtSocketPresent"] == false)
+        assert(result["addressPresent"] == false)
+        assert(result["serverMode"] == "missing")
+        assert(result["suspendMode"] == "missing")
+        assert(result["taskDebuggerPort"] == null)
+        assert(result["debuggerPort"] == null)
+        assert(result["debuggerPortSource"] == "none")
+        assert(result["jvmArgfilePresent"] == false)
+        assert(result["jdwpEnvironmentSources"] == emptyList<String>())
+        assert(result["jvmOptionArgfileSources"] == emptyList<String>())
+        assert(debuggerFailureReason(result) == "the effective application JVM arguments do not contain JDWP")
+    }
+
+    @Test
+    fun reportsJdwpAndItsPort() {
+        val result = debuggerState(
+            listOf("-agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=127.0.0.1:51011")
+        )
+
+        assert(result["jdwpPresent"] == true)
+        assert(result["jdwpArgumentCount"] == 1)
+        assert(result["transportPresent"] == true)
+        assert(result["dtSocketPresent"] == true)
+        assert(result["addressPresent"] == true)
+        assert(result["serverMode"] == "client")
+        assert(result["suspendMode"] == "enabled")
+        assert(result["taskDebuggerPort"] == "51011")
+        assert(result["debuggerPort"] == "51011")
+        assert(result["debuggerPortSource"] == "task_jvm_args")
+        assert(debuggerFailureReason(result) == null)
+    }
+
+    @Test
+    fun distinguishesUnparseableJdwpFromMissingJdwp() {
+        val result = debuggerState(
+            listOf("-agentlib:jdwp=transport=dt_socket,server=n,suspend=y")
+        )
+
+        assert(result["jdwpPresent"] == true)
+        assert(result["dtSocketPresent"] == true)
+        assert(result["addressPresent"] == false)
+        assert(result["debuggerPort"] == null)
+        assert(
+            debuggerFailureReason(result) ==
+                "a dt_socket JDWP argument is present, but it has no address"
+        )
+    }
+
+    @Test
+    fun rejectsJdwpWithAnInvalidSocketPort() {
+        val result = debuggerState(
+            listOf("-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:70000")
+        )
+
+        assert(result["addressPresent"] == true)
+        assert(result["taskDebuggerPort"] == null)
+        assert(
+            debuggerFailureReason(result) ==
+                "a dt_socket JDWP address is present, but its port could not be parsed"
+        )
+    }
+
+    @Test
+    fun reportsJdwpListenerModeAndDisabledSuspend() {
+        val result = debuggerState(
+            listOf(
+                "-agentpath:C:\\Java\\bin\\jdwp.dll=" +
+                    "transport=dt_socket,address=*:5008,server=y,suspend=n"
+            )
+        )
+
+        assert(result["jdwpPresent"] == true)
+        assert(result["serverMode"] == "listener")
+        assert(result["suspendMode"] == "disabled")
+        assert(result["debuggerPort"] == "5008")
+        assert(debuggerFailureReason(result) == null)
+    }
+
+    @Test
+    fun reportsUnsupportedJdwpTransport() {
+        val result = debuggerState(
+            listOf("-agentlib:jdwp=transport=dt_shmem,address=customer-debug,server=y")
+        )
+
+        assert(result["jdwpPresent"] == true)
+        assert(result["transportPresent"] == true)
+        assert(result["dtSocketPresent"] == false)
+        assert(result["addressPresent"] == true)
+        assert(result["serverMode"] == "listener")
+        assert(result["debuggerPort"] == null)
+        assert(debuggerFailureReason(result) == null) {
+            "dt_shmem is a valid Windows JDWP transport and must not be rejected for lacking a socket port"
+        }
+    }
+
+    @Test
+    fun reportsJdwpHiddenInJvmOptionEnvironmentWithoutLoggingItsValue() {
+        val result = debuggerState(
+            jvmArgs = listOf("-Xmx512m"),
+            environment = mapOf(
+                "JAVA_TOOL_OPTIONS" to
+                    "-Dcustomer.secret=do-not-log " +
+                    "-agentlib:jdwp=transport=dt_socket,address=127.0.0.1:5005"
+            )
+        )
+
+        assert(result["jdwpPresent"] == false)
+        assert(result["taskDebuggerPort"] == null)
+        assert(result["debuggerPort"] == "5005")
+        assert(result["debuggerPortSource"] == "JAVA_TOOL_OPTIONS")
+        assert(result["jdwpEnvironmentSources"] == listOf("JAVA_TOOL_OPTIONS"))
+        assert(debuggerFailureReason(result) == null)
+    }
+
+    @Test
+    fun doesNotReportJdwpFromAnUnrelatedSystemPropertyValue() {
+        val result = debuggerState(
+            jvmArgs = listOf("-Xmx512m"),
+            environment = mapOf(
+                "JAVA_TOOL_OPTIONS" to "-Dnote=-agentlib:jdwp=transport=dt_socket,address=5005"
+            )
+        )
+
+        assert(result["jdwpEnvironmentSources"] == emptyList<String>())
+    }
+
+    @Test
+    fun reportsJvmOptionEnvironmentArgumentFilesWithoutLoggingTheirPaths() {
+        val result = debuggerState(
+            jvmArgs = listOf("-Xmx512m"),
+            environment = mapOf("JDK_JAVA_OPTIONS" to "@C:\\customer\\private\\debug.args")
+        )
+
+        assert(result["jdwpEnvironmentSources"] == emptyList<String>())
+        assert(result["jvmOptionArgfileSources"] == listOf("JDK_JAVA_OPTIONS"))
+        assert(debuggerFailureReason(result) == null) {
+            "an environment argument file is indeterminate and must be allowed to reach the JVM"
+        }
+    }
+
+    @Test
+    fun treatsTaskJvmArgumentFilesAsIndeterminate() {
+        val result = debuggerState(listOf("@C:\\customer\\private\\debug.args"))
+
+        assert(result["jvmArgfilePresent"] == true)
+        assert(debuggerFailureReason(result) == null)
+    }
+
+    @Test
+    fun reportsOptionlessJdwpAsPresentButMalformed() {
+        listOf(
+            "-agentlib:jdwp",
+            "-Xrunjdwp",
+            "-agentpath:C:\\Java\\bin\\jdwp.dll"
+        ).forEach { argument ->
+            val result = debuggerState(listOf(argument))
+
+            assert(result["jdwpPresent"] == true)
+            assert(result["transportPresent"] == false)
+            assert(result["dtSocketPresent"] == false)
+            assert(result["addressPresent"] == false)
+            assert(result["debuggerPort"] == null)
+            assert(
+                debuggerFailureReason(result) ==
+                    "a JDWP argument is present, but it has no transport"
+            )
+        }
+    }
+
+    @Test
+    fun completeRenderedTemplateCompilesAsGroovy() {
+        val rendered = template
+            .replace(
+                "__MIRRORD_CLI_PATH_BASE64__",
+                Base64.getEncoder().encodeToString("C:/Users/O'Connor/mirrord.exe".toByteArray())
+            )
+            .replace("__MIRRORD_CHILD_ENV_VAR__", "MIRRORD_CHILD_ENV")
+            .replace("__MIRRORD_DEBUG_EXPECTED__", "true")
+            .replace("import javax.inject.Inject", "")
+            .replace("import org.gradle.api.tasks.JavaExec", "")
+            .replace("import org.gradle.process.ExecOperations", "")
+            .replace("import org.gradle.util.GradleVersion", "")
+            .replace(
+                "mirrordRequireSupportedGradle(GradleVersion.current(), GradleVersion.version('6.7'))",
+                ""
+            )
+            .replace(
+                Regex(
+                    """abstract class MirrordExecInjector \{\s*""" +
+                        """@Inject abstract ExecOperations getExecOps\(\)\s*}"""
+                ),
+                "class MirrordExecInjector { def execOps }"
+            )
+            .replace("JavaExec", "Object")
+            .replace("GradleException", "RuntimeException")
+
+        GroovyShell().parse(rendered)
     }
 
     // --- helpers ---

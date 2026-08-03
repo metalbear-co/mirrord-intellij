@@ -26,6 +26,7 @@
 // Placeholders (substituted at runtime by MirrordWinGradleInjector.kt):
 //   __MIRRORD_CLI_PATH_BASE64__ base64-encoded absolute path to mirrord.exe
 //   __MIRRORD_CHILD_ENV_VAR__ name of the MIRRORD_CHILD_ENV env var
+//   __MIRRORD_DEBUG_EXPECTED__ whether IntelliJ invoked the Debug runner
 
 import javax.inject.Inject
 import org.gradle.api.tasks.JavaExec
@@ -41,6 +42,7 @@ def mirrordCliPath = new String(
     java.util.Base64.decoder.decode('__MIRRORD_CLI_PATH_BASE64__'),
     'UTF-8'
 )
+def mirrordDebugExpected = __MIRRORD_DEBUG_EXPECTED__
 
 // mirrord-test:gradle-version:start
 def mirrordRequireSupportedGradle = { actualVersion, requiredVersion ->
@@ -152,22 +154,199 @@ def mirrordMatchesRequested = { task ->
 // Belt-and-suspenders until the layer's own `javaagent` autodetection handles the Windows/pitm
 // case natively (COR-1706) and becomes our minimum binary version — pitm passes every JVM arg
 // through an @argfile, which older layers don't scan. Returns null when not debugging.
+//
+// IntelliJ's current Gradle Debug launcher (including the Gradle 8.14 customer case)
+// uses `-agentlib:jdwp=<options>`. Keep accepting the equivalent JVM forms as well:
+// `-Xrunjdwp:<options>` is the legacy launcher syntax, while
+// `-agentpath:<path-to-jdwp-library>=<options>` is used when a launcher loads the
+// native JDWP agent explicitly. Normalizing all three here keeps the wrapper compatible
+// with custom and older launchers without weakening the checks applied to the options.
 // mirrord-test:debugger-port:start
+def mirrordJdwpOptions = { value ->
+    def text = value.toString()
+    if (text.startsWith('-agentlib:jdwp=')) {
+        return text.substring('-agentlib:jdwp='.length())
+    }
+    if (text == '-agentlib:jdwp') {
+        return ''
+    }
+    if (text.startsWith('-Xrunjdwp:')) {
+        return text.substring('-Xrunjdwp:'.length())
+    }
+    if (text == '-Xrunjdwp') {
+        return ''
+    }
+    if (!text.startsWith('-agentpath:')) {
+        return null
+    }
+    def optionsSeparator = text.indexOf('=')
+    def path = optionsSeparator >= 0
+        ? text.substring('-agentpath:'.length(), optionsSeparator)
+        : text.substring('-agentpath:'.length())
+    def pathComponents = path.replace('\\', '/').tokenize('/')
+    if (pathComponents.isEmpty()) {
+        return null
+    }
+    // `-agentpath` can load any native agent, so only the known JDWP library basenames
+    // are interpreted as debugger options. These cover Windows, Linux, and macOS JVMs.
+    def fileName = pathComponents.last().toLowerCase()
+    if (!['jdwp.dll', 'libjdwp.so', 'libjdwp.dylib', 'jdwp', 'libjdwp'].contains(fileName)) {
+        return null
+    }
+    return optionsSeparator >= 0 ? text.substring(optionsSeparator + 1) : ''
+}
+
+// `mirrordJdwpOptions` returns only the comma-separated option payload, usually:
+// `transport=dt_socket,server=n,suspend=y,address=127.0.0.1:5005`.
+// The address may also be a bare port (`5005`), a wildcard (`*:5005`), or an IPv6
+// address (`[::1]:5005`), so the last colon-delimited component is the port candidate.
 def mirrordDetectDebuggerPort = { jvmArgs ->
     for (a in (jvmArgs ?: [])) {
-        def s = a as String
-        if (s.startsWith('-agentlib:jdwp=') && s.contains('transport=dt_socket')) {
-            def m = (s =~ /address=([^,]+)/)
+        def options = mirrordJdwpOptions(a)
+        if (options != null && options.split(',').contains('transport=dt_socket')) {
+            // Match an `address=` option only at a comma boundary and capture its value
+            // up to the next option, rather than matching text embedded in another value.
+            def m = (options =~ /(?:^|,)address=([^,]+)/)
             if (m.find()) {
                 def addr = m.group(1).trim()
                 def ci = addr.lastIndexOf(':')
-                return (ci >= 0 ? addr.substring(ci + 1) : addr).trim()
+                def candidate = (ci >= 0 ? addr.substring(ci + 1) : addr).trim()
+                if (candidate.isInteger()) {
+                    def port = candidate.toInteger()
+                    if (port >= 1 && port <= 65535) {
+                        // The validated text is merged into MIRRORD_IGNORE_DEBUGGER_PORTS
+                        // below, completing the path from JDWP option to local-only socket.
+                        return port.toString()
+                    }
+                }
             }
         }
     }
     return null
 }
 // mirrord-test:debugger-port:end
+
+// Summarize the debugger state without logging the JVM arguments, which can contain
+// customer secrets. A present-but-unparseable JDWP option is different from IntelliJ
+// not adding JDWP at all and leads to a more useful diagnostic.
+// mirrord-test:debugger-state:start
+def mirrordNormalizeJdwpMode = { values, enabledValue, enabledLabel, disabledValue, disabledLabel ->
+    def normalized = values.collect { value ->
+        if (value == enabledValue) return enabledLabel
+        if (value == disabledValue) return disabledLabel
+        return 'invalid'
+    }.unique()
+    if (normalized.isEmpty()) return 'missing'
+    return normalized.size() == 1 ? normalized.first() : 'mixed'
+}
+
+// Build the privacy-safe debugger summary consumed by the launch guard and lifecycle
+// diagnostics. It records only option presence, modes, safe source names, and counts;
+// raw JVM arguments, environment values, and argument-file paths never leave this
+// function. Environment-provided JVM options are included because they can configure
+// JDWP even when the Gradle task itself has no debugger argument.
+def mirrordDebuggerState = { jvmArgs, environment = [:] ->
+    def args = jvmArgs ?: []
+    def jdwpOptions = args
+        .collect { arg -> mirrordJdwpOptions(arg) }
+        .findAll { options -> options != null }
+    def jdwpOptionValues = { name ->
+        jdwpOptions.collectMany { options ->
+            options.split(',')
+                .findAll { option -> option.startsWith(name + '=') }
+                .collect { option -> option.substring((name + '=').length()) }
+        }
+    }
+    def environmentTokens = { name ->
+        def value = environment[name]?.toString()?.trim()
+        if (!value) return []
+        return value
+            .split(/\s+/)
+            .collect { token -> token.replaceAll(/^["']|["']$/, '') }
+    }
+    def jdwpEnvironmentEntries = [
+        'JAVA_TOOL_OPTIONS',
+        '_JAVA_OPTIONS',
+        'JDK_JAVA_OPTIONS',
+    ].collect { name ->
+        def tokens = environmentTokens(name)
+        [
+            name: name,
+            tokens: tokens,
+            jdwpPresent: tokens.any { token -> mirrordJdwpOptions(token) != null },
+        ]
+    }.findAll { entry ->
+        entry.jdwpPresent
+    }
+    def jvmOptionArgfileSources = [
+        'JAVA_TOOL_OPTIONS',
+        '_JAVA_OPTIONS',
+        'JDK_JAVA_OPTIONS',
+    ].findAll { name ->
+        environmentTokens(name).any { token -> token.startsWith('@') }
+    }
+    def taskDebuggerPort = mirrordDetectDebuggerPort(args)
+    def environmentDebugger = jdwpEnvironmentEntries.findResult { entry ->
+        def port = mirrordDetectDebuggerPort(entry.tokens)
+        port == null ? null : [port: port, source: entry.name]
+    }
+    def transportValues = jdwpOptionValues('transport')
+
+    [
+        jdwpPresent: !jdwpOptions.isEmpty(),
+        jdwpArgumentCount: jdwpOptions.size(),
+        transportPresent: !transportValues.isEmpty(),
+        dtSocketPresent: jdwpOptions.any { options ->
+            options.split(',').contains('transport=dt_socket')
+        },
+        addressPresent: !jdwpOptionValues('address').isEmpty(),
+        serverMode: mirrordNormalizeJdwpMode(
+            jdwpOptionValues('server'),
+            'y',
+            'listener',
+            'n',
+            'client'
+        ),
+        suspendMode: mirrordNormalizeJdwpMode(
+            jdwpOptionValues('suspend'),
+            'y',
+            'enabled',
+            'n',
+            'disabled'
+        ),
+        taskDebuggerPort: taskDebuggerPort,
+        debuggerPort: taskDebuggerPort ?: environmentDebugger?.port,
+        debuggerPortSource: taskDebuggerPort != null
+            ? 'task_jvm_args'
+            : (environmentDebugger?.source ?: 'none'),
+        jvmArgfilePresent: args.any { argument -> argument.toString().startsWith('@') },
+        jdwpEnvironmentSources: jdwpEnvironmentEntries.collect { entry -> entry.name },
+        jvmOptionArgfileSources: jvmOptionArgfileSources,
+    ]
+}
+// mirrord-test:debugger-state:end
+
+// mirrord-test:debugger-guard:start
+def mirrordDebuggerFailureReason = { summary ->
+    if (!summary.jdwpPresent) {
+        if (summary.jvmArgfilePresent ||
+            !summary.jdwpEnvironmentSources.isEmpty() ||
+            !summary.jvmOptionArgfileSources.isEmpty()) {
+            return null
+        }
+        return 'the effective application JVM arguments do not contain JDWP'
+    }
+    if (!summary.transportPresent) {
+        return 'a JDWP argument is present, but it has no transport'
+    }
+    if (summary.dtSocketPresent && summary.taskDebuggerPort == null) {
+        return summary.addressPresent
+            ? 'a dt_socket JDWP address is present, but its port could not be parsed'
+            : 'a dt_socket JDWP argument is present, but it has no address'
+    }
+    return null
+}
+// mirrord-test:debugger-guard:end
 
 // Merge an extra ignored debugger port into the base64-JSON MIRRORD_CHILD_ENV payload that pitm
 // forwards to the child. The layer reads MIRRORD_IGNORE_DEBUGGER_PORTS from the child env, and pitm
@@ -190,16 +369,28 @@ def mirrordMergeIgnoredDebuggerPort = { payload, port ->
 // mirrord-test:merge-ignore-port:end
 
 gradle.taskGraph.whenReady { graph ->
-    def matchedTasks = graph.allTasks.findAll { task ->
-        task instanceof JavaExec && mirrordMatchesRequested(task)
-    }
+    def matchedTasks = graph.allTasks
+        .findAll { task -> task instanceof JavaExec && mirrordMatchesRequested(task) }
+        .collect { task -> task.path }
+    def dispatcherPort = System.getProperty('idea.debugger.dispatch.port')
+    def dispatcherPortParseable = dispatcherPort?.isInteger() ?: false
+    def logMessage =
+        "[mirrord] Windows Gradle task selection: requested=${gradle.startParameter.taskNames}, " +
+            "matchedJavaExec=${matchedTasks ?: '<none>'}, debugExpected=${mirrordDebugExpected}, " +
+            "gradleVersion=${GradleVersion.current().version}, " +
+            "debuggerDispatchConfigured=${dispatcherPort != null}, " +
+            "debuggerDispatchPort=${dispatcherPortParseable ? dispatcherPort : '<none>'}, " +
+            "debuggerDispatchPortParseable=${dispatcherPortParseable}"
     if (matchedTasks.isEmpty()) {
+        gradle.rootProject.logger.warn(logMessage)
         throw new GradleException(
             "mirrord could not match requested Gradle tasks ${gradle.startParameter.taskNames} " +
                 'to a JavaExec task. The application was not started; use the complete task name ' +
                 'instead of a Gradle abbreviation and include the Gradle console output when ' +
                 'reporting this issue.'
         )
+    } else {
+        gradle.rootProject.logger.lifecycle(logMessage)
     }
 }
 
@@ -207,6 +398,19 @@ allprojects {
     def execOps = project.objects.newInstance(MirrordExecInjector).execOps
     tasks.withType(JavaExec).configureEach { task ->
         if (!mirrordMatchesRequested(task)) return
+
+        def mirrordStandardActionCount =
+            task.actions.count { it.class.name == mirrordStandardTaskActionClass }
+        if (mirrordStandardActionCount != 1) {
+            // TODO: Support additional JavaExec action layouts if a real project reaches
+            // this guard and provides a concrete launch shape to preserve.
+            throw new GradleException(
+                "mirrord cannot safely wrap Gradle task '${task.path}' because it has " +
+                    "${mirrordStandardActionCount} standard JavaExec actions instead of 1. " +
+                    'The application was not started. Include the Gradle console output and ' +
+                    'idea.log when reporting this issue.'
+            )
+        }
 
         // Relaunch the real java under `mirrord pitm`, suspended, so the layer DLL
         // is injected before user code runs.
@@ -216,20 +420,110 @@ allprojects {
             // Spring Boot's bootRun and the `application` plugin's `run`. Fall back to the
             // launcher's java (then the build JVM) so we never pass a null arg to pitm.
             def realJava = task.executable
+            def mirrordJavaLauncherSource = 'task-executable'
             if (!realJava) {
                 def mirrordLauncher = task.javaLauncher.getOrNull()
-                realJava = mirrordLauncher != null
-                    ? mirrordLauncher.executablePath.asFile.absolutePath
-                    : new File(new File(System.getProperty('java.home'), 'bin'), 'java').absolutePath
+                if (mirrordLauncher != null) {
+                    realJava = mirrordLauncher.executablePath.asFile.absolutePath
+                    mirrordJavaLauncherSource = 'java-toolchain'
+                } else {
+                    realJava =
+                        new File(new File(System.getProperty('java.home'), 'bin'), 'java').absolutePath
+                    mirrordJavaLauncherSource = 'gradle-jvm'
+                }
             }
-            def mirrordJvmArgs =
-                mirrordEffectiveJvmArgs(task.allJvmArgs, task.jvmArgs)
-            // Non-null in Debug only; merged into the child env below so the layer ignores the
-            // debugger's loopback port instead of tunnelling it to the target.
-            def mirrordDebuggerPort = mirrordDetectDebuggerPort(mirrordJvmArgs)
+            def mirrordAllJvmArgs = new ArrayList(task.allJvmArgs ?: [])
+            def mirrordTaskJvmArgs = new ArrayList(task.jvmArgs ?: [])
+            def mirrordJvmArgs = mirrordEffectiveJvmArgs(mirrordAllJvmArgs, mirrordTaskJvmArgs)
+            def mirrordMergedJvmArgCount = mirrordJvmArgs.size() - mirrordAllJvmArgs.size()
+            def mirrordDebuggerSummary =
+                mirrordDebuggerState(mirrordJvmArgs, task.environment ?: [:])
+            def mirrordDebuggerPort = mirrordDebuggerSummary.debuggerPort
+
+            // These fields are the support evidence for future Gradle/JVM launch shapes:
+            // they show how the task and debugger were configured and where detection
+            // stopped, without exposing raw customer arguments, values, or classpaths.
+            task.logger.lifecycle(
+                "[mirrord] Windows Gradle JVM launch: task=${task.path}, " +
+                    "debugExpected=${mirrordDebugExpected}, " +
+                    "jdwpPresent=${mirrordDebuggerSummary.jdwpPresent}, " +
+                    "jdwpArgumentCount=${mirrordDebuggerSummary.jdwpArgumentCount}, " +
+                    "jdwpTransportPresent=${mirrordDebuggerSummary.transportPresent}, " +
+                    "dtSocketPresent=${mirrordDebuggerSummary.dtSocketPresent}, " +
+                    "jdwpAddressPresent=${mirrordDebuggerSummary.addressPresent}, " +
+                    "jdwpServerMode=${mirrordDebuggerSummary.serverMode}, " +
+                    "jdwpSuspendMode=${mirrordDebuggerSummary.suspendMode}, " +
+                    "debuggerPort=${mirrordDebuggerPort ?: '<none>'}, " +
+                    "debuggerPortSource=${mirrordDebuggerSummary.debuggerPortSource}, " +
+                    "jvmArgCount=${mirrordJvmArgs.size()}, " +
+                    "allJvmArgCount=${mirrordAllJvmArgs.size()}, " +
+                    "taskJvmArgCount=${mirrordTaskJvmArgs.size()}, " +
+                    "mergedJvmArgCount=${mirrordMergedJvmArgCount}, " +
+                    "jvmArgfilePresent=${mirrordDebuggerSummary.jvmArgfilePresent}, " +
+                    "mainClassPresent=${task.mainClass.isPresent()}, " +
+                    "taskDebugEnabled=${task.debug}, " +
+                    "javaLauncherSource=${mirrordJavaLauncherSource}, " +
+                    "jdwpEnvironmentSources=" +
+                    "${mirrordDebuggerSummary.jdwpEnvironmentSources ?: '<none>'}, " +
+                    "jvmOptionArgfileSources=" +
+                    "${mirrordDebuggerSummary.jvmOptionArgfileSources ?: '<none>'}"
+            )
+
+            def mirrordDebuggerFailure = mirrordDebugExpected
+                ? mirrordDebuggerFailureReason(mirrordDebuggerSummary)
+                : null
+            if (mirrordDebuggerFailure != null) {
+                throw new GradleException(
+                    "mirrord cannot start Gradle task '${task.path}' in Debug mode because " +
+                        "${mirrordDebuggerFailure}. " +
+                        "Retry the Debug action; if this persists, include idea.log and the Gradle " +
+                        "console output when reporting the issue."
+                )
+            }
+            if (mirrordDebugExpected &&
+                !mirrordDebuggerSummary.jdwpPresent &&
+                mirrordDebuggerPort == null) {
+                task.logger.warn(
+                    "[mirrord] Windows Gradle JDWP state is indeterminate: task=${task.path}, " +
+                        "jvmArgfilePresent=${mirrordDebuggerSummary.jvmArgfilePresent}, " +
+                        "jdwpEnvironmentSources=" +
+                        "${mirrordDebuggerSummary.jdwpEnvironmentSources ?: '<none>'}, " +
+                        "jvmOptionArgfileSources=" +
+                        "${mirrordDebuggerSummary.jvmOptionArgfileSources ?: '<none>'}"
+                )
+            }
+
             def mirrordChildEnv = System.getenv('__MIRRORD_CHILD_ENV_VAR__') ?: ''
+            def mirrordChildPayloadPresent = !mirrordChildEnv.isEmpty()
+            if (!mirrordChildPayloadPresent) {
+                task.logger.error(
+                    "[mirrord] Windows Gradle child environment missing: task=${task.path}, " +
+                        'childPayloadPresent=false'
+                )
+                throw new GradleException(
+                    "mirrord cannot start Gradle task '${task.path}' because its internal child " +
+                        'environment payload did not reach the Gradle process. The application ' +
+                        'was not started. Include the Gradle console output and idea.log when ' +
+                        'reporting this issue.'
+                )
+            }
             if (mirrordDebuggerPort) {
-                mirrordChildEnv = mirrordMergeIgnoredDebuggerPort(mirrordChildEnv, mirrordDebuggerPort)
+                try {
+                    mirrordChildEnv =
+                        mirrordMergeIgnoredDebuggerPort(mirrordChildEnv, mirrordDebuggerPort)
+                } catch (Exception error) {
+                    task.logger.error(
+                        "[mirrord] Windows Gradle child environment merge failed: " +
+                            "task=${task.path}, errorType=${error.class.simpleName}"
+                    )
+                    throw new GradleException(
+                        "mirrord cannot start Gradle task '${task.path}' because its internal " +
+                            'child environment payload is malformed. The application was not ' +
+                            'started. Include the Gradle console output and idea.log when ' +
+                            'reporting this issue.',
+                        error
+                    )
+                }
             }
             def argfile = File.createTempFile('mirrord-win-gradle-', '.args')
             argfile.deleteOnExit()
@@ -239,22 +533,35 @@ allprojects {
             argfile.text = lines.join(System.lineSeparator())
             def mirrordExecResult
             try {
-                mirrordExecResult = execOps.exec { spec ->
-                    spec.executable mirrordCliPath
-                    spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
-                    spec.environment(task.environment)
-                    spec.environment('__MIRRORD_CHILD_ENV_VAR__', mirrordChildEnv)
-                    spec.workingDir = task.workingDir
-                    if (task.standardInput != null) {
-                        spec.standardInput = task.standardInput
+                try {
+                    mirrordExecResult = execOps.exec { spec ->
+                        spec.executable mirrordCliPath
+                        spec.args 'pitm', '--', realJava, '@' + argfile.absolutePath
+                        spec.environment(task.environment)
+                        spec.environment('__MIRRORD_CHILD_ENV_VAR__', mirrordChildEnv)
+                        spec.workingDir = task.workingDir
+                        if (task.standardInput != null) {
+                            spec.standardInput = task.standardInput
+                        }
+                        if (task.standardOutput != null) {
+                            spec.standardOutput = task.standardOutput
+                        }
+                        if (task.errorOutput != null) {
+                            spec.errorOutput = task.errorOutput
+                        }
+                        spec.ignoreExitValue = true
                     }
-                    if (task.standardOutput != null) {
-                        spec.standardOutput = task.standardOutput
-                    }
-                    if (task.errorOutput != null) {
-                        spec.errorOutput = task.errorOutput
-                    }
-                    spec.ignoreExitValue = true
+                } catch (Exception error) {
+                    task.logger.error(
+                        "[mirrord] Windows Gradle pitm launch failed: task=${task.path}, " +
+                            "pitmLaunchFailed=true, errorType=${error.class.simpleName}"
+                    )
+                    throw new GradleException(
+                        "mirrord pitm could not be launched for Gradle task '${task.path}'. " +
+                            'The application was not started. Include the Gradle console output and ' +
+                            'idea.log when reporting this issue.',
+                        error
+                    )
                 }
             } finally {
                 if (!argfile.delete()) {

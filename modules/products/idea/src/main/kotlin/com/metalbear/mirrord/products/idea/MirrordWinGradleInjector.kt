@@ -41,6 +41,7 @@ internal object MirrordWinGradleInjector {
 
     private const val PLACEHOLDER_CLI_PATH_BASE64 = "__MIRRORD_CLI_PATH_BASE64__"
     private const val PLACEHOLDER_CHILD_ENV_VAR = "__MIRRORD_CHILD_ENV_VAR__"
+    private const val PLACEHOLDER_DEBUG_EXPECTED = "__MIRRORD_DEBUG_EXPECTED__"
 
     /**
      * Generates the init script for [configuration], appends it to the Gradle
@@ -55,11 +56,13 @@ internal object MirrordWinGradleInjector {
     fun wrap(
         configuration: ExternalSystemRunConfiguration,
         mirrordEnvVars: Map<String, String>,
-        envToUnset: List<String>?
+        envToUnset: List<String>?,
+        debugExpected: Boolean
     ) {
         MirrordLogger.logger.info(
             "MirrordWinGradleInjector.wrap: ENTER taskNames=${configuration.settings.taskNames} " +
-                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0}"
+                "mirrordEnvVars=${mirrordEnvVars.size} envToUnset=${envToUnset?.size ?: 0} " +
+                "debugExpected=$debugExpected"
         )
 
         val project = configuration.project
@@ -74,7 +77,7 @@ internal object MirrordWinGradleInjector {
         )
 
         val initScript = try {
-            writeInitScript(cliPath)
+            writeInitScript(cliPath, debugExpected)
         } catch (e: Exception) {
             MirrordLogger.logger.warn("MirrordWinGradleInjector.wrap: failed to create init script: ${e.message}", e)
             project.service<MirrordProjectService>().notifier.notifySimple(
@@ -101,7 +104,7 @@ internal object MirrordWinGradleInjector {
     }
 
     /** Loads the template, substitutes placeholders, writes to a temp file. */
-    private fun writeInitScript(cliPath: String): File {
+    private fun writeInitScript(cliPath: String, debugExpected: Boolean): File {
         val template = loadTemplate()
         val groovy = template
             .replace(
@@ -109,6 +112,7 @@ internal object MirrordWinGradleInjector {
                 Base64.getEncoder().encodeToString(cliPath.toByteArray(Charsets.UTF_8))
             )
             .replace(PLACEHOLDER_CHILD_ENV_VAR, MirrordPitm.CHILD_ENV_VAR)
+            .replace(PLACEHOLDER_DEBUG_EXPECTED, debugExpected.toString())
         return File.createTempFile("mirrord-win-gradle-", ".gradle").apply {
             deleteOnExit()
             writeText(groovy)

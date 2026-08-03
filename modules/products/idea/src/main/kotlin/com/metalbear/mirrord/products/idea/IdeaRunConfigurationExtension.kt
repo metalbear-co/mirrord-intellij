@@ -151,7 +151,8 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             return
         }
 
-        val mirrordEnv = executionInfo.environment + mapOf("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
+        val isDebug = runnerSettings.isJvmDebug
+        val mirrordEnv = executionInfo.environment + ("MIRRORD_DETECT_DEBUGGER_PORT" to "javaagent")
         val envToUnset = executionInfo.envToUnset
         MirrordLogger.logger.info(
             "updateJavaParameters: executionInfo consumed, mirrordEnv size=${mirrordEnv.size}, envToUnset size=${envToUnset?.size ?: 0}"
@@ -164,7 +165,6 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             else -> null
         }
         val winNative = isWinNative(wsl)
-        val isDebug = runnerSettings.isJvmDebug
         MirrordLogger.logger.info(
             "updateJavaParameters: platform gating winNative=$winNative wsl=${wsl?.presentableName ?: "null"} isDebug=$isDebug"
         )
@@ -221,7 +221,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             }
             MirrordLogger.logger.debug(
                 "updateJavaParameters: snapshotted settings.env size=${configuration.settings.env.size}, " +
-                    "scriptParameters=${configuration.settings.scriptParameters}"
+                    "scriptParametersPresent=${!configuration.settings.scriptParameters.isNullOrBlank()}"
             )
 
             when {
@@ -235,7 +235,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
                     // preserves that late argument and hands its port to the layer through
                     // MIRRORD_IGNORE_DEBUGGER_PORTS, leaving the debugger's loopback
                     // connection unmanaged.
-                    MirrordWinGradleInjector.wrap(configuration, mirrordEnv, envToUnset)
+                    MirrordWinGradleInjector.wrap(configuration, mirrordEnv, envToUnset, isDebug)
                 }
                 else -> {
                     // Non-Windows: set env vars directly on the config.
