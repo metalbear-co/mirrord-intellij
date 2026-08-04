@@ -10,32 +10,5 @@
   ],
   "context": {
     "repos": ["metalbear-co/mirrord", "metalbear-co/mirrord-vscode"]
-  },
-  "instructions": "Review this as a JetBrains IDE integration for the mirrord CLI. Prioritize lifecycle and concurrency bugs, IntelliJ Platform compatibility, cross-platform behavior (Windows, macOS, Linux, and WSL), preservation of user run configurations, and compatibility with the mirrord CLI contract. Shared behavior belongs in modules/core; product modules should contain only IDE-specific adapters. Compare behavior with metalbear-co/mirrord-vscode when a feature is shared by both IDE integrations. Keep comments high-signal. Do not comment on formatting, whitespace, import ordering, or other issues enforced by ktlint and the Kotlin compiler. Do not request comments that merely restate the code.",
-  "rules": [
-    {
-      "id": "preserve-cli-contract",
-      "rule": "Changes to mirrord command construction, environment variables, version checks, download URLs, platform detection, or CLI output parsing must remain compatible with the corresponding behavior in metalbear-co/mirrord. Flag guessed flags, output formats, binary names, or platform mappings that are not supported by the CLI.",
-      "scope": ["**/*.kt"],
-      "severity": "high"
-    },
-    {
-      "id": "keep-ide-responsive",
-      "rule": "Do not perform blocking network, filesystem, process, or wait operations on the IntelliJ event dispatch thread. Long-running work must use an appropriate background task or coroutine, and UI state must only be touched from an IntelliJ-approved UI context.",
-      "scope": ["**/*.kt"],
-      "severity": "high"
-    },
-    {
-      "id": "preserve-run-configuration",
-      "rule": "When adapting a run or debug configuration for mirrord, preserve the user's original executable, arguments, environment, working directory, debugger settings, and cancellation behavior unless the feature explicitly owns that field. Flag in-place mutations that can leak into later runs or changes that overwrite unrelated user configuration.",
-      "scope": ["**/*.kt"],
-      "severity": "high"
-    },
-    {
-      "id": "keep-product-adapters-thin",
-      "rule": "Behavior shared by multiple JetBrains products belongs in modules/core. Product modules should adapt product-specific APIs and delegate to shared logic; flag copied download, configuration, execution, notification, or lifecycle logic in a product module.",
-      "scope": ["modules/**/*.kt"],
-      "severity": "medium"
-    }
-  ]
+  }
 }

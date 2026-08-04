@@ -1,1 +1,1 @@
-Configure Greptile to skip automated pull requests and focus reviews on JetBrains integration risks.
+Configure Greptile to skip automated pull requests and use relevant repository context.
