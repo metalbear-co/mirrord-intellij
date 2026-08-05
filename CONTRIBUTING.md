@@ -6,6 +6,13 @@ We welcome new/junior/starting developers. Feel free to join to our [Slack](http
 If you would like to start working on an issue, please comment on the issue on GitHub, so that we can assign you to that
 issue.
 
+## Greptile Reviews
+
+Greptile may review pull requests automatically. Authors and maintainers can apply the `no-greptile` label when an
+automated review is not needed, such as for a typo-only or other trivial change. Opting out of reviews that are not
+useful helps keep usage within the included monthly review quota. If Greptile's input becomes useful later, remove the
+label and request a review explicitly.
+
 ## Building the IntelliJ plugin
 
 First, make sure you have JDK 21 installed.
