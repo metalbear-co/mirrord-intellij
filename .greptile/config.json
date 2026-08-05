@@ -1,0 +1,17 @@
+{
+  "excludeAuthors": ["cubby-mb[bot]", "dependabot[bot]"],
+  "ignorePatterns": [
+    "flake.lock",
+    "gradle/wrapper/gradle-wrapper.jar",
+    "**/*.gif",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.svg",
+    "**/*.ico",
+    "**/*.webp"
+  ],
+  "context": {
+    "repos": ["metalbear-co/mirrord", "metalbear-co/mirrord-vscode"]
+  }
+}
