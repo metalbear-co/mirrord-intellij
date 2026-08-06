@@ -212,21 +212,21 @@ class MirrordWinGradleInjectorTest {
 
     @Test
     fun qualifiedSubprojectTaskWithoutLeadingColonMatches() {
-        // The exact Dotmatics case: IntelliJ requests `sciplat-svc-audit:bootRun`,
-        // Gradle's task.path is `:sciplat-svc-audit:bootRun`.
-        assert(matches(listOf("sciplat-svc-audit:bootRun"), ":sciplat-svc-audit:bootRun", "bootRun")) {
+        // A real qualified-subproject case: IntelliJ requests `acme-svc-audit:bootRun`,
+        // Gradle's task.path is `:acme-svc-audit:bootRun`.
+        assert(matches(listOf("acme-svc-audit:bootRun"), ":acme-svc-audit:bootRun", "bootRun")) {
             "IntelliJ passes `sub:bootRun`; Gradle task.path is `:sub:bootRun` — these must match"
         }
     }
 
     @Test
     fun qualifiedSubprojectTaskWithLeadingColonMatches() {
-        assert(matches(listOf(":sciplat-svc-audit:bootRun"), ":sciplat-svc-audit:bootRun", "bootRun"))
+        assert(matches(listOf(":acme-svc-audit:bootRun"), ":acme-svc-audit:bootRun", "bootRun"))
     }
 
     @Test
     fun bareRequestedNameMatchesTaskInAnyProject() {
-        assert(matches(listOf("bootRun"), ":sciplat-svc-audit:bootRun", "bootRun"))
+        assert(matches(listOf("bootRun"), ":acme-svc-audit:bootRun", "bootRun"))
     }
 
     @Test
@@ -242,19 +242,19 @@ class MirrordWinGradleInjectorTest {
 
     @Test
     fun qualifiedRequestDoesNotMatchSameNamedTaskInAnotherProject() {
-        assert(!matches(listOf("sciplat-svc-audit:bootRun"), ":other-svc:bootRun", "bootRun")) {
+        assert(!matches(listOf("acme-svc-audit:bootRun"), ":other-svc:bootRun", "bootRun")) {
             "a qualified request must not over-match bootRun in a different subproject"
         }
     }
 
     @Test
     fun unrelatedTaskDoesNotMatch() {
-        assert(!matches(listOf("sciplat-svc-audit:bootRun"), ":sciplat-svc-audit:compileJava", "compileJava"))
+        assert(!matches(listOf("acme-svc-audit:bootRun"), ":acme-svc-audit:compileJava", "compileJava"))
     }
 
     @Test
     fun emptyRequestMatchesNothing() {
-        assert(!matches(emptyList(), ":sciplat-svc-audit:bootRun", "bootRun"))
+        assert(!matches(emptyList(), ":acme-svc-audit:bootRun", "bootRun"))
     }
 
     // --- merging the detected JDWP port into the MIRRORD_CHILD_ENV payload ---
