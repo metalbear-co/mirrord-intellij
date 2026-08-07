@@ -22,7 +22,9 @@ class MirrordSettingsConfigurable : Configurable {
                 (mirrordVersionStatus != settings.mirrordVersion) ||
                 (mirrordBinaryPathStatus != settings.mirrordBinaryPath) ||
                 (enabledOnStartupStatus != settings.enabledByDefault) ||
-                (taskTimeoutMinutesStatus != settings.taskTimeoutMinutes)
+                (taskTimeoutMinutesStatus != settings.taskTimeoutMinutes) ||
+                (troubleshootingLogsEnabledStatus != settings.troubleshootingLogsEnabled) ||
+                (troubleshootingLogsPathStatus != settings.troubleshootingLogsPath)
         }
     }
 
@@ -37,6 +39,8 @@ class MirrordSettingsConfigurable : Configurable {
             settings.mirrordBinaryPath = mirrordBinaryPathStatus
             settings.enabledByDefault = enabledOnStartupStatus
             settings.taskTimeoutMinutes = taskTimeoutMinutesStatus
+            settings.troubleshootingLogsEnabled = troubleshootingLogsEnabledStatus
+            settings.troubleshootingLogsPath = troubleshootingLogsPathStatus
         }
     }
 
@@ -51,6 +55,8 @@ class MirrordSettingsConfigurable : Configurable {
             usageBannerEnabledStatus = settings.showUsageBanner
             enabledOnStartupStatus = settings.enabledByDefault
             taskTimeoutMinutesStatus = settings.taskTimeoutMinutes
+            troubleshootingLogsEnabledStatus = settings.troubleshootingLogsEnabled
+            troubleshootingLogsPathStatus = settings.troubleshootingLogsPath
         }
     }
 

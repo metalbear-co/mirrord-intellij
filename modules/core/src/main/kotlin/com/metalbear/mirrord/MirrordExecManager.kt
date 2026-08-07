@@ -253,12 +253,24 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
+        // Verbose-logging env (when enabled in settings). Goes on executionInfo.environment so it
+        // reaches the layer through every product/platform path, including the Windows
+        // MIRRORD_CHILD_ENV payload.
+        executionInfo.environment.putAll(
+            MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars {
+                wslPath(wslDistribution, it)
+            }
+        )
         return executionInfo
     }
 
     /**
      * Runs `mirrord attach <PID>`. Expects `mirrord ext` to have already
      * started the intproxy and set env vars on the target process.
+     *
+     * Only reached from Rider (`RiderPatchCommandLineExtension`), where the debugger — not
+     * Gradle — owns process creation, so the JVM can't be pitm-wrapped. IDEA's Windows-native
+     * paths (including Gradle Run and Debug) all use `mirrord pitm` instead.
      *
      * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
      * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
@@ -303,6 +315,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         executionInfo.extraArgs.add("-e")
         executionInfo.extraArgs.add("MIRRORD_IGNORE_DEBUGGER_PORTS=\"35000-65535\"")
+
+        // Verbose-logging env (when enabled in settings), forwarded into the container.
+        // A host-selected directory is not mounted into the container, so keep trace output on
+        // stderr there instead of forwarding a path that cannot refer to the chosen directory.
+        MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars { "" }.forEach { (key, value) ->
+            executionInfo.extraArgs.add("-e")
+            executionInfo.extraArgs.add("$key=$value")
+        }
 
         return executionInfo
     }
