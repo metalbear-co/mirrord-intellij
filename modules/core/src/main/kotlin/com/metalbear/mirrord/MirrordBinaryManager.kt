@@ -33,9 +33,11 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
 
 /**
  * Minimum mirrord binary version required for Windows-native execution
- * (pitm + attach). Added in https://github.com/metalbear-co/mirrord/pull/4191.
+ * (pitm + attach). Set to the first release with the hardened Windows Java
+ * Debug runtime (https://github.com/metalbear-co/mirrord/pull/4661) that
+ * Gradle Run and Debug rely on.
  */
-private const val MIN_WINDOWS_NATIVE_VERSION = "3.204.0"
+private const val MIN_WINDOWS_NATIVE_VERSION = "3.245.0"
 
 /**
  * For dynamically fetching and storing mirrord binary.
