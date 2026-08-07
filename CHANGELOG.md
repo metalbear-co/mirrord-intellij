@@ -8,6 +8,32 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.79.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.79.0) - 2026-08-07
+
+
+### Added
+
+- Added a troubleshooting setting that enables trace logs for the mirrord CLI,
+  intproxy, and layer, with an optional directory for per-process layer log
+  files.
+
+
+### Changed
+
+- Windows-native Gradle Run and Debug now require Gradle 6.7 or newer, the
+  first release that provides the Java launcher API used by mirrord's
+  pre-launch wrapper.
+- Windows-native execution now requires mirrord 3.245.0 or newer, the first
+  release with the hardened Windows Java Debug runtime used by Gradle Run and
+  Debug.
+
+
+### Fixed
+
+- Improved Windows Gradle Debug diagnostics for missing or malformed JDWP
+  configuration.
+- Simplified and improved Gradle project debugging on Windows.
+
 ## [3.78.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.78.1) - 2026-08-04
 
 No significant changes.
