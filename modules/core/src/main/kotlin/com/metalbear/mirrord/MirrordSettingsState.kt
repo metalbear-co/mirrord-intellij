@@ -74,6 +74,19 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         /** When on, every mirrord run enables trace logging in mirrord's processes. */
         var troubleshootingLogsEnabled: Boolean = false
 
+        /**
+         * Opt out of running WSL through the IntelliJ Platform's execution environment layer
+         * (EEL) and fall back to the legacy `wsl.exe` integration.
+         *
+         * WSL normally goes through EEL, the same mechanism that makes Dev Containers work,
+         * so there is one code path for every non-local environment. This flag exists purely
+         * as an escape hatch: if a WSL setup regresses under EEL, turning this on restores the
+         * previous `getWslPath` + `patchCommandLine` behaviour without downgrading the plugin.
+         *
+         * Expected to be removed once EEL-backed WSL has been validated across enough setups.
+         */
+        var useLegacyWsl: Boolean = false
+
         /** Directory the layer writes its per-process trace log into ([MIRRORD_LAYER_LOG_PATH_ENV]). */
         var troubleshootingLogsPath: String = ""
 

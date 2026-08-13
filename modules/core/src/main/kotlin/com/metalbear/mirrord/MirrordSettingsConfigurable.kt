@@ -24,7 +24,8 @@ class MirrordSettingsConfigurable : Configurable {
                 (enabledOnStartupStatus != settings.enabledByDefault) ||
                 (taskTimeoutMinutesStatus != settings.taskTimeoutMinutes) ||
                 (troubleshootingLogsEnabledStatus != settings.troubleshootingLogsEnabled) ||
-                (troubleshootingLogsPathStatus != settings.troubleshootingLogsPath)
+                (troubleshootingLogsPathStatus != settings.troubleshootingLogsPath) ||
+                (useLegacyWslStatus != settings.useLegacyWsl)
         }
     }
 
@@ -41,6 +42,7 @@ class MirrordSettingsConfigurable : Configurable {
             settings.taskTimeoutMinutes = taskTimeoutMinutesStatus
             settings.troubleshootingLogsEnabled = troubleshootingLogsEnabledStatus
             settings.troubleshootingLogsPath = troubleshootingLogsPathStatus
+            settings.useLegacyWsl = useLegacyWslStatus
         }
     }
 
@@ -57,6 +59,7 @@ class MirrordSettingsConfigurable : Configurable {
             taskTimeoutMinutesStatus = settings.taskTimeoutMinutes
             troubleshootingLogsEnabledStatus = settings.troubleshootingLogsEnabled
             troubleshootingLogsPathStatus = settings.troubleshootingLogsPath
+            useLegacyWslStatus = settings.useLegacyWsl
         }
     }
 

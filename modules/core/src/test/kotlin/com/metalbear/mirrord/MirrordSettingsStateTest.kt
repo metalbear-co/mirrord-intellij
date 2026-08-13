@@ -34,6 +34,16 @@ class MirrordSettingsStateTest {
         assertTrue(settings.troubleshootingCliEnvVars().isEmpty())
     }
 
+    /**
+     * WSL runs through EEL by default; the legacy `wsl.exe` integration is an opt-out escape
+     * hatch for users hitting a regression. If this default ever flips silently, WSL users stop
+     * exercising the path we actually maintain.
+     */
+    @Test
+    fun legacyWslIsOptOutNotOptIn() {
+        assertEquals(false, MirrordSettingsState.MirrordState().useLegacyWsl)
+    }
+
     @Test
     fun troubleshootingLogPathCanBeTranslatedOrOmitted() {
         val settings = MirrordSettingsState.MirrordState().apply {
