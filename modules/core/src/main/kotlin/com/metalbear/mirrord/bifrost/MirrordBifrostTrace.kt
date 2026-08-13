@@ -2,11 +2,11 @@ package com.metalbear.mirrord.bifrost
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.progress.runBlockingMaybeCancellable
-import com.intellij.platform.eel.provider.EelUnavailableException
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -113,7 +113,10 @@ class MirrordBifrostTracer(
         } catch (e: TimeoutCancellationException) {
             MirrordLogger.logger.warn("mirrord.bifrost: TIMEOUT op=$operation id=$id env=$environment elapsed=${elapsed()}ms limit=${hardMillis}ms", e)
             throw bifrostFailure(environment, operation, e)
-        } catch (e: EelUnavailableException) {
+        } catch (e: IOException) {
+            // Covers the platform's own "environment not reachable" signal without naming it:
+            // EelUnavailableException is an IOException, and it exists in build 261 but not 262.
+            // Referencing it directly made the plugin fail to load on newer IDEs entirely.
             MirrordLogger.logger.warn("mirrord.bifrost: UNAVAIL op=$operation id=$id env=$environment elapsed=${elapsed()}ms", e)
             throw bifrostFailure(environment, operation, e)
         } catch (e: MirrordError) {
@@ -147,7 +150,7 @@ internal fun bifrostFailure(environment: String, operation: String, cause: Throw
         cause
     )
 
-    is EelUnavailableException -> MirrordError(
+    is IOException -> MirrordError(
         "mirrord could not reach $environment.",
         CLI_FALLBACK_HELP,
         cause

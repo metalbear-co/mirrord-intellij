@@ -1,11 +1,11 @@
 package com.metalbear.mirrord.bifrost
 
-import com.intellij.platform.eel.provider.EelUnavailableException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.IOException
 
 /**
  * "Slow" has to be measured rather than guessed: a cold dev container legitimately takes
@@ -65,13 +65,13 @@ class MirrordBifrostTraceTest {
         val error = bifrostFailure(
             environment = "devcontainer:javascript-node",
             operation = "connect",
-            cause = EelUnavailableException("not running", null)
+            cause = IOException("environment not running")
         )
 
         // The user has to be able to tell which environment failed, and be told what to do
         // instead. "mirrord failed" on its own is what made this ticket take four months.
         assertTrue(error.toString().isNotEmpty())
-        assertTrue(error.cause is EelUnavailableException)
+        assertTrue(error.cause is IOException)
     }
 
     @Test

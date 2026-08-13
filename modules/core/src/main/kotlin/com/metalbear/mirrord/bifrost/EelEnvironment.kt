@@ -92,11 +92,26 @@ class EelEnvironment(
      * stable path to, and the dev-container case this exists for is POSIX.
      */
     override fun provide(path: HostPath, name: String): TargetPath {
-        // Already visible from the target? Then nothing needs to move. True for local, and for
+        // Already visible from the target? Then nothing needs to move — true for local, and for
         // WSL via the UNC root, so only containers ever pay for a transfer.
-        runCatching { resolve(path) }.getOrNull()?.let {
-            MirrordLogger.logger.info("mirrord.bifrost: provide VISIBLE name=$name target=$it env=${this.name}")
-            return it
+        //
+        // The existence check is the load-bearing part. `resolve` only says whether a path can
+        // be *expressed* in the target's terms, not whether the file is actually there: for a
+        // dev container it will cheerfully hand back a host path that exists nowhere inside the
+        // container. Trusting it skipped the transfer entirely and left mirrord looking for a
+        // 73 MB binary that had never been copied across.
+        runCatching { resolve(path) }.getOrNull()?.let { candidate ->
+            val reachable = runCatching {
+                Files.exists(EelPath.parse(candidate.value, descriptor).asNioPath())
+            }.getOrDefault(false)
+
+            if (reachable) {
+                MirrordLogger.logger.info("mirrord.bifrost: provide VISIBLE name=$name target=$candidate env=${this.name}")
+                return candidate
+            }
+            MirrordLogger.logger.info(
+                "mirrord.bifrost: provide NOT-VISIBLE name=$name candidate=$candidate env=${this.name} — staging a copy"
+            )
         }
 
         val strategy = EelPathUtils.FileTransferAttributesStrategy.copyWithRequiredPosixPermissions(
@@ -136,6 +151,11 @@ class EelEnvironment(
                 "mirrord.bifrost: provide COPY name=$name sha=$digest host=$path target=$destination " +
                     "bytes=${runCatching { Files.size(path.path) }.getOrDefault(-1L)} env=${this.name}"
             )
+            // An explicit transfer target writes the file but will not create the directories
+            // leading to it, so a first copy into a fresh container fails with NoSuchFileException
+            // on a path that reads as though the *source* were missing. These are routed paths, so
+            // this creates the directory inside the target.
+            Files.createDirectories(destinationNio.parent)
             EelPathUtils.transferLocalContentToRemote(
                 path.path,
                 EelPathUtils.TransferTarget.Explicit(destinationNio),

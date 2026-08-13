@@ -6,10 +6,12 @@ import com.intellij.execution.target.EelTargetEnvironmentRequest
 import com.intellij.execution.target.TargetEnvironmentRequest
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.LocalEelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
+import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordSettingsState
 import java.nio.file.Path
@@ -146,11 +148,21 @@ object MirrordEnvironments {
     fun resolve(context: MirrordLaunchContext): MirrordEnvironment = resolve(context, defaultSources)
 
     internal fun resolve(context: MirrordLaunchContext, sources: List<MirrordEnvironmentSource>): MirrordEnvironment {
+        val failures = mutableListOf<Pair<String, Throwable>>()
+
         for (source in sources) {
-            val environment = runCatching { source.resolve(context) }.getOrElse {
-                MirrordLogger.logger.warn("mirrord.bifrost: source=${source.id} threw, skipping", it)
+            val environment = try {
+                source.resolve(context)
+            } catch (e: ProcessCanceledException) {
+                // Cancellation is control flow, not a failure. Swallowing it here would turn a
+                // user pressing Cancel into a confusing error about environment resolution.
+                throw e
+            } catch (e: Throwable) {
+                MirrordLogger.logger.warn("mirrord.bifrost: source=${source.id} threw, skipping", e)
+                failures += source.id to e
                 null
             }
+
             if (environment != null) {
                 MirrordLogger.logger.info(
                     "mirrord.bifrost: resolved via=${source.id} env=${environment.name} " +
@@ -160,6 +172,17 @@ object MirrordEnvironments {
             }
             MirrordLogger.logger.debug("mirrord.bifrost: source=${source.id} declined for=${context.label}")
         }
-        error("unreachable: LocalEnvironmentSource always resolves")
+
+        // The last source always returns an environment, so getting here means it threw. Report
+        // what actually went wrong rather than an "unreachable" that sends the reader hunting
+        // for a logic bug in the chain — the first time this fired, the real cause was a missing
+        // module dependency in plugin.xml and the message pointed nowhere near it.
+        val cause = failures.lastOrNull()
+        throw MirrordError(
+            "mirrord could not determine where to run.",
+            failures.joinToString("; ") { (id, e) -> "$id: ${e.message ?: e::class.java.simpleName}" }
+                .ifEmpty { "No environment source produced a result." },
+            cause?.second
+        )
     }
 }
