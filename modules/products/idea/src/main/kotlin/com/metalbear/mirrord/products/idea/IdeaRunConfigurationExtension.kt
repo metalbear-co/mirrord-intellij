@@ -11,8 +11,6 @@ import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
@@ -22,6 +20,8 @@ import com.metalbear.mirrord.MirrordBinaryManager
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import com.metalbear.mirrord.isWinNative
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -158,15 +158,15 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
             "updateJavaParameters: executionInfo consumed, mirrordEnv size=${mirrordEnv.size}, envToUnset size=${envToUnset?.size ?: 0}"
         )
 
-        // Resolve WSL for platform gating (Windows-native-only pitm paths).
-        @Suppress("UnstableApiUsage")
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
-        val winNative = isWinNative(wsl)
+        // Gating only: which injection mechanism this target needs.
+        //
+        // Deliberately reads the *stored* platform rather than resolving an environment here.
+        // This method runs under a read lock, and resolving would mean blocking on a possibly
+        // cold dev container from inside it — a good way to deadlock the IDE.
+        val environment = MirrordEnvironments.resolve(MirrordLaunchContext(configuration.project))
+        val winNative = isWinNative(environment.platform())
         MirrordLogger.logger.info(
-            "updateJavaParameters: platform gating winNative=$winNative wsl=${wsl?.presentableName ?: "null"} isDebug=$isDebug"
+            "updateJavaParameters: platform gating winNative=$winNative env=${environment.name} isDebug=$isDebug"
         )
 
         // On Windows native, try to wrap the JDK with mirrord pitm. When that
@@ -299,7 +299,7 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         }
 
         val mirrordExe = try {
-            File(service<MirrordBinaryManager>().getBinary("idea", null, project))
+            File(service<MirrordBinaryManager>().getBinary("idea", MirrordEnvironments.resolve(MirrordLaunchContext(project)), project).value)
         } catch (e: Exception) {
             MirrordLogger.logger.warn("wrapJdkWithPitm: failed to resolve mirrord binary: ${e.message}", e)
             project.service<MirrordProjectService>().notifier.notifySimple(

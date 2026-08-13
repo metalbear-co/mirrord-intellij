@@ -5,6 +5,10 @@ import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.bifrost.LegacyWslEnvironment
+import com.metalbear.mirrord.bifrost.MirrordTargetArch
+import com.metalbear.mirrord.bifrost.MirrordTargetOs
+import com.metalbear.mirrord.bifrost.MirrordTargetPlatform
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -79,7 +83,10 @@ class MirrordWslCharacterizationTest {
     fun `a wsl target selects the linux binary even on a windows host`() {
         val wsl = requireWsl()
 
-        val path = MirrordPathManager.getPath("mirrord", universalOnMac = true, wslDistribution = wsl)
+        // The platform now comes from the environment rather than from SystemInfo, so this
+        // asserts the same outcome through the new route.
+        val platform = LegacyWslEnvironment(wsl, null).platform()
+        val path = MirrordPathManager.getPath("mirrord", universalOnMac = true, platform = platform).path
 
         // WSL runs Linux binaries regardless of the host OS, and inherits the host architecture.
         assertTrue(
@@ -93,7 +100,11 @@ class MirrordWslCharacterizationTest {
     fun `no wsl distribution on windows selects the native exe`() {
         assumeTrue(SystemInfo.isWindows, "requires a Windows host")
 
-        val path = MirrordPathManager.getPath("mirrord", universalOnMac = true, wslDistribution = null)
+        val path = MirrordPathManager.getPath(
+            "mirrord",
+            universalOnMac = true,
+            platform = MirrordTargetPlatform(MirrordTargetOs.WINDOWS, MirrordTargetArch.X86_64)
+        ).path
 
         assertTrue(path.toString().endsWith("mirrord.exe"), "expected the native Windows binary, got $path")
     }
@@ -105,8 +116,9 @@ class MirrordWslCharacterizationTest {
         val wsl = requireWsl()
 
         // WSL takes the Linux LD_PRELOAD path, not pitm — even though the host is Windows.
-        assertFalse(isWinNative(wsl))
-        assertTrue(isWinNative(null), "no distribution on a Windows host means native injection")
+        // isWinNative now asks about the target, so this reads directly rather than by proxy.
+        assertFalse(isWinNative(LegacyWslEnvironment(wsl, null).platform()))
+        assertTrue(isWinNative(MirrordTargetPlatform(MirrordTargetOs.WINDOWS, MirrordTargetArch.X86_64)))
     }
 
     // ---------------------------------------------------------------- command line patching

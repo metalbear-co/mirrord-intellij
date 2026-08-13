@@ -2,6 +2,7 @@ package com.metalbear.mirrord
 
 import com.google.gson.JsonParser
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.metalbear.mirrord.bifrost.TargetPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -79,7 +80,7 @@ class MirrordPitmEnvTest {
 
         MirrordPitm.wrapCommandLine(
             commandLine,
-            cliPath = "C:\\plugins\\mirrord\\bin\\windows\\x86-64\\mirrord.exe",
+            cliPath = TargetPath("C:\\plugins\\mirrord\\bin\\windows\\x86-64\\mirrord.exe"),
             mirrordEnvVars = mapOf("MIRRORD_INTPROXY_ADDR" to "127.0.0.1:1"),
             envToUnset = null
         )
@@ -104,7 +105,7 @@ class MirrordPitmEnvTest {
 
         MirrordPitm.wrapCommandLine(
             commandLine,
-            cliPath = "mirrord.exe",
+            cliPath = TargetPath("mirrord.exe"),
             mirrordEnvVars = mapOf("MIRRORD_INTPROXY_ADDR" to "127.0.0.1:41234"),
             envToUnset = null
         )

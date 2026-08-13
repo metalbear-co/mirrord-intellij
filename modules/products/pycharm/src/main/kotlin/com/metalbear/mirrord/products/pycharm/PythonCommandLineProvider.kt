@@ -1,7 +1,6 @@
 package com.metalbear.mirrord.products.pycharm
 
 import com.intellij.execution.target.TargetEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
@@ -10,6 +9,8 @@ import com.jetbrains.python.run.PythonRunParams
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     // Wrapper for docker variant of TargetEnvironmentRequest because the variant is dynamically loaded from another
@@ -35,7 +36,9 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     private fun extendContainerTargetEnvironment(project: Project, runParams: PythonRunParams, docker: DockerRuntimeConfig) {
         val service = project.service<MirrordProjectService>()
 
-        service.execManager.wrapper("pycharm", runParams.getEnvs()).containerStart()?.let { executionInfo ->
+        val environment = MirrordEnvironments.resolve(MirrordLaunchContext(project))
+
+        service.execManager.wrapper("pycharm", runParams.getEnvs(), environment).containerStart()?.let { executionInfo ->
             docker.runCliOptions?.let {
                 executionInfo.extraArgs.add(it)
             }
@@ -64,17 +67,11 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
             if (docker != null) {
                 extendContainerTargetEnvironment(project, runParams, docker)
             } else {
-                val wsl = helpersAwareTargetRequest.targetEnvironmentRequest.let {
-                    if (it is WslTargetEnvironmentRequest) {
-                        it.configuration.distribution
-                    } else {
-                        null
-                    }
-                }
+                val environment = MirrordEnvironments.resolve(
+                    MirrordLaunchContext(project, helpersAwareTargetRequest.targetEnvironmentRequest)
+                )
 
-                service.execManager.wrapper("pycharm", runParams.getEnvs()).apply {
-                    this.wsl = wsl
-                }.start()?.let { executionInfo ->
+                service.execManager.wrapper("pycharm", runParams.getEnvs(), environment).start()?.let { executionInfo ->
                     for (entry in executionInfo.environment.entries.iterator()) {
                         pythonExecution.addEnvironmentVariable(entry.key, entry.value)
                     }

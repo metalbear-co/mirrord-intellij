@@ -7,6 +7,8 @@ import com.metalbear.mirrord.MirrordBinaryManager
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import java.io.File
 import java.util.Base64
 
@@ -67,7 +69,8 @@ internal object MirrordWinGradleInjector {
 
         val project = configuration.project
         val cliPath = service<MirrordBinaryManager>()
-            .getCliPath("idea", null, project)
+            .getCliPath("idea", MirrordEnvironments.resolve(MirrordLaunchContext(project)), project)
+            .value
             .replace("\\", "/")
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)
 

@@ -3,18 +3,21 @@ package com.metalbear.mirrord
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.bifrost.MirrordTargetPlatform
+import com.metalbear.mirrord.bifrost.TargetPath
 import java.util.Base64
 
 /**
  * True when mirrord's Windows-native injection path (`mirrord.exe pitm` for run,
- * `mirrord.exe attach` for debug) should be used. Requires an actual Windows host
- * AND no resolved WSL distribution — WSL targets use the Linux/LD_PRELOAD path
- * regardless of host OS.
+ * `mirrord.exe attach` for debug) should be used — that is, when the process being
+ * injected runs on Windows.
+ *
+ * This asks about the *target*, not the IDE host, and the distinction is not academic: a Linux
+ * container opened from a Windows IDE is not Windows-native, and a Windows target reached from
+ * a Linux IDE is. The previous form (`SystemInfo.isWindows && wsl == null`) got both wrong,
+ * because the only non-host environment it could name was WSL.
  */
-fun isWinNative(wsl: WSLDistribution?): Boolean =
-    SystemInfo.isWindows && wsl == null
+fun isWinNative(platform: MirrordTargetPlatform): Boolean = platform.isWindows
 
 /**
  * Helper for the `mirrord pitm` (Process In The Middle) Windows injection mode.
@@ -45,7 +48,7 @@ object MirrordPitm {
      */
     fun wrapCommandLine(
         commandLine: GeneralCommandLine,
-        cliPath: String,
+        cliPath: TargetPath,
         mirrordEnvVars: Map<String, String>,
         envToUnset: List<String>?
     ) {
@@ -74,7 +77,7 @@ object MirrordPitm {
         val originalExe = commandLine.exePath
         val originalArgs = commandLine.parametersList.list.toList()
 
-        commandLine.exePath = cliPath
+        commandLine.exePath = cliPath.value
         commandLine.parametersList.clearAll()
         commandLine.addParameters("pitm", "--", originalExe)
         commandLine.addParameters(originalArgs)

@@ -4,10 +4,11 @@ import com.intellij.execution.ExecutionListener
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
+import com.metalbear.mirrord.bifrost.MirrordEnvironment
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 
 data class RunConfigGuard(val executionId: Long) {
     var originEnv: Map<String, String> = LinkedHashMap()
@@ -24,7 +25,7 @@ class MirrordNpmExecutionListener : ExecutionListener {
         return env.runProfile::class.qualifiedName == "com.intellij.lang.javascript.buildTools.npm.rc.NpmRunConfiguration"
     }
 
-    private fun patchNpmEnv(wslDistribution: WSLDistribution?, env: ExecutionEnvironment) {
+    private fun patchNpmEnv(environment: MirrordEnvironment, env: ExecutionEnvironment) {
         val service = env.project.service<MirrordProjectService>()
 
         val executionGuard = executions[env.executionId]!!
@@ -32,7 +33,10 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             val runSettings = MirrordNpmMutableRunSettings.fromRunProfile(env.project, env.runProfile)
 
-            val executablePath = if (SystemInfo.isMac) {
+            // macOS strips DYLD_INSERT_LIBRARIES from signed binaries, so the CLI has to
+            // re-sign a copy. Keyed on the *target* now, not the IDE host: a Mac driving a Linux
+            // container needs no patching, and a Linux IDE driving a macOS target does.
+            val executablePath = if (environment.platform().isMac) {
                 runSettings.packageManagerPackagePath
             } else {
                 null
@@ -40,8 +44,7 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
             executionGuard.originEnv = LinkedHashMap(runSettings.envs)
 
-            service.execManager.wrapper("JS", executionGuard.originEnv).apply {
-                wsl = wslDistribution
+            service.execManager.wrapper("JS", executionGuard.originEnv, environment).apply {
                 executable = executablePath
             }.start()?.let { executionInfo ->
                 var envs = (executionGuard.originEnv + executionInfo.environment)
@@ -92,12 +95,11 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
         executions[env.executionId] = RunConfigGuard(env.executionId)
 
-        val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val environment = MirrordEnvironments.resolve(
+            MirrordLaunchContext(env.project, createEnvironmentRequest(env.runProfile, env.project))
+        )
 
-        patchNpmEnv(wsl, env)
+        patchNpmEnv(environment, env)
 
         super.processStartScheduled(executorId, env)
     }

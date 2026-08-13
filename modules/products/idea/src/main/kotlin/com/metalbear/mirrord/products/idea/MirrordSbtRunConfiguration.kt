@@ -12,6 +12,8 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordLogsService
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import org.jetbrains.sbt.runner.SbtCommandLineState
 import org.jetbrains.sbt.runner.SbtRunConfiguration
 import scala.Function1
@@ -182,7 +184,8 @@ class MirrordSbtRunConfiguration(
         }
 
         val service = project.service<MirrordProjectService>()
-        return service.execManager.wrapper("idea", getSbtConfigurationEnv(this)).start()
+        val environment = MirrordEnvironments.resolve(MirrordLaunchContext(project))
+        return service.execManager.wrapper("idea", getSbtConfigurationEnv(this), environment).start()
     }
 
     private fun createDirectLaunchState(
