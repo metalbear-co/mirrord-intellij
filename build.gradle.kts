@@ -41,7 +41,7 @@ dependencies {
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.2")
     // BasePlatformTestCase is JUnit3; the other tests are JUnit5.
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
     testImplementation("com.squareup.okhttp3:logging-interceptor:5.4.0")
