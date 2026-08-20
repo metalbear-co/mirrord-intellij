@@ -35,17 +35,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
-    val mirrordDropdownMenu: ContainerFixture
-        get() {
-            val list = waitFor<ContainerFixture?>(Duration.ofSeconds(60)) {
-                val list = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
-                    .firstOrNull { it.hasText("mirrord for Teams") }
-                Pair(list != null, list)
-            }
-
-            return list!!
-        }
-
     val startDebugging
         get() = find<ContainerFixture>(
             byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']")
@@ -76,6 +65,49 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    /**
+     * Opens the mirrord toolbar dropdown and returns its menu.
+     *
+     * The toolbar recomputes action presentations on a background thread while the project is
+     * being opened and indexed, so the button can report itself enabled and be disabled again
+     * before the click lands. Clicks on a disabled button are silently dropped, so the button is
+     * clicked again until the menu shows up.
+     */
+    fun openMirrordDropdownMenu(timeout: Duration = Duration.ofMinutes(2)): ContainerFixture {
+        val menu = waitFor<ContainerFixture?>(
+            duration = timeout,
+            interval = Duration.ofSeconds(1),
+            errorMessage = "mirrord dropdown menu did not open"
+        ) {
+            findMirrordDropdownMenu(Duration.ofSeconds(1))?.let { return@waitFor Pair(true, it) }
+
+            clickMirrordDropdownButton()
+            // Give the popup time to show before clicking again - the button is a toggle, so
+            // clicking it while the popup is open would close it.
+            val opened = findMirrordDropdownMenu(Duration.ofSeconds(10))
+            Pair(opened != null, opened)
+        }
+
+        return menu!!
+    }
+
+    private fun findMirrordDropdownMenu(timeout: Duration): ContainerFixture? = runCatching {
+        waitFor<ContainerFixture?>(duration = timeout, interval = Duration.ofMillis(500)) {
+            val menu = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+                .firstOrNull { it.hasText("mirrord for Teams") }
+            Pair(menu != null, menu)
+        }
+    }.getOrNull()
+
+    private fun clickMirrordDropdownButton() {
+        runCatching {
+            val button = mirrordDropdownButton
+            if (button.isShowing && button.isComponentEnabled()) {
+                button.click()
+            }
+        }
+    }
+
     fun ContainerFixture.isComponentEnabled(): Boolean {
         return callJs(
             """
@@ -87,16 +119,16 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
-    fun dumbAware(
+    fun <T> dumbAware(
         timeout: Duration = Duration.ofMinutes(5),
         waitAfter: Boolean = true,
-        function: () -> Unit
-    ) {
-        step("Wait for smart mode") {
+        function: () -> T
+    ): T {
+        return step("Wait for smart mode") {
             waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
                 runCatching { isDumbMode().not() }.getOrDefault(false)
             }
-            function()
+            val result = function()
             if (waitAfter) {
                 step("...wait for smart mode again") {
                     waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
@@ -104,6 +136,7 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
                     }
                 }
             }
+            result
         }
     }
 
