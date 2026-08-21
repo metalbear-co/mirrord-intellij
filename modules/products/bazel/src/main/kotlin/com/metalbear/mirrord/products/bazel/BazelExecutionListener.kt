@@ -3,12 +3,11 @@ package com.metalbear.mirrord.products.bazel
 import com.intellij.execution.ExecutionListener
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.String
 
@@ -66,14 +65,10 @@ class BazelExecutionListener : ExecutionListener {
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
         @Suppress("UnstableApiUsage") // `createEnvironmentRequest`
-        val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val environment = MirrordEnvironments.forRunProfile(env.project, env.runProfile)
 
         try {
-            service.execManager.wrapper("bazel", originalEnv).apply {
-                this.wsl = wsl
+            service.execManager.wrapper("bazel", originalEnv, environment).apply {
                 this.executable = binaryToPatch
             }.start()?.let { executionInfo ->
                 MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: adding ${executionInfo.environment.size} environment variables")

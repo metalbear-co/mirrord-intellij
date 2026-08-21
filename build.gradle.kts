@@ -147,6 +147,24 @@ intellijPlatform {
 
     pluginVerification {
         failureLevel = EnumSet.of(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS, VerifyPluginTask.FailureLevel.INVALID_PLUGIN)
+
+        // Without this block the verifier has no IDE to check against, so the nightly job
+        // proves nothing.
+        //
+        // The compile target is `platformVersion` while sinceBuild claims 253 and upwards. That
+        // gap is real: a platform class that moves between builds resolves at compile time and
+        // fails at run time, and only a verifier run against the newer build catches it.
+        ides {
+            // `-PverifierLocalIde=<path>` checks an IDE already on disk, which needs no download
+            // and is the quickest way to test one specific build. CI has no such install, so it
+            // falls back to the set JetBrains recommends for this plugin's declared range.
+            val localIde = providers.gradleProperty("verifierLocalIde").orNull
+            if (localIde != null) {
+                local(localIde)
+            } else {
+                recommended()
+            }
+        }
     }
 
     signing {

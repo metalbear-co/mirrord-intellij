@@ -1,12 +1,8 @@
 package com.metalbear.mirrord.products.rider
 
-import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessInfo
 import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -25,24 +21,26 @@ import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironment
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
+import com.metalbear.mirrord.bifrost.TargetPath
 import com.metalbear.mirrord.isWinNative
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
 
 class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
-    private fun resolveWsl(project: Project): WSLDistribution? {
-        return RunManager.getInstance(project).selectedConfiguration?.configuration?.let {
-            @Suppress("UnstableApiUsage")
-            when (val request = createEnvironmentRequest(it, project)) {
-                is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-                else -> null
-            }
-        }
-    }
+    /**
+     * Rider's extension point hands us a [WorkerRunInfo] and a [Project], never the run
+     * configuration being launched — which is why the old code reached for
+     * `RunManager.selectedConfiguration` and read whatever happened to be selected in the
+     * dropdown, right or not. Asking the project where it lives has no such failure mode.
+     */
+    private fun resolveEnvironment(project: Project): MirrordEnvironment =
+        MirrordEnvironments.forProject(project)
 
-    private fun resolveCliPath(project: Project): String =
-        service<MirrordBinaryManager>().getCliPath("rider", null, project)
+    private fun resolveCliPath(project: Project, environment: MirrordEnvironment): TargetPath =
+        service<MirrordBinaryManager>().getCliPath("rider", environment, project)
 
     /**
      * Runs `mirrord ext` and sets the resulting env vars on the command line.
@@ -52,13 +50,11 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     private fun startMirrordExt(
         commandLine: GeneralCommandLine,
         project: Project,
-        wsl: WSLDistribution?
+        environment: MirrordEnvironment
     ): MirrordExecution? {
         val service = project.service<MirrordProjectService>()
 
-        val executionInfo = service.execManager.wrapper("rider", commandLine.environment).apply {
-            this.wsl = wsl
-        }.start()
+        val executionInfo = service.execManager.wrapper("rider", commandLine.environment, environment).start()
 
         executionInfo?.let { info ->
             for (entry in info.environment.entries) {
@@ -83,12 +79,12 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             "RiderPatchCommandLineExtension.patchDebugCommandLine: ENTER exe=${workerRunInfo.commandLine.exePath} " +
                 "argsCount=${workerRunInfo.commandLine.parametersList.list.size}"
         )
-        val wsl = resolveWsl(project)
-        MirrordLogger.logger.info("patchDebugCommandLine: wsl=${wsl?.presentableName ?: "null"}")
-        val executionInfo = startMirrordExt(workerRunInfo.commandLine, project, wsl)
+        val environment = resolveEnvironment(project)
+        MirrordLogger.logger.info("patchDebugCommandLine: env=${environment.name}")
+        val executionInfo = startMirrordExt(workerRunInfo.commandLine, project, environment)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
 
-        val winNative = isWinNative(wsl)
+        val winNative = environment.platform().isWinNative
         MirrordLogger.logger.info(
             "patchDebugCommandLine: decision winNative=$winNative executionInfoPresent=${executionInfo != null}"
         )
@@ -105,7 +101,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         // CLI injection flow:
         // https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
         if (winNative && executionInfo != null) {
-            armRiderTargetReadyAttach(project, lifetime, workerRunInfo.commandLine.environment.toMap())
+            armRiderTargetReadyAttach(project, lifetime, workerRunInfo.commandLine.environment.toMap(), environment)
         } else {
             MirrordLogger.logger.info("patchDebugCommandLine: skipping armRiderTargetReadyAttach (not Windows-native or no executionInfo)")
         }
@@ -117,9 +113,10 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     private fun armRiderTargetReadyAttach(
         project: Project,
         launchLifetime: Lifetime,
-        envVars: Map<String, String>
+        envVars: Map<String, String>,
+        environment: MirrordEnvironment
     ) {
-        val cliPath = resolveCliPath(project)
+        val cliPath = resolveCliPath(project, environment)
         MirrordLogger.logger.info("armRiderTargetReadyAttach: wiring listener, cliPath=$cliPath")
 
         // connect(project) + lifetime.onTermination gives belt-and-suspenders
@@ -182,7 +179,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
                                 try {
                                     project.service<MirrordProjectService>()
                                         .execManager
-                                        .attach(cliPath, envVars, pid)
+                                        .attach(cliPath, envVars, pid, environment)
                                     MirrordLogger.logger.info(
                                         "armRiderTargetReadyAttach: attach completed for pid $pid, dispatching session.resume() on EDT"
                                     )
@@ -246,20 +243,20 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             "RiderPatchCommandLineExtension.patchRunCommandLine: ENTER exe=${commandLine.exePath} " +
                 "argsCount=${commandLine.parametersList.list.size}"
         )
-        val wsl = resolveWsl(project)
-        MirrordLogger.logger.info("patchRunCommandLine: wsl=${wsl?.presentableName ?: "null"}")
-        val executionInfo = startMirrordExt(commandLine, project, wsl) ?: run {
+        val environment = resolveEnvironment(project)
+        MirrordLogger.logger.info("patchRunCommandLine: env=${environment.name}")
+        val executionInfo = startMirrordExt(commandLine, project, environment) ?: run {
             MirrordLogger.logger.info("patchRunCommandLine: startMirrordExt returned null — mirrord disabled or cancelled, exiting")
             return null
         }
 
-        val winNative = isWinNative(wsl)
+        val winNative = environment.platform().isWinNative
         MirrordLogger.logger.info("patchRunCommandLine: decision winNative=$winNative")
 
         // On Windows native, wrap with `mirrord pitm` for zero-race DLL injection.
         // The process' execution is proxied, suspended, layer injected, then resumed.
         if (winNative) {
-            val cliPath = resolveCliPath(project)
+            val cliPath = resolveCliPath(project, environment)
             MirrordLogger.logger.info("patchRunCommandLine: wrapping with pitm cliPath=$cliPath")
             MirrordPitm.wrapCommandLine(commandLine, cliPath, executionInfo.environment, executionInfo.envToUnset)
         } else {

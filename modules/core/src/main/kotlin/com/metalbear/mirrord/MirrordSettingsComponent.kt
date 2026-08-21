@@ -66,6 +66,13 @@ class MirrordSettingsComponent {
             }
         }
 
+    private val useLegacyWsl = JBCheckBox("Use legacy WSL integration")
+        .apply {
+            toolTipText = "WSL normally runs through the IDE's execution environment layer, the same path " +
+                "Dev Containers use. Turn this on only if a WSL setup stops working after an update — " +
+                "it restores the previous wsl.exe integration. Has no effect outside WSL."
+        }
+
     private val autoUpdatePanel = FormBuilder
         .createFormBuilder()
         .addComponent(autoUpdate)
@@ -85,6 +92,7 @@ class MirrordSettingsComponent {
         .addSeparator()
         .addComponent(troubleshootingLogsEnabled)
         .addLabeledComponent(troubleshootingLogsPathLabel, troubleshootingLogsPath)
+        .addComponent(useLegacyWsl)
         .addSeparator()
         .addComponent(JBLabel("Notify when:"))
         .apply {
@@ -163,5 +171,11 @@ class MirrordSettingsComponent {
         get() = troubleshootingLogsPath.text.trim()
         set(value) {
             troubleshootingLogsPath.text = value.trim()
+        }
+
+    var useLegacyWslStatus: Boolean
+        get() = useLegacyWsl.isSelected
+        set(value) {
+            useLegacyWsl.isSelected = value
         }
 }

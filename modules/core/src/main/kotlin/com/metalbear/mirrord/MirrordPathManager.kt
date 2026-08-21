@@ -1,64 +1,57 @@
 package com.metalbear.mirrord
 
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.util.SystemInfo
-import com.intellij.util.system.CpuArch
+import com.metalbear.mirrord.bifrost.HostPath
+import com.metalbear.mirrord.bifrost.MirrordTargetPlatform
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * For accessing to binaries stored in the plugin directory.
+ * Where a plugin-managed binary lives on the IDE host.
+ *
+ * These are always [HostPath]s. The plugin directory belongs to the IDE, so under a dev
+ * container nothing here is visible to the process mirrord is attaching to — use
+ * [com.metalbear.mirrord.bifrost.MirrordEnvironment.provide] to get a binary across.
  */
 object MirrordPathManager {
     private fun pluginDir(): Path = Paths.get(PathManager.getPluginsPath(), "mirrord")
 
     /**
-     * Resolves the on-disk path to a plugin-managed binary.
+     * The layout under the plugin directory for a binary built for [platform].
      *
-     * When [wslDistribution] is non-null on a Windows host, the target is a
-     * WSL distribution — a Linux binary is required, not `mirrord.exe`. WSL
-     * runs are treated like native Linux (linux folder, no `.exe`) regardless
-     * of host OS. Windows-native runs pass `wslDistribution = null`.
+     * Pure, so every combination is unit-tested. Note this asks the *target* platform, not the
+     * IDE host: a macOS host running a Linux container needs `bin/linux/x86-64/mirrord`, and the
+     * old `SystemInfo`-based version would have handed back a macOS build.
      */
-    fun getPath(name: String, universalOnMac: Boolean, wslDistribution: WSLDistribution? = null): Path {
-        val treatAsLinux = SystemInfo.isLinux || wslDistribution != null
-        val os = when {
-            treatAsLinux -> "linux"
-            SystemInfo.isMac -> "macos"
-            SystemInfo.isWindows -> "windows"
-            else -> throw RuntimeException("Unsupported platform: " + SystemInfo.OS_NAME)
+    fun binaryRelativePath(name: String, universalOnMac: Boolean, platform: MirrordTargetPlatform): String {
+        val binaryName = if (platform.isWindows) "$name.exe" else name
+        return if (platform.isMac && universalOnMac) {
+            // Darwin builds ship as one universal binary, so there is no architecture segment.
+            "bin/${platform.osDirectoryName}/$binaryName"
+        } else {
+            "bin/${platform.osDirectoryName}/${platform.archDirectoryName}/$binaryName"
         }
-
-        val arch = when {
-            // WSL inherits the host architecture on Windows, so CpuArch is the
-            // right proxy for both native Linux and Windows+WSL.
-            CpuArch.isIntel64() -> "x86-64"
-            CpuArch.isArm64() -> "arm64"
-            else -> throw RuntimeException("Unsupported architecture: " + CpuArch.CURRENT.name)
-        }
-
-        val binaryName = if (isWinNative(wslDistribution)) "$name.exe" else name
-
-        val format = when {
-            SystemInfo.isMac && universalOnMac -> "bin/$os/$binaryName"
-            else -> "bin/$os/$arch/$binaryName"
-        }
-
-        return pluginDir().resolve(format)
     }
 
-    /**
-     * Get matching binary based on platform and architecture. See [getPath]
-     * for the semantics of [wslDistribution].
-     */
-    fun getBinary(name: String, universalOnMac: Boolean, wslDistribution: WSLDistribution? = null): String? {
-        val binaryPath = this.getPath(name, universalOnMac, wslDistribution).takeIf { Files.exists(it) } ?: return null
+    /** Resolves the on-disk host path a binary for [platform] would occupy. */
+    fun getPath(name: String, universalOnMac: Boolean, platform: MirrordTargetPlatform): HostPath =
+        HostPath(pluginDir().resolve(binaryRelativePath(name, universalOnMac, platform)))
+
+    /** As [getPath], but null unless the file exists and could be made executable. */
+    fun getBinary(name: String, universalOnMac: Boolean, platform: MirrordTargetPlatform): HostPath? {
+        val binaryPath = getPath(name, universalOnMac, platform).path.takeIf { Files.exists(it) } ?: return null
         return if (Files.isExecutable(binaryPath) || binaryPath.toFile().setExecutable(true)) {
-            return binaryPath.toString()
+            HostPath(binaryPath)
         } else {
             null
         }
     }
+
+    /**
+     * For helper binaries that genuinely run on the IDE host rather than in the target — at
+     * present only Goland's `dlv`, which the IDE launches itself.
+     */
+    fun getHostBinary(name: String, universalOnMac: Boolean): HostPath? =
+        getBinary(name, universalOnMac, MirrordTargetPlatform.ofHost())
 }
