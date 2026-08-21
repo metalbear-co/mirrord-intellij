@@ -13,9 +13,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.system.CpuArch
+import com.metalbear.mirrord.bifrost.HostPath
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import com.metalbear.mirrord.bifrost.MirrordTargetArch
 import com.metalbear.mirrord.bifrost.MirrordTargetPlatform
 import com.metalbear.mirrord.bifrost.TargetPath
@@ -92,7 +92,7 @@ class MirrordBinaryManager {
      */
     class DownloadInitializer : ProjectActivity {
         override suspend fun execute(project: Project) {
-            UpdateTask(project, null, MirrordEnvironments.resolve(MirrordLaunchContext(project)), false).queue()
+            UpdateTask(project, null, MirrordEnvironments.forProject(project), false).queue()
         }
     }
 
@@ -308,6 +308,9 @@ class MirrordBinaryManager {
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
     }
 
+    /** See [advertiseLargeBinary]. A released mirrord is comfortably below this. */
+    private val LARGE_BINARY_ADVISORY_BYTES = 256L * 1_048_576
+
     private class MirrordBinary(val command: TargetPath, environment: MirrordEnvironment) {
         val version: String
 
@@ -318,10 +321,13 @@ class MirrordBinaryManager {
             // behaviour change for WSL rather than a fix.
             version = output.stdout.trim().split(' ').getOrNull(1)?.trim()
                 ?: run {
-                    MirrordLogger.logger.debug(
-                        "`mirrord --version` gave exit=${output.exitCode} stdout='${output.stdout}' stderr='${output.stderr}'"
-                    )
-                    throw RuntimeException("failed to get mirrord version")
+                    // The reason belongs in the exception, not only in a DEBUG line. A binary
+                    // built on a rolling-release host against a newer glibc than the target's
+                    // fails here with a linker message, and "failed to get mirrord version"
+                    // sends the reader nowhere.
+                    val reason = output.stderr.trim().lines().firstOrNull()?.take(200)
+                        ?: "exit=${output.exitCode}, no output"
+                    throw RuntimeException(reason)
                 }
         }
     }
@@ -429,7 +435,7 @@ class MirrordBinaryManager {
         // honour a custom binary path the way `getBinary` does — otherwise a user who pointed
         // the plugin at their own build is still told it is unsupported, and can even be
         // force-fed a download of the managed one.
-        val environment = MirrordEnvironments.resolve(MirrordLaunchContext(project))
+        val environment = MirrordEnvironments.forProject(project)
 
         fun resolveLocal(): MirrordBinary? = try {
             val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
@@ -530,7 +536,7 @@ class MirrordBinaryManager {
      * startup dialog so users see the same warning + path on both surfaces.
      */
     private fun enforceWindowsNativeMin(binary: MirrordBinary, platform: MirrordTargetPlatform) {
-        if (!isWinNative(platform)) return
+        if (!platform.isWinNative) return
         val parsed = try {
             Version.valueOf(binary.version)
         } catch (_: Exception) {
@@ -592,28 +598,90 @@ class MirrordBinaryManager {
         )
     }
 
+    /**
+     * Warns before a slow copy, so it does not read as a hang.
+     *
+     * Deliberately one sentence. The reason the binary is large — the CLI embeds the layer, so an
+     * unstripped Linux debug build reaches ~1 GB — is in the log, not in the notification.
+     *
+     * Driven by [MirrordEnvironment.provide]'s copy callback rather than called beforehand, because
+     * only `provide` knows whether bytes actually move: a local target and legacy WSL both resolve
+     * the path without copying, and announcing a transfer there is simply false.
+     *
+     * Fires only above [LARGE_BINARY_ADVISORY_BYTES], and carries "don't show again", so a
+     * released binary stays quiet.
+     */
+    private fun advertiseLargeBinary(bytes: Long, environment: MirrordEnvironment, project: Project) {
+        if (bytes <= LARGE_BINARY_ADVISORY_BYTES) return
+
+        val megabytes = bytes / 1_048_576
+        project
+            .service<MirrordProjectService>()
+            .notifier
+            .notification(
+                "mirrord is copying a large binary ($megabytes MB) into ${environment.name}. " +
+                    "This only happens once.",
+                NotificationType.WARNING
+            )
+            .withDontShowAgain(MirrordSettingsState.NotificationId.LARGE_BINARY_STAGED)
+            .fire()
+    }
+
     private fun validateCustomBinary(
         path: String,
         environment: MirrordEnvironment,
         project: Project
     ): MirrordBinary? {
-        return try {
-            // Already a target-side path: the user typed something meaningful where mirrord
-            // runs, so it must not be translated. The old code relied on getWslPath returning
-            // null for an already-Linux path; this makes that reliance explicit.
-            MirrordBinary(TargetPath(path), environment)
-        } catch (e: Exception) {
-            MirrordLogger.logger.debug("custom mirrord binary path is invalid: $path", e)
-            project
-                .service<MirrordProjectService>()
-                .notifier
-                .notification(
-                    "custom mirrord binary path is invalid: $path",
-                    NotificationType.WARNING
+        // On-device first, remote second.
+        //
+        // The setting is filled in with a file chooser on the user's own machine, so a host path
+        // is the normal case. Treating it as target-side only meant a perfectly good local build
+        // was rejected as "invalid" under a dev container, because that path names nothing inside
+        // the container.
+        //
+        // Staging goes through `provide`, which is content-addressed: the destination is keyed on
+        // a sha256 of the file, so an unchanged binary resolves to a path that already exists and
+        // nothing is copied. A rebuilt binary hashes differently and is copied once. When the
+        // environment is local, `provide` returns the path unchanged and no copy happens at all.
+        var hostFailure: String? = null
+        val hostFile = runCatching { HostPath.of(path) }.getOrNull()
+        if (hostFile != null && runCatching { Files.isRegularFile(hostFile.path) }.getOrDefault(false)) {
+            runCatching {
+                MirrordBinary(
+                    environment.provide(hostFile, "mirrord") { bytes ->
+                        advertiseLargeBinary(bytes, environment, project)
+                    },
+                    environment
                 )
-                .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
-                .fire()
-            null
+            }
+                .onFailure {
+                    hostFailure = it.message
+                    MirrordLogger.logger.warn(
+                        "mirrord binary at $path was staged into ${environment.name} but is not usable there: ${it.message}"
+                    )
+                }
+                .getOrNull()
+                ?.let { return it }
         }
+
+        // Remote second: the user pointed at something that already exists where mirrord runs —
+        // inside the container, or inside the WSL distribution.
+        runCatching { MirrordBinary(TargetPath(path), environment) }
+            .onFailure { MirrordLogger.logger.debug("target-side mirrord binary at $path is not usable", it) }
+            .getOrNull()
+            ?.let { return it }
+
+        project
+            .service<MirrordProjectService>()
+            .notifier
+            .notification(
+                hostFailure
+                    ?.let { "mirrord binary at $path does not run in ${environment.name}: $it" }
+                    ?: "custom mirrord binary path is invalid: $path",
+                NotificationType.WARNING
+            )
+            .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
+            .fire()
+        return null
     }
 }

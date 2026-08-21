@@ -15,7 +15,6 @@ import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPathManager
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import java.nio.file.Paths
 
 class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
@@ -42,9 +41,7 @@ class GolandRunConfigurationExtension : GoRunConfigurationExtension() {
         if (commandLineType == GoRunningState.CommandLineType.RUN) {
             val service = configuration.getProject().service<MirrordProjectService>()
 
-            val environment = MirrordEnvironments.resolve(
-                MirrordLaunchContext(configuration.project, state.targetEnvironmentRequest)
-            )
+            val environment = MirrordEnvironments.forRequest(configuration.project, state.targetEnvironmentRequest)
 
             service.execManager.wrapper("goland", configuration.getCustomEnvironment(), environment)
                 .start()?.let { executionInfo ->

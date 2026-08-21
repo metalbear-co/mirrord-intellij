@@ -1,5 +1,7 @@
 package com.metalbear.mirrord.bifrost
 
+import com.intellij.execution.process.ProcessOutput
+
 /**
  * A [MirrordEnvironment] that records what it was asked to do, so the resolution chain and the
  * spec builder can be tested with no IDE, no cluster and no container.
@@ -21,7 +23,7 @@ class FakeMirrordEnvironment(
         return TargetPath("/target${path.path}")
     }
 
-    override fun provide(path: HostPath, name: String): TargetPath {
+    override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath {
         provided += path
         return TargetPath("/target/provided/$name")
     }
@@ -31,6 +33,6 @@ class FakeMirrordEnvironment(
         throw UnsupportedOperationException("FakeMirrordEnvironment does not start real processes")
     }
 
-    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): MirrordProbeOutput =
-        MirrordProbeOutput(0, "mirrord 3.247.0", "")
+    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput =
+        ProcessOutput(0).apply { appendStdout("mirrord 3.247.0") }
 }

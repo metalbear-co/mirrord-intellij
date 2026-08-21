@@ -3,12 +3,10 @@ package com.metalbear.mirrord
 import com.intellij.execution.ExecutionListener
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.openapi.components.service
-import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
+import kotlinx.coroutines.CancellationException
 
 data class RunConfigGuard(val executionId: Long) {
     var originEnv: Map<String, String> = LinkedHashMap()
@@ -59,6 +57,11 @@ class MirrordNpmExecutionListener : ExecutionListener {
                     runSettings.packageManagerPackagePath = it
                 }
             }
+        } catch (e: CancellationException) {
+            // The user pressed Cancel. Let it travel; the platform aborts the launch quietly.
+            // Logging it through `logger.error` would raise an IDE error report naming mirrord as
+            // the plugin to blame for something the user asked for.
+            throw e
         } catch (e: Exception) {
             MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
             service.notifier.notifyRichError("mirrord failed to patch npm run")
@@ -72,11 +75,17 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             runSettings.envs = executionGuard.originEnv
 
-            if (SystemInfo.isMac) {
-                executionGuard.originPackageManagerPackageRef?.let {
-                    runSettings.packageManagerPackageRef = it
-                }
+            // No host check here. originPackageManagerPackageRef is assigned only where
+            // patchedPath came back, and that only happens for a macOS *target*, so the null
+            // check below is already the correct and complete gate. Asking the IDE host instead
+            // would additionally skip the restore when a non-Mac host drives a macOS target,
+            // leaving the run configuration permanently pointed at the patched package manager.
+            executionGuard.originPackageManagerPackageRef?.let {
+                runSettings.packageManagerPackageRef = it
             }
+        } catch (e: CancellationException) {
+            // Cleanup runs in `finally`, so the run configuration is still restored.
+            throw e
         } catch (e: Exception) {
             MirrordLogger.logger.error("mirrord failed to clear npm run patch: $e")
             val service = env.project.service<MirrordProjectService>()
@@ -95,9 +104,7 @@ class MirrordNpmExecutionListener : ExecutionListener {
 
         executions[env.executionId] = RunConfigGuard(env.executionId)
 
-        val environment = MirrordEnvironments.resolve(
-            MirrordLaunchContext(env.project, createEnvironmentRequest(env.runProfile, env.project))
-        )
+        val environment = MirrordEnvironments.forRunProfile(env.project, env.runProfile)
 
         patchNpmEnv(environment, env)
 

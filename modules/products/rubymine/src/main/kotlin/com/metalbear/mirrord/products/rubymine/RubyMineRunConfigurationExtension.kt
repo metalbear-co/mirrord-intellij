@@ -4,14 +4,12 @@ package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
 import kotlin.io.path.createTempFile
@@ -41,9 +39,7 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
         val isMac = SystemInfo.isMac
 
-        val environment = MirrordEnvironments.resolve(
-            MirrordLaunchContext(configuration.project, createEnvironmentRequest(configuration, configuration.project))
-        )
+        val environment = MirrordEnvironments.forRunProfile(configuration.project, configuration)
 
         val currentEnv = cmdLine.environment
         service.execManager.wrapper("rubymine", configuration.envs, environment).apply {

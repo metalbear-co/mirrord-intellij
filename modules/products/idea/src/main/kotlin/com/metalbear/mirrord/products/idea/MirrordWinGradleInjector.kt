@@ -7,8 +7,7 @@ import com.metalbear.mirrord.MirrordBinaryManager
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
-import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
+import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import java.io.File
 import java.util.Base64
 
@@ -59,7 +58,8 @@ internal object MirrordWinGradleInjector {
         configuration: ExternalSystemRunConfiguration,
         mirrordEnvVars: Map<String, String>,
         envToUnset: List<String>?,
-        debugExpected: Boolean
+        debugExpected: Boolean,
+        environment: MirrordEnvironment
     ) {
         MirrordLogger.logger.info(
             "MirrordWinGradleInjector.wrap: ENTER taskNames=${configuration.settings.taskNames} " +
@@ -69,7 +69,7 @@ internal object MirrordWinGradleInjector {
 
         val project = configuration.project
         val cliPath = service<MirrordBinaryManager>()
-            .getCliPath("idea", MirrordEnvironments.resolve(MirrordLaunchContext(project)), project)
+            .getCliPath("idea", environment, project)
             .value
             .replace("\\", "/")
         val childEnvPayload = MirrordPitm.encodeChildEnv(mirrordEnvVars, envToUnset)

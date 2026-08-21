@@ -10,7 +10,6 @@ import com.intellij.openapi.options.SettingsEditor
 import com.jetbrains.nodejs.run.NodeJsRunConfiguration
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import javax.swing.JPanel
 
 class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
@@ -43,9 +42,7 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
                 // Nothing below this line needed to change: `commandLineBuilder` is already
                 // target-aware, so the environment variables mirrord returns are applied
                 // wherever the IDE launches. Only the producer was ever on the wrong machine.
-                val environment = MirrordEnvironments.resolve(
-                    MirrordLaunchContext(targetRun.project, targetRun.request)
-                )
+                val environment = MirrordEnvironments.forRequest(targetRun.project, targetRun.request)
 
                 // following try-catch is to maintain backward compatibility with older versions of webstorm
                 val extraEnvVars = try {

@@ -116,9 +116,9 @@ class MirrordWslCharacterizationTest {
         val wsl = requireWsl()
 
         // WSL takes the Linux LD_PRELOAD path, not pitm — even though the host is Windows.
-        // isWinNative now asks about the target, so this reads directly rather than by proxy.
-        assertFalse(isWinNative(LegacyWslEnvironment(wsl, null).platform()))
-        assertTrue(isWinNative(MirrordTargetPlatform(MirrordTargetOs.WINDOWS, MirrordTargetArch.X86_64)))
+        // isWinNative asks about the target, so this reads it directly rather than by proxy.
+        assertFalse(LegacyWslEnvironment(wsl, null).platform().isWinNative)
+        assertTrue(MirrordTargetPlatform(MirrordTargetOs.WINDOWS, MirrordTargetArch.X86_64).isWinNative)
     }
 
     // ---------------------------------------------------------------- command line patching
@@ -181,9 +181,8 @@ class MirrordWslCharacterizationTest {
      * - **Test passes** → the ordering bug is real, and `MIRRORD_PROGRESS_MODE=json` has not been
      *   reaching the CLI under WSL. That is a shipped bug worth its own issue, and it means the
      *   new abstraction must make env-vs-patch ordering explicit rather than positional.
-     * - **Test fails** → `WSLENV` is not a snapshot and the hypothesis is wrong. Good news. Delete
-     *   this test and correct `documents/COR-1385/architecture.md`, which currently records it as
-     *   a suspected live bug.
+     * - **Test fails** → `WSLENV` is not a snapshot and the hypothesis is wrong. Good news.
+     *   Delete this test.
      */
     @Test
     fun `wslenv omits variables added after patching`() {

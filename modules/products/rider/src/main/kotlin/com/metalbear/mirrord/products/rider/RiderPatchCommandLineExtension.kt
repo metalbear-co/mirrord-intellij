@@ -23,7 +23,6 @@ import com.metalbear.mirrord.MirrordPitm
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 import com.metalbear.mirrord.bifrost.TargetPath
 import com.metalbear.mirrord.isWinNative
 import org.jetbrains.concurrency.Promise
@@ -38,7 +37,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
      * dropdown, right or not. Asking the project where it lives has no such failure mode.
      */
     private fun resolveEnvironment(project: Project): MirrordEnvironment =
-        MirrordEnvironments.resolve(MirrordLaunchContext(project))
+        MirrordEnvironments.forProject(project)
 
     private fun resolveCliPath(project: Project, environment: MirrordEnvironment): TargetPath =
         service<MirrordBinaryManager>().getCliPath("rider", environment, project)
@@ -85,7 +84,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         val executionInfo = startMirrordExt(workerRunInfo.commandLine, project, environment)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
 
-        val winNative = isWinNative(environment.platform())
+        val winNative = environment.platform().isWinNative
         MirrordLogger.logger.info(
             "patchDebugCommandLine: decision winNative=$winNative executionInfoPresent=${executionInfo != null}"
         )
@@ -251,7 +250,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
             return null
         }
 
-        val winNative = isWinNative(environment.platform())
+        val winNative = environment.platform().isWinNative
         MirrordLogger.logger.info("patchRunCommandLine: decision winNative=$winNative")
 
         // On Windows native, wrap with `mirrord pitm` for zero-race DLL injection.

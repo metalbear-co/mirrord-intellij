@@ -2,8 +2,10 @@
 
 package com.metalbear.mirrord.bifrost
 
+import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.target.EelTargetEnvironmentRequest
 import com.intellij.execution.target.TargetEnvironmentRequest
+import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.progress.ProcessCanceledException
@@ -146,6 +148,23 @@ object MirrordEnvironments {
     )
 
     fun resolve(context: MirrordLaunchContext): MirrordEnvironment = resolve(context, defaultSources)
+
+    /**
+     * Where the project lives. For extension points that never see a run configuration.
+     *
+     * These three entry points exist so the launch context is built in exactly one place per
+     * shape. Spelling `resolve(MirrordLaunchContext(...))` at each call site was the same
+     * copy-paste that [wslDistributionOf] just removed, one layer up.
+     */
+    fun forProject(project: Project): MirrordEnvironment = resolve(MirrordLaunchContext(project))
+
+    /** For a caller that already holds the run configuration's target request. */
+    fun forRequest(project: Project, request: TargetEnvironmentRequest?): MirrordEnvironment =
+        resolve(MirrordLaunchContext(project, request))
+
+    /** For an extension point that has the run profile but must build the request itself. */
+    fun forRunProfile(project: Project, profile: RunProfile): MirrordEnvironment =
+        resolve(MirrordLaunchContext(project, createEnvironmentRequest(profile, project)))
 
     internal fun resolve(context: MirrordLaunchContext, sources: List<MirrordEnvironmentSource>): MirrordEnvironment {
         val failures = mutableListOf<Pair<String, Throwable>>()

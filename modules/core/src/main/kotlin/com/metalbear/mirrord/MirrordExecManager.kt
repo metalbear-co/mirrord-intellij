@@ -12,12 +12,8 @@ import com.intellij.openapi.progress.Task
 import com.metalbear.mirrord.bifrost.HostPath
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import com.metalbear.mirrord.bifrost.TargetPath
+import java.nio.file.Files
 
-/**
- * Functions to be called when one of our entry points to the program is called - when process is
- * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
- * if it did, it will do nothing
- */
 class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
@@ -168,9 +164,22 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // to be translated before the CLI sees it: under a dev container the CLI runs where the
         // host filesystem does not exist, and mirrord answers an unreadable config by silently
         // falling back to defaults — which is exactly how COR-1385 presented.
-        val configPath = service.configApi.getConfigPath(mirrordConfigPath)
-            ?.let { environment.resolve(HostPath.of(it)) }
-        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
+        val configPath = service.configApi.getConfigPath(mirrordConfigPath)?.let { raw ->
+            // On-device first, remote second, the same order the custom binary path uses.
+            //
+            // A user is allowed to point MIRRORD_CONFIG_FILE at a path that is already valid where
+            // mirrord runs — `/workspaces/app/mirrord.json` inside the container. Converting that
+            // blindly is worse than doing nothing: on a Windows host `Paths.get` rewrites it with
+            // backslashes, the CLI cannot read it, and mirrord falls back to built-in defaults in
+            // silence. That is the COR-1385 signature this code exists to remove.
+            val hostFile = runCatching { HostPath.of(raw) }.getOrNull()
+            if (hostFile != null && runCatching { Files.exists(hostFile.path) }.getOrDefault(false)) {
+                environment.resolve(hostFile)
+            } else {
+                TargetPath(raw)
+            }
+        }
+        MirrordLogger.logger.info("mirrord.config: resolved target-side config path = ${configPath ?: "NONE (defaults will apply)"}")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
@@ -258,8 +267,20 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // reaches the layer through every product/platform path, including the Windows
         // MIRRORD_CHILD_ENV payload.
         executionInfo.environment.putAll(
-            MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars {
-                environment.resolve(HostPath.of(it)).value
+            MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars { hostPath ->
+                // Never let a diagnostic setting stop the product from starting. `resolve` throws
+                // when the target cannot see the path, and a host directory chosen in Settings is
+                // not mounted into a container — so translating it strictly turned "switch on
+                // verbose logs" into "every run fails". Falling back to the raw path at worst puts
+                // the log somewhere unhelpful, which is what a user of this switch can act on.
+                runCatching { environment.resolve(HostPath.of(hostPath)).value }
+                    .getOrElse {
+                        MirrordLogger.logger.warn(
+                            "mirrord: troubleshooting log path '$hostPath' is not reachable from " +
+                                "${environment.name}; passing it through unchanged"
+                        )
+                        hostPath
+                    }
             }
         )
         return executionInfo

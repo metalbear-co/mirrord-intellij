@@ -1,5 +1,7 @@
 package com.metalbear.mirrord.bifrost
 
+import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.execution.process.ProcessOutput
 import com.intellij.platform.eel.EelApi
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.path.EelPath
@@ -9,12 +11,15 @@ import com.intellij.platform.eel.provider.asNioPath
 import com.intellij.platform.eel.provider.toEelApi
 import com.intellij.platform.eel.provider.utils.EelPathUtils
 import com.intellij.platform.eel.spawnProcess
+import com.intellij.util.io.sha256Hex
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
-import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
+import java.util.UUID
 
 /**
  * The one implementation that carries everything: local, WSL, Docker, dev containers, SSH.
@@ -91,7 +96,7 @@ class EelEnvironment(
      * Windows targets fall back to an uncached temporary copy: there is no `/tmp` to anchor a
      * stable path to, and the dev-container case this exists for is POSIX.
      */
-    override fun provide(path: HostPath, name: String): TargetPath {
+    override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath {
         // Already visible from the target? Then nothing needs to move — true for local, and for
         // WSL via the UNC root, so only containers ever pay for a transfer.
         //
@@ -114,22 +119,12 @@ class EelEnvironment(
             )
         }
 
-        val strategy = EelPathUtils.FileTransferAttributesStrategy.copyWithRequiredPosixPermissions(
-            PosixFilePermission.OWNER_READ,
-            PosixFilePermission.OWNER_WRITE,
-            PosixFilePermission.OWNER_EXECUTE,
-            PosixFilePermission.GROUP_READ,
-            PosixFilePermission.GROUP_EXECUTE,
-            PosixFilePermission.OTHERS_READ,
-            PosixFilePermission.OTHERS_EXECUTE
-        )
-
         if (platform().isWindows) {
             return tracer.crossing("provide", this.name) {
-                val copied = EelPathUtils.transferLocalContentToRemote(
+                // No permission step: Windows targets have no POSIX mode bits to set.
+                val copied = EelTransferCompat.transferLocalContentToRemote(
                     path.path,
-                    EelPathUtils.TransferTarget.Temporary(descriptor),
-                    strategy
+                    EelPathUtils.TransferTarget.Temporary(descriptor)
                 )
                 TargetPath(copied.asEelPath().toString())
             }
@@ -147,20 +142,42 @@ class EelEnvironment(
         }
 
         return tracer.crossing("provide", this.name) {
+            val bytes = runCatching { Files.size(path.path) }.getOrDefault(-1L)
             MirrordLogger.logger.info(
                 "mirrord.bifrost: provide COPY name=$name sha=$digest host=$path target=$destination " +
-                    "bytes=${runCatching { Files.size(path.path) }.getOrDefault(-1L)} env=${this.name}"
+                    "bytes=$bytes env=${this.name}"
             )
+            onCopy(bytes)
+
             // An explicit transfer target writes the file but will not create the directories
             // leading to it, so a first copy into a fresh container fails with NoSuchFileException
             // on a path that reads as though the *source* were missing. These are routed paths, so
             // this creates the directory inside the target.
             Files.createDirectories(destinationNio.parent)
-            EelPathUtils.transferLocalContentToRemote(
-                path.path,
-                EelPathUtils.TransferTarget.Explicit(destinationNio),
-                strategy
-            )
+
+            // Transfer to a unique temporary name and move it into place. The cache check above is
+            // only `exists`, so a transfer interrupted by a timeout, a cancel, or a container
+            // restart would otherwise leave a truncated file at the content-addressed path — where
+            // it is served as a valid cache hit forever, because the hash names the *source*
+            // bytes and never gets re-verified. `updateBinary` already writes host-side files this
+            // way; the target side needs the same guarantee.
+            val staging = destinationNio.resolveSibling("$name.${UUID.randomUUID()}.partial")
+            try {
+                EelTransferCompat.transferLocalContentToRemote(
+                    path.path,
+                    EelPathUtils.TransferTarget.Explicit(staging)
+                )
+                // Before the move, so the file is never visible at its final path without the bit.
+                makeExecutable(staging)
+                runCatching { Files.move(staging, destinationNio, StandardCopyOption.ATOMIC_MOVE) }
+                    .recoverCatching {
+                        Files.move(staging, destinationNio, StandardCopyOption.REPLACE_EXISTING)
+                    }
+                    .getOrThrow()
+            } catch (e: Throwable) {
+                runCatching { Files.deleteIfExists(staging) }
+                throw e
+            }
             TargetPath(destination.toString())
         }
     }
@@ -176,28 +193,60 @@ class EelEnvironment(
             MirrordLogger.logger.info("mirrord.bifrost: spawned ${spec.describe()} env=$name side=${if (isLocal) "host" else "target"}")
         }
 
-    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): MirrordProbeOutput {
-        val process = spawn(MirrordProcessSpec(executable, args, emptyMap(), null))
-        val stdout = process.inputStream.bufferedReader().readText()
-        val stderr = process.errorStream.bufferedReader().readText()
-        val finished = process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
-        if (!finished) {
-            process.destroyForcibly()
+    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput {
+        val spec = MirrordProcessSpec(executable, args, emptyMap(), null)
+
+        // `CapturingProcessHandler` drains both pipes concurrently and enforces the timeout. Doing
+        // it by hand needs two reader threads to avoid the deadlock where a child fills the stderr
+        // pipe while this side is still reading stdout — and reading stdout to EOF first makes the
+        // timeout unreachable, because that read blocks until the child exits.
+        val output = CapturingProcessHandler(spawn(spec), StandardCharsets.UTF_8, spec.describe())
+            .runProcess(timeoutMillis.toInt())
+
+        if (output.isTimeout) {
             throw MirrordError("`$executable ${args.joinToString(" ")}` did not finish within ${timeoutMillis}ms in $name")
         }
-        return MirrordProbeOutput(process.exitValue(), stdout, stderr)
+        return output
     }
 
-    private fun sha256Prefix(path: HostPath): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        Files.newInputStream(path.path).use { stream ->
-            val buffer = ByteArray(1 shl 16)
-            while (true) {
-                val read = stream.read(buffer)
-                if (read <= 0) break
-                digest.update(buffer, 0, read)
+    /**
+     * Sets the mode bits on a freshly staged file.
+     *
+     * Deliberately not done with the platform's transfer-attribute strategy. That type is
+     * `EelPathUtils.FileTransferAttributesStrategy` in 2026.1 but a top-level
+     * `EelFileTransferAttributesStrategy` in 2026.2, which changes the *method descriptor* of
+     * every `transferLocalContentToRemote` overload that accepts it. A plugin compiled against
+     * one build then dies on the other: compiled against 2026.1 and run on 2026.2, it raises
+     * `ClassNotFoundException` while staging the CLI into a dev container. This is the same
+     * 261/262 churn already noted for `EelUnavailableException` in [MirrordBifrostTracer].
+     *
+     * The two-argument overload is byte-identical across both builds, so the transfer uses that
+     * and the permissions are applied here. Doing it explicitly also removes the old ordering
+     * trap where the executable bit was set on a file that was about to be replaced.
+     */
+    private fun makeExecutable(target: Path) {
+        runCatching { Files.setPosixFilePermissions(target, EXECUTABLE_PERMISSIONS) }
+            .onFailure {
+                MirrordLogger.logger.warn(
+                    "mirrord.bifrost: could not set the executable bit on $target in $name — " +
+                        "mirrord will not be runnable there",
+                    it
+                )
             }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }.take(16)
+    }
+
+    private fun sha256Prefix(path: HostPath): String = sha256Hex(path.path).take(16)
+
+    private companion object {
+        /** 0755 — the staged CLI must be runnable by whichever user the target runs as. */
+        val EXECUTABLE_PERMISSIONS: Set<PosixFilePermission> = setOf(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE,
+            PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_EXECUTE,
+            PosixFilePermission.OTHERS_READ,
+            PosixFilePermission.OTHERS_EXECUTE
+        )
     }
 }

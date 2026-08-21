@@ -1,5 +1,7 @@
 package com.metalbear.mirrord.bifrost
 
+import com.intellij.execution.process.ProcessOutput
+
 /**
  * The rainbow bridge: one span from the IDE to wherever the user's code actually runs.
  *
@@ -37,9 +39,6 @@ data class MirrordProcessSpec(
     /** For logs. Deliberately omits environment *values* — they routinely carry credentials. */
     fun describe(): String = "$executable ${args.joinToString(" ")} [${env.size} env vars]"
 }
-
-/** Result of a short synchronous probe such as `mirrord --version` or `which mirrord`. */
-data class MirrordProbeOutput(val exitCode: Int, val stdout: String, val stderr: String)
 
 /**
  * Where mirrord runs.
@@ -79,8 +78,11 @@ interface MirrordEnvironment {
      * lives in the IDE's plugin directory, which a container cannot see at any path.
      *
      * @param name basename to use if a copy is made.
+     * @param onCopy invoked with the file size, and only when bytes actually move. Callers that
+     *   warn the user about a slow transfer must use this rather than guessing beforehand: for a
+     *   local target, and for legacy WSL, this method copies nothing at all.
      */
-    fun provide(path: HostPath, name: String): TargetPath
+    fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit = {}): TargetPath
 
     /** Spawns [spec] at the far end. The returned process is an ordinary [Process]. */
     fun spawn(spec: MirrordProcessSpec): Process
@@ -94,5 +96,5 @@ interface MirrordEnvironment {
      * [spawn] would quietly change WSL behaviour, and this refactor is meant to leave WSL
      * bit-for-bit identical.
      */
-    fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): MirrordProbeOutput
+    fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput
 }

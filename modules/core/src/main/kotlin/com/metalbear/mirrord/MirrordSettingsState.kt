@@ -52,7 +52,8 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         SLACK_INVITE("mirrord offers a Slack server invitation"),
         MIRRORD_FOR_TEAMS("mirrord occasionally informs about mirrord for Teams"),
         NEWSLETTER_SIGNUP("mirrord occasionally informs about the mirrord newsletter"),
-        MIRRORD_BINARY_PATH_INVALID("custom mirrord binary path is invalid or not executable")
+        MIRRORD_BINARY_PATH_INVALID("custom mirrord binary path is invalid or not executable"),
+        LARGE_BINARY_STAGED("a large mirrord binary is copied into the target environment")
     }
 
     class MirrordState {

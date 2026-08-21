@@ -1,6 +1,7 @@
 package com.metalbear.mirrord.bifrost
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.project.Project
@@ -46,7 +47,9 @@ class LegacyWslEnvironment(
     }
 
     /** WSL sees the host filesystem under /mnt, so nothing is ever copied. */
-    override fun provide(path: HostPath, name: String): TargetPath = resolve(path)
+    // No `onCopy`: WSL reaches the host filesystem through /mnt, so this is a path
+    // translation and no bytes move.
+    override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath = resolve(path)
 
     override fun spawn(spec: MirrordProcessSpec): Process {
         val commandLine = GeneralCommandLine(spec.executable.value)
@@ -75,8 +78,6 @@ class LegacyWslEnvironment(
      * and `isLaunchWithWslExe = false` — the exact opposite of the options above — so routing
      * probes through [spawn] would quietly change how they run.
      */
-    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): MirrordProbeOutput {
-        val output = distribution.executeOnWsl(timeoutMillis.toInt(), executable.value, *args.toTypedArray())
-        return MirrordProbeOutput(output.exitCode, output.stdout, output.stderr)
-    }
+    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput =
+        distribution.executeOnWsl(timeoutMillis.toInt(), executable.value, *args.toTypedArray())
 }

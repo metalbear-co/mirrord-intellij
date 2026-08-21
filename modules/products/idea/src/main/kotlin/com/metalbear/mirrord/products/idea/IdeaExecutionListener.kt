@@ -6,12 +6,10 @@ import com.intellij.execution.ExecutionListener
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 
 class IdeaExecutionListener : ExecutionListener {
     override fun processStartScheduled(executorId: String, env: ExecutionEnvironment) {
@@ -30,13 +28,11 @@ class IdeaExecutionListener : ExecutionListener {
         if (!alreadyContainsInitTask) {
             configuration.beforeRunTasks = configuration.beforeRunTasks + IdeaBeforeRunTaskProvider.IdeaBeforeRunTask {
                 val service = env.project.service<MirrordProjectService>()
-                val environment = MirrordEnvironments.resolve(
-                    MirrordLaunchContext(env.project, createEnvironmentRequest(env.runProfile, env.project))
-                )
+                val environment = MirrordEnvironments.forRunProfile(env.project, env.runProfile)
 
                 service.execManager.wrapper("idea", getIdeaConfigurationEnv(configuration), environment)
                     .start()?.let { executionInfo ->
-                        IdeaMirrordPreparationStore.put(configuration, executionInfo)
+                        IdeaMirrordPreparationStore.put(configuration, executionInfo, environment)
                     }
             }
         }

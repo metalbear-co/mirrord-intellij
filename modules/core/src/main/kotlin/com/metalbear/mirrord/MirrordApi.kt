@@ -317,10 +317,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                val processStdError = process.errorStream.bufferedReader().readText()
-                val errorMessage = getTargetListingFailedError(processStdError)
-                logErrorToBoth(logsService, errorMessage)
-                throw MirrordError.fromStdErr(processStdError)
+                failFromExit(logsService, process, message = ::getTargetListingFailedError)
             }
 
             val data = process.inputStream.bufferedReader().readText()
@@ -449,11 +446,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                val processStdError = process.errorStream.bufferedReader().readText()
-                val errorMessage = getProcessFailedStderrError(processStdError)
-                logErrorToBoth(logsService, errorMessage)
-                logsService.onMirrordExecutionEnd()
-                throw MirrordError.fromStdErr(processStdError)
+                failFromExit(logsService, process, endsExecution = true, message = ::getProcessFailedStderrError)
             } else {
                 logsService.logError("Invalid output from mirrord binary")
                 logsService.onMirrordExecutionEnd()
@@ -528,11 +521,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                val processStdError = process.errorStream.bufferedReader().readText()
-                val errorMessage = getContainerProcessFailedStderrError(processStdError)
-                logErrorToBoth(logsService, errorMessage)
-                logsService.onMirrordExecutionEnd()
-                throw MirrordError.fromStdErr(processStdError)
+                failFromExit(logsService, process, endsExecution = true, message = ::getContainerProcessFailedStderrError)
             } else {
                 logsService.logError("Invalid output from mirrord container binary")
                 logsService.onMirrordExecutionEnd()
@@ -556,10 +545,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                val processStdError = process.errorStream.bufferedReader().readText()
-                val errorMessage = getConfigVerificationFailedError(processStdError)
-                logErrorToBoth(logsService, errorMessage)
-                throw MirrordError.fromStdErr(processStdError)
+                failFromExit(logsService, process, message = ::getConfigVerificationFailedError)
             }
 
             val bufferedReader = process.inputStream.reader().buffered()
@@ -585,9 +571,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         configFilePath: TargetPath,
         environment: MirrordEnvironment
     ): String {
-        val verifyConfigTask = MirrordVerifyConfigTask(cli, configFilePath, projectEnvVars, environment).apply {
-        }
-        return verifyConfigTask.run(service.project)
+        return MirrordVerifyConfigTask(cli, configFilePath, projectEnvVars, environment).run(service.project)
     }
 
     /**
@@ -659,11 +643,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                val processStdError = process.errorStream.bufferedReader().readText()
-                val errorMessage = "Attach process failed with stderr: $processStdError"
-                logErrorToBoth(logsService, errorMessage)
-                logsService.onMirrordExecutionEnd()
-                throw MirrordError.fromStdErr(processStdError)
+                failFromExit(logsService, process, endsExecution = true) { "Attach process failed with stderr: $it" }
             }
 
             MirrordLogger.logger.info("mirrord attach exited with code 0, layer injected into pid $pid")
@@ -743,15 +723,57 @@ private abstract class MirrordCliTask<T>(
     private val projectEnvVars: Map<String, String>?,
     private val environment: MirrordEnvironment
 ) {
+    /**
+     * Set when the plugin itself kills the process.
+     *
+     * Every kill path already reports its own reason: a cancel warning, a task failure, or a
+     * timeout. The compute thread sees the resulting non-zero exit afterwards, so without this it
+     * reports the same event a second time as a crash — including an IDE error report naming the
+     * plugin for something the plugin did on purpose.
+     */
+    @Volatile
+    private var abortedByPlugin = false
+
+    /**
+     * The only way this class kills a process.
+     *
+     * Routed through one place so the flag cannot be missed. It was, for four of six kill paths.
+     */
+    private fun abort(process: Process) {
+        abortedByPlugin = true
+        process.destroy()
+    }
+
+    /**
+     * Reports a non-zero exit, unless the plugin caused it.
+     *
+     * Shared because this epilogue was identical at five call sites, and the abort check has to
+     * come first at every one of them.
+     */
+    protected fun failFromExit(
+        logsService: MirrordLogsService,
+        process: Process,
+        endsExecution: Boolean = false,
+        message: (String) -> String
+    ): Nothing {
+        if (abortedByPlugin) {
+            throw ProcessCanceledException()
+        }
+
+        val stdErr = process.errorStream.bufferedReader().readText()
+        logErrorToBoth(logsService, message(stdErr))
+        if (endsExecution) {
+            logsService.onMirrordExecutionEnd()
+        }
+        throw MirrordError.fromStdErr(stdErr)
+    }
+
     var target: String? = null
     var namespace: String? = null
     var configFile: TargetPath? = null
     var executable: String? = null
     var output: String? = null
 
-    /**
-     * Returns command line for execution.
-     */
     /**
      * Builds the invocation.
      *
@@ -859,13 +881,13 @@ private abstract class MirrordCliTask<T>(
                     val cancelMessage = getMirrordTaskCancelledMessage(spec.describe())
                     MirrordLogger.logger.warn(cancelMessage)
                     logsService.logWarning(cancelMessage)
-                    process.destroy()
+                    abort(process)
                 }
 
                 override fun onThrowable(error: Throwable) {
                     val errorMessage = getMirrordTaskFailedError(spec.describe(), error)
                     logErrorToBoth(logsService, errorMessage)
-                    process.destroy()
+                    abort(process)
                 }
             })
         } else if (!ApplicationManager.getApplication().isReadAccessAllowed) {
@@ -881,14 +903,14 @@ private abstract class MirrordCliTask<T>(
                     val cancelMessage = getMirrordBackgroundTaskCancelledMessage(spec.describe())
                     MirrordLogger.logger.warn(cancelMessage)
                     logsService.logWarning(cancelMessage)
-                    process.destroy()
+                    abort(process)
                     env.cancel(true)
                 }
 
                 override fun onThrowable(error: Throwable) {
                     val errorMessage = getMirrordBackgroundTaskFailedError(spec.describe(), error)
                     logErrorToBoth(logsService, errorMessage)
-                    process.destroy()
+                    abort(process)
                     env.completeExceptionally(error)
                 }
             })
@@ -900,7 +922,7 @@ private abstract class MirrordCliTask<T>(
             } catch (e: CancellationException) {
                 throw ProcessCanceledException(e)
             } catch (e: TimeoutException) {
-                process.destroy()
+                abort(process)
                 val errorMessage = getMirrordTaskTimedOutError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
                 throw MirrordError("mirrord process timed out")
@@ -914,7 +936,7 @@ private abstract class MirrordCliTask<T>(
                 computeWithResponsiveCancel(project, process, TimeoutProgressChecker(taskTimeoutMinutes, TimeUnit.MINUTES))
             } catch (e: ProcessCanceledException) {
                 // In this case, process is canceled only after a timeout.
-                process.destroy()
+                abort(process)
                 val errorMessage = getMirrordTaskTimedOutUnderReadLockError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
                 throw MirrordError("mirrord process timed out")

@@ -17,7 +17,7 @@ import java.util.Base64
  * a Linux IDE is. The previous form (`SystemInfo.isWindows && wsl == null`) got both wrong,
  * because the only non-host environment it could name was WSL.
  */
-fun isWinNative(platform: MirrordTargetPlatform): Boolean = platform.isWindows
+val MirrordTargetPlatform.isWinNative: Boolean get() = isWindows
 
 /**
  * Helper for the `mirrord pitm` (Process In The Middle) Windows injection mode.

@@ -10,7 +10,6 @@ import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
 import com.jetbrains.python.run.target.PythonCommandLineTargetEnvironmentProvider
 import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
-import com.metalbear.mirrord.bifrost.MirrordLaunchContext
 
 class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     // Wrapper for docker variant of TargetEnvironmentRequest because the variant is dynamically loaded from another
@@ -36,7 +35,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
     private fun extendContainerTargetEnvironment(project: Project, runParams: PythonRunParams, docker: DockerRuntimeConfig) {
         val service = project.service<MirrordProjectService>()
 
-        val environment = MirrordEnvironments.resolve(MirrordLaunchContext(project))
+        val environment = MirrordEnvironments.forProject(project)
 
         service.execManager.wrapper("pycharm", runParams.getEnvs(), environment).containerStart()?.let { executionInfo ->
             docker.runCliOptions?.let {
@@ -67,9 +66,7 @@ class PythonCommandLineProvider : PythonCommandLineTargetEnvironmentProvider {
             if (docker != null) {
                 extendContainerTargetEnvironment(project, runParams, docker)
             } else {
-                val environment = MirrordEnvironments.resolve(
-                    MirrordLaunchContext(project, helpersAwareTargetRequest.targetEnvironmentRequest)
-                )
+                val environment = MirrordEnvironments.forRequest(project, helpersAwareTargetRequest.targetEnvironmentRequest)
 
                 service.execManager.wrapper("pycharm", runParams.getEnvs(), environment).start()?.let { executionInfo ->
                     for (entry in executionInfo.environment.entries.iterator()) {
