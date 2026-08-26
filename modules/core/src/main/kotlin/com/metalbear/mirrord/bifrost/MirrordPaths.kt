@@ -22,15 +22,10 @@ data class HostPath(val path: Path) {
 
 /**
  * A path as the *target* environment sees it: inside the container, inside the WSL distribution,
- * or on the host when the target happens to be local.
+ * or on the host when the target is local.
  *
- * This is what the mirrord CLI receives — as an argument, as an environment variable, or as a
- * working directory.
- *
- * [HostPath] and [TargetPath] are separate types on purpose. They were both `String` until
- * COR-1385, where a host path reaching the CLI produced no error at all: mirrord simply ignored
- * a config it could not find, fell back to defaults, and reported zero connected layers for four
- * months. Mixing them is now a compile error rather than a silent runtime one.
+ * This is what the mirrord CLI receives, as an argument, an environment variable, or a working
+ * directory. Separate from [HostPath] so that mixing the two is a compile error.
  */
 data class TargetPath(val value: String) {
     override fun toString(): String = value

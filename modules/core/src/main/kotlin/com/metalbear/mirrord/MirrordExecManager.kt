@@ -160,18 +160,10 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
 
-        // The lookup finds the file through the IDE's own VFS, so it is a host path. It has
-        // to be translated before the CLI sees it: under a dev container the CLI runs where the
-        // host filesystem does not exist, and mirrord answers an unreadable config by silently
-        // falling back to defaults — which is exactly how COR-1385 presented.
+        // The lookup goes through the IDE's own VFS, so it returns a host path. It has to be
+        // translated before the CLI sees it.
         val configPath = service.configApi.getConfigPath(mirrordConfigPath)?.let { raw ->
             // On-device first, remote second, the same order the custom binary path uses.
-            //
-            // A user is allowed to point MIRRORD_CONFIG_FILE at a path that is already valid where
-            // mirrord runs — `/workspaces/app/mirrord.json` inside the container. Converting that
-            // blindly is worse than doing nothing: on a Windows host `Paths.get` rewrites it with
-            // backslashes, the CLI cannot read it, and mirrord falls back to built-in defaults in
-            // silence. That is the COR-1385 signature this code exists to remove.
             val hostFile = runCatching { HostPath.of(raw) }.getOrNull()
             if (hostFile != null && runCatching { Files.exists(hostFile.path) }.getOrDefault(false)) {
                 environment.resolve(hostFile)
@@ -268,11 +260,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // MIRRORD_CHILD_ENV payload.
         executionInfo.environment.putAll(
             MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars { hostPath ->
-                // Never let a diagnostic setting stop the product from starting. `resolve` throws
-                // when the target cannot see the path, and a host directory chosen in Settings is
-                // not mounted into a container — so translating it strictly turned "switch on
-                // verbose logs" into "every run fails". Falling back to the raw path at worst puts
-                // the log somewhere unhelpful, which is what a user of this switch can act on.
+                // A diagnostic setting must never stop the product from starting. `resolve`
+                // throws when the target cannot see the path, so fall back to the raw path.
                 runCatching { environment.resolve(HostPath.of(hostPath)).value }
                     .getOrElse {
                         MirrordLogger.logger.warn(

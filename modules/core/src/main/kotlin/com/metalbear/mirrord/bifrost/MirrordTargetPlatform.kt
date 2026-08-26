@@ -15,13 +15,12 @@ enum class MirrordTargetOs { LINUX, MACOS, WINDOWS }
 enum class MirrordTargetArch { X86_64, ARM64 }
 
 /**
- * OS and architecture of the environment mirrord will run in — the container, the WSL
+ * OS and architecture of the environment mirrord will run in: the container, the WSL
  * distribution, or the host.
  *
- * Deliberately not derived from [SystemInfo]. `SystemInfo` describes the machine the *IDE* runs
- * on, which under a dev container is routinely a different OS and a different architecture from
- * the one the user's process runs on. Asking `SystemInfo` which binary to download is what made
- * a macOS/arm64 build get selected for a linux/amd64 container in COR-1385.
+ * Relying on [SystemInfo] would not account for scenarios where the extension is running on the
+ * host, but execution is happening in another environment (WSL development, dev containers, and
+ * so on). We therefore use the EEL API to pick the right build of mirrord for the target.
  */
 data class MirrordTargetPlatform(val os: MirrordTargetOs, val arch: MirrordTargetArch) {
     val isLinux: Boolean get() = os == MirrordTargetOs.LINUX
@@ -49,10 +48,8 @@ data class MirrordTargetPlatform(val os: MirrordTargetOs, val arch: MirrordTarge
         /**
          * Reads the platform of an environment reached over EEL.
          *
-         * Pure, so every combination is unit-tested without an IDE.
-         *
-         * @throws MirrordError for platforms mirrord has no binary for, rather than the bare
-         * `RuntimeException` the old `SystemInfo`-based code threw — this one reaches the user.
+         * @throws MirrordError for a platform mirrord has no binary for. The message reaches the
+         * user, where the `RuntimeException` this replaces did not.
          */
         fun fromEel(platform: EelPlatform): MirrordTargetPlatform {
             val os = when {
@@ -78,10 +75,10 @@ data class MirrordTargetPlatform(val os: MirrordTargetOs, val arch: MirrordTarge
         /**
          * The IDE host's own platform.
          *
-         * Only correct for things that genuinely run on the host — the legacy WSL integration,
-         * which always targets Linux on the host's architecture, and host-side helper binaries
-         * such as Goland's `dlv`. Everything the user's process touches should come from
-         * [MirrordEnvironment.platform] instead.
+         * Correct only for work that runs on the host: the legacy WSL integration, which targets
+         * Linux on the host's architecture, and helper binaries such as Goland's `dlv`.
+         *
+         * Everything the user's process touches comes from [MirrordEnvironment.platform].
          */
         fun ofHost(): MirrordTargetPlatform {
             val os = when {

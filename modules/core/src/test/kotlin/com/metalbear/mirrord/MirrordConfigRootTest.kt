@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Test
 /**
  * Pins the rule that decides *where* mirrord looks for `.mirrord/mirrord.json`.
  *
- * This exists because getting it wrong is silent. When no config is found the CLI runs with
- * built-in defaults — mirror instead of steal, no HTTP filter, no port mapping — and reports
- * nothing. The plugin looked healthy, the app started, and only a traffic test would have shown
- * the difference. That is COR-1385's signature, and it is why the ordering below is asserted
- * rather than left to reviewer memory.
+ * Getting it wrong is silent. With no config the CLI runs with built-in defaults — mirror
+ * instead of steal, no HTTP filter, no port mapping — and reports nothing.
+ *
+ * The plugin looks healthy and the app starts, so only a traffic test shows the difference. That
+ * is why the ordering below is asserted.
  *
  * The candidate type is generic so the rule can be exercised with plain strings. The production
  * call passes `VirtualFile`, which needs a running IDE; the decision itself does not.

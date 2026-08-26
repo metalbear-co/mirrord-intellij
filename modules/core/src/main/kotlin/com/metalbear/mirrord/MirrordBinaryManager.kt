@@ -300,10 +300,7 @@ class MirrordBinaryManager {
         val tmpDestination = destination.resolveSibling(destination.name + UUID.randomUUID().toString())
 
         Files.write(tmpDestination, bytes)
-        // Set the bit on the file we are about to move, not on the one it replaces. The old
-        // order marked the *previous* binary executable (or nothing at all, on a first install)
-        // and only worked because MirrordPathManager repaired it lazily on the next read. That
-        // repair is host-side, so it cannot help a copy staged into a container.
+        // Set the bit on the file we are about to move, not on the one it replaces.
         tmpDestination.toFile().setExecutable(true)
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
     }
@@ -316,15 +313,13 @@ class MirrordBinaryManager {
 
         init {
             val output = environment.probe(command, listOf("--version"), PROBE_TIMEOUT_MILLIS)
-            // Parse leniently and report the exit code only when the output is unusable. The old
-            // WSL path ignored the exit code entirely, so failing on it here would have been a
-            // behaviour change for WSL rather than a fix.
+            // Parse leniently, and report the exit code only when the output is unusable. The
+            // WSL path ignored the exit code, so failing on it here would change WSL behaviour.
             version = output.stdout.trim().split(' ').getOrNull(1)?.trim()
                 ?: run {
-                    // The reason belongs in the exception, not only in a DEBUG line. A binary
-                    // built on a rolling-release host against a newer glibc than the target's
-                    // fails here with a linker message, and "failed to get mirrord version"
-                    // sends the reader nowhere.
+                    // The reason belongs in the exception, not only in a DEBUG line: a binary
+                    // built against a newer glibc than the target's fails here with a linker
+                    // message that "failed to get mirrord version" would hide.
                     val reason = output.stderr.trim().lines().firstOrNull()?.take(200)
                         ?: "exit=${output.exitCode}, no output"
                     throw RuntimeException(reason)
@@ -337,18 +332,9 @@ class MirrordBinaryManager {
      */
     private fun findBinaryInPath(requiredVersion: String?, environment: MirrordEnvironment): MirrordBinary? {
         try {
-            val windows = environment.platform().isWindows
-            val locator = TargetPath(if (windows) "where" else "which")
-            val wanted = if (windows) "$CLI_BINARY.exe" else CLI_BINARY
+            val found = environment.locate(CLI_BINARY) ?: throw RuntimeException("mirrord not found in PATH")
 
-            val output = environment.probe(locator, listOf(wanted), PROBE_TIMEOUT_MILLIS)
-            if (output.exitCode != 0) {
-                throw RuntimeException("`${locator.value}` failed with code ${output.exitCode}")
-            }
-            val found = output.stdout.lineSequence().firstOrNull { it.isNotBlank() }?.trim()
-                ?: throw RuntimeException("mirrord not found in PATH")
-
-            val binary = MirrordBinary(TargetPath(found), environment)
+            val binary = MirrordBinary(found, environment)
             val isRequiredVersion = try {
                 // for release CI, the tag can be greater than the latest release
                 if (System.getenv("CI_BUILD_PLUGIN") == "true") {
@@ -601,15 +587,11 @@ class MirrordBinaryManager {
     /**
      * Warns before a slow copy, so it does not read as a hang.
      *
-     * Deliberately one sentence. The reason the binary is large — the CLI embeds the layer, so an
-     * unstripped Linux debug build reaches ~1 GB — is in the log, not in the notification.
+     * Driven by [MirrordEnvironment.provide]'s copy callback rather than called beforehand,
+     * because only `provide` knows whether bytes actually move. A local target and legacy WSL
+     * both resolve the path without copying.
      *
-     * Driven by [MirrordEnvironment.provide]'s copy callback rather than called beforehand, because
-     * only `provide` knows whether bytes actually move: a local target and legacy WSL both resolve
-     * the path without copying, and announcing a transfer there is simply false.
-     *
-     * Fires only above [LARGE_BINARY_ADVISORY_BYTES], and carries "don't show again", so a
-     * released binary stays quiet.
+     * Fires only above [LARGE_BINARY_ADVISORY_BYTES], and carries "don't show again".
      */
     private fun advertiseLargeBinary(bytes: Long, environment: MirrordEnvironment, project: Project) {
         if (bytes <= LARGE_BINARY_ADVISORY_BYTES) return
@@ -632,17 +614,10 @@ class MirrordBinaryManager {
         environment: MirrordEnvironment,
         project: Project
     ): MirrordBinary? {
-        // On-device first, remote second.
+        // On-device first, remote second. The setting is filled in with a file chooser on the
+        // user's own machine, so a host path is the normal case.
         //
-        // The setting is filled in with a file chooser on the user's own machine, so a host path
-        // is the normal case. Treating it as target-side only meant a perfectly good local build
-        // was rejected as "invalid" under a dev container, because that path names nothing inside
-        // the container.
-        //
-        // Staging goes through `provide`, which is content-addressed: the destination is keyed on
-        // a sha256 of the file, so an unchanged binary resolves to a path that already exists and
-        // nothing is copied. A rebuilt binary hashes differently and is copied once. When the
-        // environment is local, `provide` returns the path unchanged and no copy happens at all.
+        // Staging goes through `provide`, so an unchanged binary is not copied again.
         var hostFailure: String? = null
         val hostFile = runCatching { HostPath.of(path) }.getOrNull()
         if (hostFile != null && runCatching { Files.isRegularFile(hostFile.path) }.getOrDefault(false)) {
@@ -664,8 +639,7 @@ class MirrordBinaryManager {
                 ?.let { return it }
         }
 
-        // Remote second: the user pointed at something that already exists where mirrord runs —
-        // inside the container, or inside the WSL distribution.
+        // Remote second: the user pointed at something that already exists where mirrord runs.
         runCatching { MirrordBinary(TargetPath(path), environment) }
             .onFailure { MirrordLogger.logger.debug("target-side mirrord binary at $path is not usable", it) }
             .getOrNull()

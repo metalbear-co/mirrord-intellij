@@ -161,10 +161,10 @@ class IdeaRunConfigurationExtension : RunConfigurationExtension() {
         // Gating only: which injection mechanism this target needs.
         //
         // Reuses the environment the before-run task resolved. This method runs under a read
-        // lock, so resolving here would mean blocking on a possibly cold dev container from
-        // inside it — a good way to deadlock the IDE. It would also be resolving without the
-        // run configuration's target request, so it could pick a different environment than
-        // the one `mirrord ext` actually ran in.
+        // lock, so resolving here risks blocking on a cold dev container from inside it.
+        //
+        // It would also resolve without the run configuration's target request, and pick a
+        // different environment than the one `mirrord ext` ran in.
         val environment = preparation.environment
         val winNative = environment.platform().isWinNative
         MirrordLogger.logger.info(

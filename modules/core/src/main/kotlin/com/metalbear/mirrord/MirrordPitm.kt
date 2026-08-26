@@ -12,10 +12,8 @@ import java.util.Base64
  * `mirrord.exe attach` for debug) should be used — that is, when the process being
  * injected runs on Windows.
  *
- * This asks about the *target*, not the IDE host, and the distinction is not academic: a Linux
- * container opened from a Windows IDE is not Windows-native, and a Windows target reached from
- * a Linux IDE is. The previous form (`SystemInfo.isWindows && wsl == null`) got both wrong,
- * because the only non-host environment it could name was WSL.
+ * This asks about the *target*, not the IDE host: a Linux container opened from a Windows IDE
+ * is not Windows-native, and a Windows target reached from a Linux IDE is.
  */
 val MirrordTargetPlatform.isWinNative: Boolean get() = isWindows
 

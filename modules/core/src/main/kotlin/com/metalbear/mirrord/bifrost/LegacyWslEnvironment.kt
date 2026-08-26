@@ -8,18 +8,16 @@ import com.intellij.openapi.project.Project
 import com.metalbear.mirrord.MirrordLogger
 
 /**
- * The old road, kept open beside the bridge.
+ * The `wsl.exe` integration that shipped before EEL, behind the "Use legacy WSL integration"
+ * setting.
  *
- * WSL runs through [EelEnvironment] by default now. This exists purely as an escape hatch: if a
- * WSL setup regresses under EEL, the user flips "Use legacy WSL integration" in settings and
- * gets exactly the behaviour they had before, without downgrading the plugin.
+ * WSL runs through [EelEnvironment] by default now. This is the escape hatch: if a WSL setup
+ * regresses under EEL, the user turns the setting on and gets the previous behaviour back
+ * without downgrading the plugin.
  *
- * Every line here is lifted from the code it replaces, deliberately unimproved. `getWslPath` is
- * still the deprecated `String` overload, the command-line options are still the same two flags,
- * and probes still go through `executeOnWsl`. Tidying any of it would make this a *different*
- * implementation, which is the one thing it must not be — WSL has no test coverage on Linux, so
- * "identical to what shipped" is the only guarantee available. Delete the whole file once
- * EEL-backed WSL has been validated on a Windows machine.
+ * Every line here is lifted from the code it replaces and left unimproved, because "identical to
+ * what shipped" is the only guarantee available — WSL has no test coverage on Linux. Delete the
+ * file once EEL-backed WSL is validated on a Windows machine.
  */
 class LegacyWslEnvironment(
     private val distribution: WSLDistribution,
@@ -30,10 +28,7 @@ class LegacyWslEnvironment(
 
     override val isLocal: Boolean = false
 
-    /**
-     * WSL always runs Linux, on the host's architecture — which is what the old
-     * `treatAsLinux = SystemInfo.isLinux || wsl != null` plus `CpuArch.CURRENT` amounted to.
-     */
+    /** WSL always runs Linux, on the host's architecture. */
     override fun platform(): MirrordTargetPlatform =
         MirrordTargetPlatform(MirrordTargetOs.LINUX, MirrordTargetPlatform.ofHost().arch)
 
@@ -41,15 +36,22 @@ class LegacyWslEnvironment(
     @Suppress("DEPRECATION")
     override fun resolve(path: HostPath): TargetPath {
         val raw = path.path.toString()
-        // The String overload, not the Path one. They are equivalent today, but the deprecated
-        // one is what shipped and what MirrordWslCharacterizationTest pins.
+        // The String overload, not the Path one. Equivalent today, but the deprecated one is
+        // what shipped and what MirrordWslCharacterizationTest pins.
         return TargetPath(distribution.getWslPath(raw) ?: raw)
     }
 
-    /** WSL sees the host filesystem under /mnt, so nothing is ever copied. */
-    // No `onCopy`: WSL reaches the host filesystem through /mnt, so this is a path
-    // translation and no bytes move.
+    /** WSL reaches the host filesystem under /mnt, so this translates a path and copies nothing. */
     override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath = resolve(path)
+
+    /** Was `which <executable>` through `executeOnWsl`. Kept, so WSL behaviour does not move. */
+    override fun locate(executable: String): TargetPath? =
+        probe(TargetPath("which"), listOf(executable), LOCATE_TIMEOUT_MILLIS)
+            .stdout
+            .lineSequence()
+            .firstOrNull { it.isNotBlank() }
+            ?.trim()
+            ?.let { TargetPath(it) }
 
     override fun spawn(spec: MirrordProcessSpec): Process {
         val commandLine = GeneralCommandLine(spec.executable.value)
@@ -74,10 +76,13 @@ class LegacyWslEnvironment(
     /**
      * Was `wslDistribution.executeOnWsl(5000, command, "--version")`.
      *
-     * Kept off [spawn] on purpose: `executeOnWsl` defaults to `isExecuteCommandInShell = true`
-     * and `isLaunchWithWslExe = false` — the exact opposite of the options above — so routing
-     * probes through [spawn] would quietly change how they run.
+     * Kept off [spawn]: `executeOnWsl` defaults to `isExecuteCommandInShell = true` and
+     * `isLaunchWithWslExe = false`, the opposite of the options above.
      */
     override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput =
         distribution.executeOnWsl(timeoutMillis.toInt(), executable.value, *args.toTypedArray())
+
+    private companion object {
+        const val LOCATE_TIMEOUT_MILLIS = 5_000L
+    }
 }

@@ -15,11 +15,11 @@ import java.util.Base64
  * Unlike [MirrordWslCharacterizationTest] these need no Windows host and no WSL — the payload
  * encoding and the command-line rewrite are pure functions. They run on every machine and in CI.
  *
- * This matters for the EEL migration for two reasons. `MIRRORD_CHILD_ENV` is an env-transport
- * mechanism that is independent of *where* the process runs, so it should survive the move to an
- * environment abstraction untouched — these tests are what proves that. And the wrap rewrites
- * `exePath` to the CLI path, which is one of the values that becomes environment-relative: today
- * both paths are host paths, and after the migration both must be target paths.
+ * `MIRRORD_CHILD_ENV` transports variables independently of *where* the process runs, so it
+ * survives the move to an environment abstraction untouched. These tests prove that.
+ *
+ * The wrap also rewrites `exePath` to the CLI path, which becomes environment-relative: today
+ * both are host paths, and after the migration both must be target paths.
  */
 class MirrordPitmEnvTest {
 

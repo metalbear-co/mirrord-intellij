@@ -59,8 +59,6 @@ class MirrordNpmExecutionListener : ExecutionListener {
             }
         } catch (e: CancellationException) {
             // The user pressed Cancel. Let it travel; the platform aborts the launch quietly.
-            // Logging it through `logger.error` would raise an IDE error report naming mirrord as
-            // the plugin to blame for something the user asked for.
             throw e
         } catch (e: Exception) {
             MirrordLogger.logger.error("mirrord failed to patch npm run: $e")
@@ -75,11 +73,8 @@ class MirrordNpmExecutionListener : ExecutionListener {
         try {
             runSettings.envs = executionGuard.originEnv
 
-            // No host check here. originPackageManagerPackageRef is assigned only where
-            // patchedPath came back, and that only happens for a macOS *target*, so the null
-            // check below is already the correct and complete gate. Asking the IDE host instead
-            // would additionally skip the restore when a non-Mac host drives a macOS target,
-            // leaving the run configuration permanently pointed at the patched package manager.
+            // No host check. `originPackageManagerPackageRef` is set only for a macOS target,
+            // so the null check below is the complete gate.
             executionGuard.originPackageManagerPackageRef?.let {
                 runSettings.packageManagerPackageRef = it
             }

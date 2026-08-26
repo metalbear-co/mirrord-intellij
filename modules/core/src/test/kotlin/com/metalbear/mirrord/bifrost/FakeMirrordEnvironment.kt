@@ -15,6 +15,10 @@ class FakeMirrordEnvironment(
     val resolved = mutableListOf<HostPath>()
     val provided = mutableListOf<HostPath>()
     val spawned = mutableListOf<MirrordProcessSpec>()
+    val located = mutableListOf<String>()
+
+    /** What [locate] answers. Null means "not on the target's PATH". */
+    var locatable: String? = null
 
     override fun platform(): MirrordTargetPlatform = platform
 
@@ -26,6 +30,11 @@ class FakeMirrordEnvironment(
     override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath {
         provided += path
         return TargetPath("/target/provided/$name")
+    }
+
+    override fun locate(executable: String): TargetPath? {
+        located += executable
+        return locatable?.let { TargetPath(it) }
     }
 
     override fun spawn(spec: MirrordProcessSpec): Process {

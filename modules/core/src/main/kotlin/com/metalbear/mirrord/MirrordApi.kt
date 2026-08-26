@@ -41,8 +41,7 @@ private fun getConfigVerificationFailedError(processStdError: String) = "Config 
 /**
  * The project's current branch, for Jira integration metrics.
  *
- * Stays on the IDE host on purpose: this reads the project's own VCS, which the IDE already
- * has open locally, and a failure here must never stop a run.
+ * Runs on the IDE host, which is where the project's VCS is. A failure here never stops a run.
  */
 private fun gitBranchOf(project: Project): String? {
     val dir = project.guessProjectDir()?.canonicalPath ?: return null
@@ -727,9 +726,8 @@ private abstract class MirrordCliTask<T>(
      * Set when the plugin itself kills the process.
      *
      * Every kill path already reports its own reason: a cancel warning, a task failure, or a
-     * timeout. The compute thread sees the resulting non-zero exit afterwards, so without this it
-     * reports the same event a second time as a crash — including an IDE error report naming the
-     * plugin for something the plugin did on purpose.
+     * timeout. The compute thread then sees a non-zero exit, and without this flag reports the
+     * same event a second time as a crash.
      */
     @Volatile
     private var abortedByPlugin = false
@@ -737,7 +735,7 @@ private abstract class MirrordCliTask<T>(
     /**
      * The only way this class kills a process.
      *
-     * Routed through one place so the flag cannot be missed. It was, for four of six kill paths.
+     * Routed through one place so the flag cannot be missed.
      */
     private fun abort(process: Process) {
         abortedByPlugin = true
@@ -747,8 +745,7 @@ private abstract class MirrordCliTask<T>(
     /**
      * Reports a non-zero exit, unless the plugin caused it.
      *
-     * Shared because this epilogue was identical at five call sites, and the abort check has to
-     * come first at every one of them.
+     * Shared, because the abort check has to come first everywhere this epilogue is used.
      */
     protected fun failFromExit(
         logsService: MirrordLogsService,

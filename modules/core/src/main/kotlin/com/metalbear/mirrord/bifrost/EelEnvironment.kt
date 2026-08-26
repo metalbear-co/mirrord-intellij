@@ -22,13 +22,24 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.UUID
 
 /**
- * The one implementation that carries everything: local, WSL, Docker, dev containers, SSH.
+ * Runs a fixed set of operations against whichever environment a project lives in — local, WSL,
+ * Docker, a dev container, or SSH — so that callers never branch on which one it is.
  *
- * There is deliberately no `if (descriptor is LocalEelDescriptor)` branch on the main path.
- * JetBrains document that check as an anti-pattern, and converting a local descriptor is
- * instant and does no I/O, so a special case would buy a second code path to maintain and
- * nothing else. [isLocal] exists only for the two things they do sanction — work that belongs
- * on the IDE host, and port forwarding.
+ * | Member | What it does |
+ * |---|---|
+ * | [platform] | OS and architecture of the target |
+ * | [resolve] | host path to target path |
+ * | [provide] | copy a host file across, if the target cannot already see it |
+ * | [locate] | find an executable on the target's `PATH` |
+ * | [spawn] | start a process at the target |
+ * | [probe] | run a short command and wait for it |
+ *
+ * All of it goes through [EelApi], the platform's own abstraction over these environments.
+ *
+ * There is no `if (descriptor is LocalEelDescriptor)` branch on the main path. JetBrains
+ * document that check as an anti-pattern, and converting a local descriptor does no I/O, so the
+ * special case would add a second code path and nothing else. [isLocal] exists for the two
+ * things they do sanction: work that belongs on the IDE host, and port forwarding.
  */
 class EelEnvironment(
     private val descriptor: EelDescriptor,
@@ -39,10 +50,7 @@ class EelEnvironment(
 
     override val isLocal: Boolean = descriptor === LocalEelDescriptor
 
-    /**
-     * The first crossing may start and deploy an agent, so it is done once and reused. Every
-     * later call is cheap.
-     */
+    /** The first crossing can start and deploy an agent, so it is done once and reused. */
     private val api: EelApi by lazy {
         tracer.crossing("connect", name) { descriptor.toEelApi() }
     }
@@ -57,17 +65,19 @@ class EelEnvironment(
     }
 
     /**
-     * The target's own environment.
+     * The environment variables a login shell would see at the target.
      *
-     * This is load-bearing and easy to miss. `EelExecApi` takes the *complete* environment for a
-     * process — unlike `GeneralCommandLine`, which defaults to inheriting the parent's. Passing
-     * only mirrord's own variables would compile perfectly and then strip `PATH`, `HOME` and
-     * `KUBECONFIG` from the CLI, so every Kubernetes call would fail with an authentication
-     * error that looks nothing like its cause.
+     * Read with `EelExecApi.fetchLoginShellEnvVariables`, which starts a login shell there and
+     * returns its full variable set. See `EelExecApi` in `com.intellij.platform.eel`.
+     *
+     * Every spawn needs this. `EelExecApi` takes the *complete* environment for a process, where
+     * `GeneralCommandLine` inherits the parent's by default. Passing only mirrord's own variables
+     * compiles, then strips `PATH`, `HOME` and `KUBECONFIG` from the CLI, and every Kubernetes
+     * call fails with an authentication error that looks nothing like its cause.
      */
-    private val baseEnvironment: Map<String, String> by lazy {
+    private val targetEnvVariables: Map<String, String> by lazy {
         tracer.crossing("fetch-env", name) { api.exec.fetchLoginShellEnvVariables() }.also {
-            MirrordLogger.logger.info("mirrord.bifrost: base environment resolved vars=${it.size} env=$name")
+            MirrordLogger.logger.info("mirrord.bifrost: target env variables resolved vars=${it.size} env=$name")
         }
     }
 
@@ -86,25 +96,19 @@ class EelEnvironment(
         }
 
     /**
-     * Content-addressed staging: the SHA-256 of the file is part of its destination path.
+     * Provides a file to the target environment, hashing its contents with SHA-256 so that
+     * needless copies do not happen.
      *
-     * A version-keyed path would be wrong for the case that matters most day to day — rebuilding
-     * mirrord locally produces different bytes under the same version string, and the stale copy
-     * would win silently. Hashing the content makes that impossible, and makes the cache check a
-     * single `exists` rather than a re-read of ~100 MB.
-     *
-     * Windows targets fall back to an uncached temporary copy: there is no `/tmp` to anchor a
-     * stable path to, and the dev-container case this exists for is POSIX.
+     * The hash is part of the destination path. That way one hash answers the question, instead
+     * of hashing both the file to stage and whatever is already staged there.
      */
     override fun provide(path: HostPath, name: String, onCopy: (Long) -> Unit): TargetPath {
-        // Already visible from the target? Then nothing needs to move — true for local, and for
-        // WSL via the UNC root, so only containers ever pay for a transfer.
+        // Nothing moves if the target can already see the file. That covers local, and WSL
+        // through the UNC root, so only containers pay for a transfer.
         //
-        // The existence check is the load-bearing part. `resolve` only says whether a path can
-        // be *expressed* in the target's terms, not whether the file is actually there: for a
-        // dev container it will cheerfully hand back a host path that exists nowhere inside the
-        // container. Trusting it skipped the transfer entirely and left mirrord looking for a
-        // 73 MB binary that had never been copied across.
+        // The existence check is what makes this correct. `resolve` says only whether a path can
+        // be *expressed* in the target's terms, not whether the file is there — for a dev
+        // container it hands back a host path that exists nowhere inside the container.
         runCatching { resolve(path) }.getOrNull()?.let { candidate ->
             val reachable = runCatching {
                 Files.exists(EelPath.parse(candidate.value, descriptor).asNioPath())
@@ -121,7 +125,8 @@ class EelEnvironment(
 
         if (platform().isWindows) {
             return tracer.crossing("provide", this.name) {
-                // No permission step: Windows targets have no POSIX mode bits to set.
+                // Uncached, and no permission step: a Windows target has no `/tmp` to anchor a
+                // stable path to, and no POSIX mode bits to set.
                 val copied = EelTransferCompat.transferLocalContentToRemote(
                     path.path,
                     EelPathUtils.TransferTarget.Temporary(descriptor)
@@ -149,18 +154,15 @@ class EelEnvironment(
             )
             onCopy(bytes)
 
-            // An explicit transfer target writes the file but will not create the directories
-            // leading to it, so a first copy into a fresh container fails with NoSuchFileException
-            // on a path that reads as though the *source* were missing. These are routed paths, so
-            // this creates the directory inside the target.
+            // Make sure the parent directories exist. An explicit transfer target writes the
+            // file but does not create them, and the path is routed, so this runs in the target.
             Files.createDirectories(destinationNio.parent)
 
-            // Transfer to a unique temporary name and move it into place. The cache check above is
-            // only `exists`, so a transfer interrupted by a timeout, a cancel, or a container
-            // restart would otherwise leave a truncated file at the content-addressed path — where
-            // it is served as a valid cache hit forever, because the hash names the *source*
-            // bytes and never gets re-verified. `updateBinary` already writes host-side files this
-            // way; the target side needs the same guarantee.
+            // We first move to a temporary path, and after we are sure the move succeeded, move
+            // to the true target path, to prevent incomplete host-to-remote transfers.
+            //
+            // The cache check above is only `exists`, so a truncated file left at the
+            // content-addressed path would be served as a cache hit forever.
             val staging = destinationNio.resolveSibling("$name.${UUID.randomUUID()}.partial")
             try {
                 EelTransferCompat.transferLocalContentToRemote(
@@ -175,6 +177,7 @@ class EelEnvironment(
                     }
                     .getOrThrow()
             } catch (e: Throwable) {
+                // If any step failed, delete the temporary file too.
                 runCatching { Files.deleteIfExists(staging) }
                 throw e
             }
@@ -182,24 +185,31 @@ class EelEnvironment(
         }
     }
 
+    /** `EelExecApi.findExeFilesInPath` is the platform's own `which`, run at the target. */
+    override fun locate(executable: String): TargetPath? =
+        tracer.crossing("locate", name) { api.exec.findExeFilesInPath(executable) }
+            .firstOrNull()
+            ?.let { TargetPath(it.toString()) }
+
+    /** The EEL process is converted to a plain [Process], so nothing downstream knows the difference. */
     override fun spawn(spec: MirrordProcessSpec): Process =
         tracer.crossing("spawn", name) {
             api.exec.spawnProcess(spec.executable.value)
                 .args(spec.args)
-                .env(baseEnvironment + spec.env)
+                .env(targetEnvVariables + spec.env)
                 .apply { spec.workingDirectory?.let { workingDirectory(EelPath.parse(it.value, descriptor)) } }
                 .eelIt()
         }.convertToJavaProcess().also {
             MirrordLogger.logger.info("mirrord.bifrost: spawned ${spec.describe()} env=$name side=${if (isLocal) "host" else "target"}")
         }
 
+    /** Runs a short command at the target and waits for it. */
     override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput {
         val spec = MirrordProcessSpec(executable, args, emptyMap(), null)
 
-        // `CapturingProcessHandler` drains both pipes concurrently and enforces the timeout. Doing
-        // it by hand needs two reader threads to avoid the deadlock where a child fills the stderr
-        // pipe while this side is still reading stdout — and reading stdout to EOF first makes the
-        // timeout unreachable, because that read blocks until the child exits.
+        // `CapturingProcessHandler` drains both pipes at once and enforces the timeout. By hand
+        // this needs two reader threads: a child that fills the stderr pipe while this side reads
+        // stdout deadlocks, and reading stdout to EOF first blocks until the child exits.
         val output = CapturingProcessHandler(spawn(spec), StandardCharsets.UTF_8, spec.describe())
             .runProcess(timeoutMillis.toInt())
 
@@ -212,17 +222,9 @@ class EelEnvironment(
     /**
      * Sets the mode bits on a freshly staged file.
      *
-     * Deliberately not done with the platform's transfer-attribute strategy. That type is
-     * `EelPathUtils.FileTransferAttributesStrategy` in 2026.1 but a top-level
-     * `EelFileTransferAttributesStrategy` in 2026.2, which changes the *method descriptor* of
-     * every `transferLocalContentToRemote` overload that accepts it. A plugin compiled against
-     * one build then dies on the other: compiled against 2026.1 and run on 2026.2, it raises
-     * `ClassNotFoundException` while staging the CLI into a dev container. This is the same
-     * 261/262 churn already noted for `EelUnavailableException` in [MirrordBifrostTracer].
-     *
-     * The two-argument overload is byte-identical across both builds, so the transfer uses that
-     * and the permissions are applied here. Doing it explicitly also removes the old ordering
-     * trap where the executable bit was set on a file that was about to be replaced.
+     * **EEL COMPAT 261/262** — the platform's transfer-attribute strategy type moved between
+     * builds, so the transfer goes through `EelTransferCompat` and the permissions are set here
+     * instead. See `EelTransferCompat` for the full account.
      */
     private fun makeExecutable(target: Path) {
         runCatching { Files.setPosixFilePermissions(target, EXECUTABLE_PERMISSIONS) }

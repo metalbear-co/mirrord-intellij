@@ -55,9 +55,7 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
      */
     fun getConfigPath(configFromEnv: String?): String? {
         // Logged at INFO, not DEBUG. Falling through every branch here means the CLI runs with
-        // built-in defaults -- mirror instead of steal, no filters, no port mapping -- and says
-        // nothing about it. That silence is precisely how COR-1385 presented, so the resolution
-        // has to be visible in a default-level log.
+        // built-in defaults.
         MirrordLogger.logger.info(
             "mirrord.config: resolving — activeConfig=${service.activeConfig?.path ?: "none"} " +
                 "fromEnv=${configFromEnv ?: "none"}"
@@ -107,12 +105,12 @@ class MirrordConfigAPI(private val service: MirrordProjectService) {
         // — the API that is authoritative for a dev-container or remote project, which raw content
         // roots are not.
         //
-        // Deriving the root from the project or workspace file holds for a locally opened project,
-        // but inside a JetBrains dev container that file lives under the IDE's own configuration
-        // directory, so the derived path is ~/.config/JetBrains/<IDE>. Everything anchored here
-        // shares that fault: the `.mirrord` lookup, `createDefaultConfig` writing a new config
-        // outside the project and outside version control, and the `$ProjectPath$` macro in a run
-        // configuration's MIRRORD_CONFIG_FILE.
+        // Deriving the root from the project or workspace file holds for a locally opened
+        // project. Inside a JetBrains dev container that file lives under the IDE's own
+        // configuration directory, so the derived path is ~/.config/JetBrains/<IDE>.
+        //
+        // Everything anchored here shares that fault: the `.mirrord` lookup, `createDefaultConfig`
+        // writing outside version control, and the `$ProjectPath$` macro in MIRRORD_CONFIG_FILE.
         service.project.guessProjectDir()?.let { return it }
 
         return projectDirFromProjectFile()
@@ -226,13 +224,13 @@ internal data class ConfigRootCandidate<T>(
 /**
  * Picks the first candidate that actually holds a `.mirrord` directory.
  *
- * Split out from [MirrordConfigAPI.getDefaultConfig] so the *ordering rule* can be tested without
- * an IDE. The rule is not cosmetic. Deriving the project root from the project or workspace file
- * holds for a locally opened project, but inside a JetBrains dev container that file lives under
- * the IDE's own configuration directory, so the derived root was `~/.config/JetBrains/<IDE>` and
- * `.mirrord` was never found. mirrord then ran with built-in defaults -- mirror instead of steal,
- * no filter, no port mapping -- and said nothing. Content roots must therefore be consulted first,
- * and the file-derived heuristic must stay a fallback rather than the only source.
+ * Split out from [MirrordConfigAPI.getDefaultConfig] so the ordering rule can be tested without
+ * an IDE.
+ *
+ * The order matters. Deriving the project root from the project or workspace file holds for a
+ * locally opened project, but inside a JetBrains dev container that file lives under the IDE's
+ * own configuration directory. Content roots come first, and the file-derived heuristic stays a
+ * fallback.
  */
 internal fun <T> chooseConfigRoot(candidates: List<ConfigRootCandidate<T>>): ConfigRootCandidate<T>? =
     candidates.firstOrNull { it.mirrordDir != null }

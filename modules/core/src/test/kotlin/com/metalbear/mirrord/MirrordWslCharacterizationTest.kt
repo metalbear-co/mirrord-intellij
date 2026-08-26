@@ -19,20 +19,14 @@ import java.nio.file.Paths
 /**
  * Characterization tests for the **current** WSL integration.
  *
- * These do not describe how WSL *should* work — they record how it *does* work today, before
- * WSL is moved onto the IntelliJ Platform's execution environment layer (EEL). The point is to
- * have something that fails loudly if the migration changes observable behaviour, because until
- * now the WSL path has had no test coverage at all.
+ * They record how WSL works today, not how it should work, so that the move onto EEL fails
+ * loudly if it changes observable behaviour.
  *
- * After the migration, run this suite twice — once with "Use legacy WSL integration" on and once
- * off. Identical results mean the swap was behaviour-preserving. Any difference is either a bug
- * or a deliberate change that belongs in the changelog.
+ * Run the suite twice after the migration, with "Use legacy WSL integration" on and off.
+ * Identical results mean the swap preserved behaviour.
  *
- * **These tests require a Windows host with at least one installed WSL distribution.** On any
- * other machine they report as *skipped*, never as passed — a vacuous pass would be worse than
- * no test, since it would imply coverage that does not exist. (Note that the existing
- * `MirrordPitmJdkTest` uses an early `return` instead, so it reports green on Linux while
- * asserting nothing.)
+ * **Requires a Windows host with at least one installed WSL distribution.** Elsewhere they report
+ * as *skipped*, never as passed.
  */
 class MirrordWslCharacterizationTest {
 
@@ -45,7 +39,7 @@ class MirrordWslCharacterizationTest {
     }
 
     private fun wslOptionsAsUsedByPlugin() = WSLCommandLineOptions().apply {
-        // Mirrors MirrordApi.prepareCommandLine. `isLaunchWithWslExe = true` deliberately steers
+        // Mirrors MirrordApi.prepareCommandLine. `isLaunchWithWslExe = true` steers
         // patchCommandLine away from IJent and down the legacy wsl.exe path.
         isLaunchWithWslExe = true
         isExecuteCommandInShell = false
@@ -150,9 +144,8 @@ class MirrordWslCharacterizationTest {
     /**
      * Environment variables set *before* patching reach the distro.
      *
-     * `patchCommandLine` builds `WSLENV` from the keys present on the command line at the moment
-     * it runs, so Win32/WSL interop forwards them. This is the case the plugin relies on for
-     * `MIRRORD_EXT_PRINT_CONFIG` and the run configuration's own variables.
+     * `patchCommandLine` builds `WSLENV` from the keys on the command line when it runs, so
+     * interop forwards them. The plugin relies on this for `MIRRORD_EXT_PRINT_CONFIG`.
      */
     @Test
     fun `wslenv carries variables added before patching`() {
@@ -173,16 +166,13 @@ class MirrordWslCharacterizationTest {
     /**
      * **This test encodes a hypothesis, not a known fact — read the failure message before "fixing" it.**
      *
-     * `MirrordCliTask.prepareCommandLine` patches the command line at MirrordApi.kt:766-772, but
-     * then adds `MIRRORD_PROGRESS_MODE`, `MIRRORD_PROGRESS_SUPPORT_IDE`, `MIRRORD_IDE_NAME`
-     * (:800-802) and `MIRRORD_BRANCH_NAME` (:789) *after* it. If `WSLENV` is a snapshot taken at
-     * patch time, those four never reach the Linux `mirrord` process under WSL.
+     * `MirrordCliTask.prepareCommandLine` patches the command line, then adds four more
+     * variables after it. If `WSLENV` is a snapshot taken at patch time, those four never reach
+     * the Linux `mirrord` process.
      *
-     * - **Test passes** → the ordering bug is real, and `MIRRORD_PROGRESS_MODE=json` has not been
-     *   reaching the CLI under WSL. That is a shipped bug worth its own issue, and it means the
-     *   new abstraction must make env-vs-patch ordering explicit rather than positional.
-     * - **Test fails** → `WSLENV` is not a snapshot and the hypothesis is wrong. Good news.
-     *   Delete this test.
+     * - **Passes** → the ordering bug is real, and `MIRRORD_PROGRESS_MODE=json` has not reached
+     *   the CLI under WSL. File it, and make env-vs-patch ordering explicit.
+     * - **Fails** → `WSLENV` is not a snapshot. Delete this test.
      */
     @Test
     fun `wslenv omits variables added after patching`() {

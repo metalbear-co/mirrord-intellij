@@ -33,15 +33,6 @@ class NodeRunConfigurationExtension : AbstractNodeRunConfigurationExtension() {
             override fun addNodeOptionsTo(targetRun: NodeTargetRun) {
                 val service = targetRun.project.service<MirrordProjectService>()
 
-                // This single expression is where COR-1385 began. `targetRun.request` already
-                // describes where the IDE is about to launch Node — a dev container, a WSL
-                // distribution, or nothing at all — but the old code recognised exactly one of
-                // those and treated every other answer as "local". A dev container fell into
-                // `else -> null`, so mirrord ran on the host while Node ran in the container.
-                //
-                // Nothing below this line needed to change: `commandLineBuilder` is already
-                // target-aware, so the environment variables mirrord returns are applied
-                // wherever the IDE launches. Only the producer was ever on the wrong machine.
                 val environment = MirrordEnvironments.forRequest(targetRun.project, targetRun.request)
 
                 // following try-catch is to maintain backward compatibility with older versions of webstorm

@@ -9,11 +9,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 /**
  * What the before-run task prepared: the mirrord execution, and the environment it ran in.
  *
- * The environment travels with the execution deliberately. `updateJavaParameters` runs under a
- * read lock and cannot afford to resolve one itself — and even if it could, re-resolving there
- * has no access to the run configuration's target request, so it could legitimately pick a
- * *different* environment than the one `mirrord ext` actually ran in. Injection-strategy gating
- * and binary selection would then be deciding about the wrong machine.
+ * The environment travels with the execution because `updateJavaParameters` runs under a read
+ * lock and cannot resolve one itself.
+ *
+ * It also has no access to the run configuration's target request, so resolving there would
+ * pick a different environment than the one `mirrord ext` ran in.
  */
 internal data class IdeaMirrordPreparation(
     val execution: MirrordExecution,
