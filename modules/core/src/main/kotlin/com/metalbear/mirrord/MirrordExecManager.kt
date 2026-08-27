@@ -252,7 +252,12 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         )
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
-        executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "35000-65535"
+        // 32768, not 35000: that is where Linux starts the ephemeral range
+        // (net.ipv4.ip_local_port_range), and the debugger's loopback connection is
+        // assigned from it. A port in 32768-34999 fell outside this range, so the layer
+        // routed the handshake to the cluster and the IDE sat at "Waiting for
+        // connection..." until the test timed out. See COR-1818.
+        executionInfo.environment["MIRRORD_IGNORE_DEBUGGER_PORTS"] = "32768-65535"
         // Verbose-logging env (when enabled in settings). Goes on executionInfo.environment so it
         // reaches the layer through every product/platform path, including the Windows
         // MIRRORD_CHILD_ENV payload.
@@ -314,7 +319,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
         executionInfo.extraArgs.add("-e")
-        executionInfo.extraArgs.add("MIRRORD_IGNORE_DEBUGGER_PORTS=\"35000-65535\"")
+        executionInfo.extraArgs.add("MIRRORD_IGNORE_DEBUGGER_PORTS=\"32768-65535\"")
 
         // Verbose-logging env (when enabled in settings), forwarded into the container.
         // A host-selected directory is not mounted into the container, so keep trace output on
