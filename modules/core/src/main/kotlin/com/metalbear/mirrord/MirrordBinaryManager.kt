@@ -78,7 +78,9 @@ class MirrordBinaryManager {
      */
     class DownloadInitializer : ProjectActivity {
         override suspend fun execute(project: Project) {
-            UpdateTask(project, null, null, false).queue()
+            // CI EXPERIMENT - do not merge. Disables the project-open auto-update so the
+            // startup UpdateTask cannot race getBinary for UpdateTask.downloadInProgress.
+            MirrordLogger.logger.warn("mirrord.experiment: DownloadInitializer disabled")
         }
     }
 
