@@ -6,9 +6,7 @@ import com.intellij.execution.ExecutionListener
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.target.createEnvironmentRequest
 import com.intellij.execution.util.EnvironmentVariable
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.javaee.appServers.integration.impl.ApplicationServerImpl
 import com.intellij.javaee.appServers.run.configuration.CommonStrategy
 import com.intellij.javaee.appServers.run.configuration.RunnerSpecificLocalConfigurationBit
@@ -21,6 +19,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
 import org.jetbrains.idea.tomcat.server.TomcatPersistentData
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
@@ -160,10 +159,7 @@ class TomcatExecutionListener : ExecutionListener {
         val originalEnvVars = config.first.envVariables
 
         MirrordLogger.logger.debug("[${this.javaClass.name}] processStartScheduled: wsl check")
-        val wsl = when (val request = createEnvironmentRequest(env.runProfile, env.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val environment = MirrordEnvironments.forRunProfile(env.project, env.runProfile)
 
         val startupInfo = config.first.startupInfo
         val scriptAndArgs = if (SystemInfo.isMac) {
@@ -194,8 +190,7 @@ class TomcatExecutionListener : ExecutionListener {
                 }
 
                 val envVarsMap = originalEnvVars.associate { it.NAME to it.VALUE }
-                service.execManager.wrapper("tomcat", envVarsMap).apply {
-                    this.wsl = wsl
+                service.execManager.wrapper("tomcat", envVarsMap, environment).apply {
                     this.executable = scriptAndArgs?.command
                 }.start()?.let { executionInfo ->
                     // `MIRRORD_IGNORE_DEBUGGER_PORTS` should allow clean shutdown of the app

@@ -1,6 +1,5 @@
 package com.metalbear.mirrord
 
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
@@ -10,12 +9,11 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.metalbear.mirrord.bifrost.HostPath
+import com.metalbear.mirrord.bifrost.MirrordEnvironment
+import com.metalbear.mirrord.bifrost.TargetPath
+import java.nio.file.Files
 
-/**
- * Functions to be called when one of our entry points to the program is called - when process is
- * launched, when go entrypoint, etc. It will check to see if it already occurred for current run and
- * if it did, it will do nothing
- */
 class MirrordExecManager(private val service: MirrordProjectService) {
     /**
      * Is thrown when the progress bar dialog for listing targets, specifically during initialisation, is cancelled.
@@ -35,14 +33,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @throws ProcessCanceledException if the dialog cannot be displayed
      */
     private fun chooseTarget(
-        cli: String,
-        wslDistribution: WSLDistribution?,
-        config: String?,
+        cli: TargetPath,
+        environment: MirrordEnvironment,
+        config: TargetPath?,
         mirrordApi: MirrordApi
     ): MirrordExecDialog.UserSelection {
         MirrordLogger.logger.debug("choose target called")
 
-        val getTargets = { namespace: String?, targetTypes: List<String> -> mirrordApi.listTargets(cli, config, wslDistribution, namespace, targetTypes) }
+        val getTargets = { namespace: String?, targetTypes: List<String> -> mirrordApi.listTargets(cli, config, environment, namespace, targetTypes) }
         val application = ApplicationManager.getApplication()
 
         val selected = if (application.isDispatchThread) {
@@ -75,7 +73,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 .apply {
                     config.let {
                         when {
-                            it != null -> withOpenPath(it)
+                            it != null -> withOpenPath(it.value)
                             else -> withAction("Create") { _, _ ->
                                 WriteAction.run<InvalidProjectException> {
                                     val newConfig = service.configApi.createDefaultConfig()
@@ -94,14 +92,8 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         return selected ?: throw ProcessCanceledException()
     }
 
-    private fun cliPath(wslDistribution: WSLDistribution?, product: String): String {
-        val path = service<MirrordBinaryManager>().getCliPath(product, wslDistribution, service.project)
-        return wslPath(wslDistribution, path)
-    }
-
-    @Suppress("DEPRECATION")
-    private fun wslPath(wslDistribution: WSLDistribution?, path: String): String =
-        wslDistribution?.getWslPath(path) ?: path
+    private fun cliPath(environment: MirrordEnvironment, product: String): TargetPath =
+        service<MirrordBinaryManager>().getCliPath(product, environment, service.project)
 
     /**
      * Starts a plugin version check in a background thread.
@@ -130,11 +122,11 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * Returns null if mirrord is disabled.
      */
     private fun prepareStart(
-        wslDistribution: WSLDistribution?,
+        environment: MirrordEnvironment,
         product: String,
         projectEnvVars: Map<String, String>?,
         mirrordApi: MirrordApi
-    ): Pair<String?, MirrordExecDialog.UserSelection>? {
+    ): Pair<TargetPath?, MirrordExecDialog.UserSelection>? {
         MirrordLogger.logger.debug("MirrordExecManager.start")
         val mirrordActiveValue = projectEnvVars?.get("MIRRORD_ACTIVE")
         val explicitlyEnabled = mirrordActiveValue == "1"
@@ -162,24 +154,34 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 it
             }
         }
-        val cli = cliPath(wslDistribution, product)
+        val cli = cliPath(environment, product)
 
         MirrordLogger.logger.debug("MirrordExecManager.start: mirrord cli path is $cli")
         // Find the mirrord config path, then call `mirrord verify-config {path}` so we can display warnings/errors
         // from the config without relying on mirrord-layer.
 
-        val configPath = service.configApi.getConfigPath(mirrordConfigPath)
-        MirrordLogger.logger.debug("MirrordExecManager.start: config path is $configPath")
+        // The lookup goes through the IDE's own VFS, so it returns a host path. It has to be
+        // translated before the CLI sees it.
+        val configPath = service.configApi.getConfigPath(mirrordConfigPath)?.let { raw ->
+            // On-device first, remote second, the same order the custom binary path uses.
+            val hostFile = runCatching { HostPath.of(raw) }.getOrNull()
+            if (hostFile != null && runCatching { Files.exists(hostFile.path) }.getOrDefault(false)) {
+                environment.resolve(hostFile)
+            } else {
+                TargetPath(raw)
+            }
+        }
+        MirrordLogger.logger.info("mirrord.config: resolved target-side config path = ${configPath ?: "NONE (defaults will apply)"}")
 
         val verifiedConfig = configPath?.let {
             val verifiedConfigOutput =
-                mirrordApi.verifyConfig(cli, wslPath(wslDistribution, it), wslDistribution)
+                mirrordApi.verifyConfig(cli, it, environment)
             MirrordLogger.logger.debug("MirrordExecManager.start: verifiedConfigOutput: $verifiedConfigOutput")
             MirrordVerifiedConfig(verifiedConfigOutput, service.notifier).apply {
                 MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
                 if (isError()) {
                     MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
-                    throw InvalidConfigException(it, "Validation failed for config")
+                    throw InvalidConfigException(it.value, "Validation failed for config")
                 }
             }
         }
@@ -190,7 +192,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         val target = if (!targetSet) {
             // There is no config file or the config does not specify a target, so show dialog.
             MirrordLogger.logger.debug("target not selected, showing dialog")
-            chooseTarget(cli, wslDistribution, configPath, mirrordApi)
+            chooseTarget(cli, environment, configPath, mirrordApi)
         } else {
             MirrordExecDialog.UserSelection(null, null)
         }
@@ -232,7 +234,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * @throws ProcessCanceledException if the user cancelled
      */
     private fun start(
-        wslDistribution: WSLDistribution?,
+        environment: MirrordEnvironment,
         executable: String?,
         product: String,
         projectEnvVars: Map<String, String>?
@@ -240,15 +242,15 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         checkForSuspiciousEnvVars(projectEnvVars)
 
         val mirrordApi = service.mirrordApi(projectEnvVars)
-        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
-        val cli = cliPath(wslDistribution, product)
+        val (configPath, target) = this.prepareStart(environment, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(environment, product)
 
         val executionInfo = mirrordApi.exec(
             cli,
             target,
             configPath,
             executable,
-            wslDistribution
+            environment
         )
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
@@ -257,8 +259,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
         // reaches the layer through every product/platform path, including the Windows
         // MIRRORD_CHILD_ENV payload.
         executionInfo.environment.putAll(
-            MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars {
-                wslPath(wslDistribution, it)
+            MirrordSettingsState.instance.mirrordState.troubleshootingLayerEnvVars { hostPath ->
+                // A diagnostic setting must never stop the product from starting. `resolve`
+                // throws when the target cannot see the path, so fall back to the raw path.
+                runCatching { environment.resolve(HostPath.of(hostPath)).value }
+                    .getOrElse {
+                        MirrordLogger.logger.warn(
+                            "mirrord: troubleshooting log path '$hostPath' is not reachable from " +
+                                "${environment.name}; passing it through unchanged"
+                        )
+                        hostPath
+                    }
             }
         )
         return executionInfo
@@ -275,14 +286,14 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      * CLI source: https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
      * Introduced in: https://github.com/metalbear-co/mirrord/pull/3995
      */
-    fun attach(cliPath: String, projectEnvVars: Map<String, String>, pid: Long): MirrordAttachExecution {
+    fun attach(cliPath: TargetPath, projectEnvVars: Map<String, String>, pid: Long, environment: MirrordEnvironment): MirrordAttachExecution {
         MirrordLogger.logger.info(
             "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}"
         )
         val started = System.currentTimeMillis()
         val mirrordApi = service.mirrordApi(projectEnvVars)
         try {
-            val result = mirrordApi.attach(cliPath, pid)
+            val result = mirrordApi.attach(cliPath, pid, environment)
             MirrordLogger.logger.info(
                 "MirrordExecManager.attach: SUCCESS pid=$pid in ${System.currentTimeMillis() - started}ms"
             )
@@ -297,19 +308,19 @@ class MirrordExecManager(private val service: MirrordProjectService) {
     }
 
     private fun containerStart(
-        wslDistribution: WSLDistribution?,
+        environment: MirrordEnvironment,
         product: String,
         projectEnvVars: Map<String, String>?
     ): MirrordContainerExecution? {
         val mirrordApi = service.mirrordApi(projectEnvVars)
-        val (configPath, target) = this.prepareStart(wslDistribution, product, projectEnvVars, mirrordApi) ?: return null
-        val cli = cliPath(wslDistribution, product)
+        val (configPath, target) = this.prepareStart(environment, product, projectEnvVars, mirrordApi) ?: return null
+        val cli = cliPath(environment, product)
 
         val executionInfo = mirrordApi.containerExec(
             cli,
             target,
             configPath,
-            wslDistribution
+            environment
         )
         MirrordLogger.logger.debug("MirrordExecManager.start: executionInfo: $executionInfo")
 
@@ -332,13 +343,17 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * Helps to handle special cases and differences between the IDEs or language runners (like npm).
      */
-    class Wrapper(private val manager: MirrordExecManager, private val product: String, private val extraEnvVars: Map<String, String>?) {
-        var wsl: WSLDistribution? = null
+    class Wrapper(
+        private val manager: MirrordExecManager,
+        private val product: String,
+        private val extraEnvVars: Map<String, String>?,
+        private val environment: MirrordEnvironment
+    ) {
         var executable: String? = null
 
         fun start(): MirrordExecution? {
             return try {
-                manager.start(wsl, executable, product, extraEnvVars)
+                manager.start(environment, executable, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
@@ -357,7 +372,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
 
         fun containerStart(): MirrordContainerExecution? {
             return try {
-                manager.containerStart(wsl, product, extraEnvVars)
+                manager.containerStart(environment, product, extraEnvVars)
             } catch (e: MirrordError) {
                 e.showHelp(manager.service.project)
                 throw e
@@ -382,7 +397,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
      *
      * @return A `Wrapper` where you may call `start` to start running mirrord.
      */
-    fun wrapper(product: String, extraEnvVars: Map<String, String>?): Wrapper {
-        return Wrapper(this, product, extraEnvVars)
+    fun wrapper(product: String, extraEnvVars: Map<String, String>?, environment: MirrordEnvironment): Wrapper {
+        return Wrapper(this, product, extraEnvVars, environment)
     }
 }

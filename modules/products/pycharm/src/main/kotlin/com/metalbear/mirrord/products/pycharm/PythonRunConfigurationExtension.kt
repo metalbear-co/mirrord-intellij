@@ -2,12 +2,11 @@ package com.metalbear.mirrord.products.pycharm
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.jetbrains.python.run.AbstractPythonRunConfiguration
 import com.jetbrains.python.run.PythonRunConfigurationExtension
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
 
 class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
     override fun isApplicableFor(configuration: AbstractPythonRunConfiguration<*>): Boolean {
@@ -29,16 +28,11 @@ class PythonRunConfigurationExtension : PythonRunConfigurationExtension() {
     ) {
         val service = configuration.project.service<MirrordProjectService>()
 
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val environment = MirrordEnvironments.forRunProfile(configuration.project, configuration)
 
         val currentEnv = cmdLine.environment
 
-        service.execManager.wrapper("pycharm", currentEnv).apply {
-            this.wsl = wsl
-        }.start()?.let { executionInfo ->
+        service.execManager.wrapper("pycharm", currentEnv, environment).start()?.let { executionInfo ->
             for (entry in executionInfo.environment.entries.iterator()) {
                 currentEnv[entry.key] = entry.value
             }

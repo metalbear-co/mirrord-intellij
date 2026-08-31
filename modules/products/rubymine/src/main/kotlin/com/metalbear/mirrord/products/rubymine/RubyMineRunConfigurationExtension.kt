@@ -4,13 +4,12 @@ package com.metalbear.mirrord.products.rubymine
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.target.createEnvironmentRequest
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.SystemInfo
 import com.metalbear.mirrord.MirrordError
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordProjectService
+import com.metalbear.mirrord.bifrost.MirrordEnvironments
 import org.jetbrains.plugins.ruby.ruby.run.configuration.AbstractRubyRunConfiguration
 import org.jetbrains.plugins.ruby.ruby.run.configuration.RubyRunConfigurationExtension
 import kotlin.io.path.createTempFile
@@ -40,14 +39,10 @@ class RubyMineRunConfigurationExtension : RubyRunConfigurationExtension() {
 
         val isMac = SystemInfo.isMac
 
-        val wsl = when (val request = createEnvironmentRequest(configuration, configuration.project)) {
-            is WslTargetEnvironmentRequest -> request.configuration.distribution!!
-            else -> null
-        }
+        val environment = MirrordEnvironments.forRunProfile(configuration.project, configuration)
 
         val currentEnv = cmdLine.environment
-        service.execManager.wrapper("rubymine", configuration.envs).apply {
-            this.wsl = wsl
+        service.execManager.wrapper("rubymine", configuration.envs, environment).apply {
             if (isMac) {
                 this.executable = cmdLine.exePath
             }
