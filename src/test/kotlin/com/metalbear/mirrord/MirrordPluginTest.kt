@@ -142,21 +142,14 @@ internal class MirrordPluginTest {
                 usageBanner.findText("Close").click()
             }
             step("Create config file") {
-                waitFor(ofSeconds(60)) {
-                    mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
-                }
                 // as per the extension this doesn't need to be in the dumbAware block
                 // however, there can be a loading page which can only be ignored by the
                 // dumbAware block
-                dumbAware {
-                    mirrordDropdownButton.click()
+                val dropdownMenu = dumbAware(waitAfter = false) {
+                    openMirrordDropdownMenu()
                 }
 
-                waitFor(ofSeconds(60)) {
-                    mirrordDropdownMenu.isShowing
-                }
-
-                mirrordDropdownMenu.findText("mirrord config file").click()
+                dropdownMenu.findText("mirrord config file").click()
 
                 editorTabs {
                     waitFor(ofSeconds(60)) {
