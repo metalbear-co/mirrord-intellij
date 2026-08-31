@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.80.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.80.0) - 2026-08-31
+
+
+### Added
+
+- Added support for JetBrains dev containers: mirrord now runs the CLI where
+  the project runs, instead of on the IDE host.
+
 ## [3.79.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.79.0) - 2026-08-07
 
 
