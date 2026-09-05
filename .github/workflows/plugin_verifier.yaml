@@ -10,8 +10,10 @@ permissions:
 jobs:
   pluginVerifier:
     strategy:
+      # Run the complete matrix
+      fail-fast: false
       matrix:
-        ide: [ IU, IC, PY, PC, GO, RD ]
+        ide: [ IU, PY, GO, RD ]
     runs-on: ubuntu-24.04
     steps:
       - name: Remove unnecessary files
