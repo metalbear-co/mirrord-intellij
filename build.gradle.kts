@@ -39,8 +39,8 @@ dependencies {
     testImplementation("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
     testImplementation("com.intellij.remoterobot:ide-launcher:0.11.19.414")
     testImplementation("com.automation-remarks:video-recorder-junit5:2.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
     // BasePlatformTestCase is JUnit3; the other tests are JUnit5.
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
