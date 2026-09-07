@@ -1,1 +1,0 @@
-Fix plugin verification job.
