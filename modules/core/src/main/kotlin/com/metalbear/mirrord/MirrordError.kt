@@ -48,7 +48,9 @@ open class MirrordError(
             )
         }
 
-        fun initializationTimedOut() = MirrordError(MIRRORD_INITIALIZATION_TIMEOUT_ERROR)
+        fun timedOut(duringInitialization: Boolean) = MirrordError(
+            if (duringInitialization) MIRRORD_INITIALIZATION_TIMEOUT_ERROR else "mirrord process timed out"
+        )
     }
 
     constructor(richMessage: String) : this(richMessage, null, null, false)

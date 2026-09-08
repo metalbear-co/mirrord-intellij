@@ -125,6 +125,12 @@ sealed class IdeAction {
 data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<JsonObject>) {
 
     /**
+     * The CLI uses this id for notifications that explain why initialization is about to fail.
+     * Other IDE messages are informational and must not hide a later process error.
+     */
+    internal fun isFailureNotification() = id == "upgrade_cta"
+
+    /**
      * Handles the `IdeMessage` that we received from mirrord.
      *
      * @param service Used to build the notification.
@@ -379,7 +385,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars, environment) {
+    private class MirrordExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) :
+        MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars, environment, initializationTask = true) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -392,7 +399,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             setText(MIRRORD_STARTING_MESSAGE)
             logsService.logInfo(MIRRORD_STARTING_MESSAGE)
 
-            var reportedIdeMessage = false
+            var reportedFailure = false
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -432,7 +439,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             val service = project.service<MirrordProjectService>()
                             ideMessage?.let {
                                 it.handleIdeMessage(service)
-                                reportedIdeMessage = true
+                                reportedFailure = reportedFailure || it.isFailureNotification()
                             }
                         }
                     }
@@ -455,7 +462,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                     process,
                     endsExecution = true,
                     fallbackMessage = MIRRORD_INITIALIZATION_UNKNOWN_ERROR,
-                    alreadyReported = reportedIdeMessage,
+                    alreadyReported = reportedFailure,
                     message = ::getProcessFailedStderrError
                 )
             } else {
@@ -466,7 +473,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
     }
 
-    private class MirrordContainerExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<MirrordContainerExecution>(cli, "container-ext", null, projectEnvVars, environment) {
+    private class MirrordContainerExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) :
+        MirrordCliTask<MirrordContainerExecution>(cli, "container-ext", null, projectEnvVars, environment, initializationTask = true) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordContainerExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -479,7 +487,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
             setText(MIRRORD_CONTAINER_STARTING_MESSAGE)
             logsService.logInfo(MIRRORD_CONTAINER_STARTING_MESSAGE)
 
-            var reportedIdeMessage = false
+            var reportedFailure = false
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -518,7 +526,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             val service = project.service<MirrordProjectService>()
                             ideMessage?.let {
                                 it.handleIdeMessage(service)
-                                reportedIdeMessage = true
+                                reportedFailure = reportedFailure || it.isFailureNotification()
                             }
                             logsService.logInfo("IDE Message: ${ideMessage?.text ?: "Unknown message"}")
                         }
@@ -542,7 +550,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                     process,
                     endsExecution = true,
                     fallbackMessage = MIRRORD_INITIALIZATION_UNKNOWN_ERROR,
-                    alreadyReported = reportedIdeMessage,
+                    alreadyReported = reportedFailure,
                     message = ::getContainerProcessFailedStderrError
                 )
             } else {
@@ -744,7 +752,8 @@ private abstract class MirrordCliTask<T>(
     private val command: String,
     private val args: List<String>?,
     private val projectEnvVars: Map<String, String>?,
-    private val environment: MirrordEnvironment
+    private val environment: MirrordEnvironment,
+    private val initializationTask: Boolean = false
 ) {
     /**
      * Set when the plugin itself kills the process.
@@ -948,7 +957,7 @@ private abstract class MirrordCliTask<T>(
                 abort(process)
                 val errorMessage = getMirrordTaskTimedOutError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
-                throw MirrordError.initializationTimedOut()
+                throw MirrordError.timedOut(initializationTask)
             }
         } else {
             // Not on the EDT thread and under a read lock.
@@ -962,7 +971,7 @@ private abstract class MirrordCliTask<T>(
                 abort(process)
                 val errorMessage = getMirrordTaskTimedOutUnderReadLockError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
-                throw MirrordError.initializationTimedOut()
+                throw MirrordError.timedOut(initializationTask)
             }
         }
     }
