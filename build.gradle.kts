@@ -2,6 +2,7 @@ import org.gradle.process.ProcessForkOptions
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.models.ProductRelease.Channel
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -148,7 +149,7 @@ intellijPlatform {
     pluginVerification {
         failureLevel = EnumSet.of(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS, VerifyPluginTask.FailureLevel.INVALID_PLUGIN)
 
-        // Without this block the verifier has no IDE to check against, so the nightly job
+        // Without this block the verifier has no IDE to check against, so the weekly job
         // proves nothing.
         //
         // The compile target is `platformVersion` while sinceBuild claims 253 and upwards. That
@@ -161,6 +162,9 @@ intellijPlatform {
             val localIde = providers.gradleProperty("verifierLocalIde").orNull
             if (localIde != null) {
                 local(localIde)
+            } else if (platformType == "RD") {
+                // `recommended` fails to run verification for RD
+                select { channels = listOf(Channel.RELEASE) }
             } else {
                 recommended()
             }

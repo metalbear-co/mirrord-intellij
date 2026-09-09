@@ -2,7 +2,8 @@ name: PluginVerifier
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,3 +33,10 @@ jobs:
           PLATFORMTYPE: ${{ matrix.ide }}
         run: |
           ./gradlew verifyPlugin
+      - name: Save plugin verifier report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: pluginVerifier-report-${{ matrix.ide }}
+          path: build/reports/pluginVerifier
+          if-no-files-found: warn
