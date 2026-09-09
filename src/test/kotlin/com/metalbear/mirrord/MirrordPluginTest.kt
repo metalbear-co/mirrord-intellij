@@ -10,6 +10,7 @@ import com.intellij.remoterobot.launcher.IdeLauncher
 import com.intellij.remoterobot.launcher.Os
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.steps.CommonSteps
+import com.intellij.remoterobot.stepsProcessing.StepWorker
 import com.intellij.remoterobot.stepsProcessing.step
 import com.intellij.remoterobot.utils.waitFor
 import com.intellij.remoterobot.utils.waitForIgnoringError
@@ -38,6 +39,7 @@ import javax.imageio.ImageIO
 internal class MirrordPluginTest {
     init {
         StepsLogger.init()
+        StepWorker.registerProcessor(StepTimings)
     }
 
     companion object {
@@ -142,14 +144,17 @@ internal class MirrordPluginTest {
                 usageBanner.findText("Close").click()
             }
             step("Create config file") {
-                // as per the extension this doesn't need to be in the dumbAware block
-                // however, there can be a loading page which can only be ignored by the
-                // dumbAware block
-                val dropdownMenu = dumbAware(waitAfter = false) {
-                    openMirrordDropdownMenu()
+                waitFor(ofSeconds(60)) {
+                    mirrordDropdownButton.isShowing && mirrordDropdownButton.isComponentEnabled()
                 }
+                // Re-clicks until the menu opens. Clicking once and then waiting was the
+                // failure: a swallowed click left nothing to reopen the dropdown, and the
+                // wait ran out. `dumbAware` still guards the indexing case.
+                // dumbAware returns Unit, so the fixture is captured rather than returned.
+                lateinit var dropdown: ContainerFixture
+                dumbAware { dropdown = openMirrordDropdown() }
 
-                dropdownMenu.findText("mirrord config file").click()
+                dropdown.findText("mirrord config file").click()
 
                 editorTabs {
                     waitFor(ofSeconds(60)) {
@@ -233,11 +238,17 @@ internal class MirrordPluginTest {
                         }.getOrNull()
                     }
                 }
-                waitFor(ofSeconds(60)) {
-                    // once the session has started, the debug console shows
-                    // "Connected to pydev debugger"
+                // Split so a failure names WHICH condition was not met. Combined, the
+                // two are indistinguishable in the log, and they are different bugs:
+                // no pydev banner is a debugger/port problem, no Flask banner means the
+                // app never started under mirrord.
+                // No enclosing waitFor: the `find` inside each of these already waits and
+                // throws, and its exception aborts a surrounding waitFor rather than being
+                // retried. Wrapping it only obscured the real budget. See IdeaFrame.kt.
+                step("wait for pydev debugger to attach") {
                     debuggerConnected.isShowing
-                    // make sure app listener is ready before sending test requests
+                }
+                step("wait for the app to start listening") {
                     appRunning.isShowing
                 }
             }
@@ -259,8 +270,34 @@ internal class MirrordPluginTest {
     }
 
     class IdeTestWatcher : TestWatcher {
+        override fun testSuccessful(context: ExtensionContext) {
+            println(StepTimings.report())
+        }
+
         override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-            ImageIO.write(remoteRobot.getScreenshot(), "png", File("build/reports", "${context.displayName}.png"))
+            println(StepTimings.report())
+            val reports = File("build/reports").apply { mkdirs() }
+            runCatching {
+                ImageIO.write(remoteRobot.getScreenshot(), "png", File(reports, "${context.displayName}.png"))
+            }
+
+            // The screenshot alone has never been enough: it is taken during teardown,
+            // so it is often blank. The console holds the Python traceback, the mirrord
+            // output and any connection error -- which is what actually identifies the
+            // failure.
+            runCatching {
+                // findAllText().map { it.text } is the API this suite already uses --
+                // see IdeaFrame.kt:174.
+                val consoles = remoteRobot.findAll<ContainerFixture>(
+                    byXpath("//div[@class='EditorComponentImpl']")
+                ).joinToString("\n\n---- console ----\n\n") { c ->
+                    c.findAllText().joinToString(" ") { t -> t.text }
+                }
+                File(reports, "${context.displayName}.console.txt").writeText(consoles)
+            }.onFailure {
+                File(reports, "${context.displayName}.console.txt")
+                    .writeText("could not read console: $it")
+            }
         }
     }
 }
