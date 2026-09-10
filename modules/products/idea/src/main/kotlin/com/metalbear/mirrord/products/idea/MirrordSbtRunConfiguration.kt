@@ -1,13 +1,13 @@
 package com.metalbear.mirrord.products.idea
 
-import com.intellij.execution.ExecutionResult
+import com.intellij.execution.ExecutionListener
+import com.intellij.execution.ExecutionManager
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.RunConfigurationBase
-import com.intellij.execution.process.ProcessAdapter
-import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.components.service
+import com.intellij.util.execution.ParametersListUtil
 import com.metalbear.mirrord.MirrordExecution
 import com.metalbear.mirrord.MirrordLogger
 import com.metalbear.mirrord.MirrordLogsService
@@ -15,9 +15,6 @@ import com.metalbear.mirrord.MirrordProjectService
 import com.metalbear.mirrord.bifrost.MirrordEnvironments
 import org.jetbrains.sbt.runner.SbtCommandLineState
 import org.jetbrains.sbt.runner.SbtRunConfiguration
-import scala.Function1
-import scala.Option
-import scala.runtime.BoxedUnit
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.SortedMap
@@ -55,7 +52,7 @@ class MirrordSbtRunConfiguration(
             pendingMirrordExecution = executionInfo
             super.getState(executor, env) as SbtCommandLineState
         } else {
-            createDirectLaunchState(executionInfo, env)
+            createDirectLaunchState(executionInfo, executor, env)
         }
     }
 
@@ -65,7 +62,7 @@ class MirrordSbtRunConfiguration(
      */
     override fun preprocessTasks(): String {
         if (!useSbtShell) {
-            return super.preprocessTasks()
+            return preprocessedTasks()
         }
 
         val processedCommands = buildMirrordAwareCommands()
@@ -76,7 +73,7 @@ class MirrordSbtRunConfiguration(
     }
 
     private fun buildMirrordAwareCommands(): String {
-        val originalCommands = super.preprocessTasks()
+        val originalCommands = preprocessedTasks()
         val executionInfo = pendingMirrordExecution.also { pendingMirrordExecution = null } ?: return originalCommands
 
         val taskScope = resolveTaskScope(originalCommands) ?: run {
@@ -164,7 +161,7 @@ class MirrordSbtRunConfiguration(
         if (useSbtShell) {
             maybeWarnAboutPlayProject()
 
-            val originalCommands = super.preprocessTasks()
+            val originalCommands = preprocessedTasks()
             val taskScope = resolveTaskScope(originalCommands) ?: run {
                 logWarningToUser(
                     "mirrord SBT currently supports only simple `run`, `runMain`, and `fgRun` shell tasks. " +
@@ -189,6 +186,7 @@ class MirrordSbtRunConfiguration(
 
     private fun createDirectLaunchState(
         executionInfo: MirrordExecution,
+        executor: Executor,
         env: ExecutionEnvironment
     ): SbtCommandLineState {
         val originalEnv = HashMap(environmentVariables())
@@ -200,33 +198,50 @@ class MirrordSbtRunConfiguration(
         environmentVariables().clear()
         environmentVariables().putAll(injectedEnv)
 
-        return object : SbtCommandLineState(
-            preprocessTasks(),
-            this@MirrordSbtRunConfiguration,
-            env,
-            Option.empty<Function1<String, BoxedUnit>>()
-        ) {
-            override fun execute(executor: Executor, runner: ProgramRunner<*>): ExecutionResult {
-                return try {
-                    super.execute(executor, runner).also { result ->
-                        val processHandler = result.processHandler
-                        if (processHandler == null) {
-                            restoreEnvironment(originalEnv)
-                        } else {
-                            processHandler.addProcessListener(object : ProcessAdapter() {
-                                override fun processTerminated(event: ProcessEvent) {
-                                    restoreEnvironment(originalEnv)
-                                }
-                            })
-                        }
+        val state = try {
+            super.getState(executor, env) as SbtCommandLineState
+        } catch (t: Throwable) {
+            restoreEnvironment(originalEnv)
+            throw t
+        }
+
+        restoreEnvironmentWhenLaunchEnds(env, originalEnv)
+        return state
+    }
+
+    private fun restoreEnvironmentWhenLaunchEnds(env: ExecutionEnvironment, originalEnv: Map<String, String>) {
+        val connection = project.messageBus.connect(project)
+
+        connection.subscribe(
+            ExecutionManager.EXECUTION_TOPIC,
+            object : ExecutionListener {
+                override fun processNotStarted(executorId: String, environment: ExecutionEnvironment) {
+                    launchEnded(environment)
+                }
+
+                override fun processTerminated(
+                    executorId: String,
+                    environment: ExecutionEnvironment,
+                    handler: ProcessHandler,
+                    exitCode: Int
+                ) {
+                    launchEnded(environment)
+                }
+
+                /** The topic carries every launch in the project, so ignore everyone else's. */
+                private fun launchEnded(environment: ExecutionEnvironment) {
+                    if (environment !== env) {
+                        return
                     }
-                } catch (t: Throwable) {
+
                     restoreEnvironment(originalEnv)
-                    throw t
+                    connection.disconnect()
                 }
             }
-        }
+        )
     }
+
+    private fun preprocessedTasks(): String = preprocessSbtTasks(tasks, useSbtShell)
 
     private fun restoreEnvironment(originalEnv: Map<String, String>) {
         environmentVariables().clear()
@@ -276,5 +291,21 @@ class MirrordSbtRunConfiguration(
             )
             emptyMap()
         }
+    }
+}
+
+fun preprocessSbtTasks(rawTasks: String, useSbtShell: Boolean): String {
+    if (!useSbtShell || rawTasks.trim().startsWith(MIRRORD_SBT_COMMAND_SEPARATOR)) {
+        return rawTasks
+    }
+
+    val commands = ParametersListUtil.parse(rawTasks, false)
+    return if (commands.size == 1) {
+        commands.single()
+    } else {
+        commands.joinToString(
+            separator = " $MIRRORD_SBT_COMMAND_SEPARATOR",
+            prefix = MIRRORD_SBT_COMMAND_SEPARATOR
+        )
     }
 }
