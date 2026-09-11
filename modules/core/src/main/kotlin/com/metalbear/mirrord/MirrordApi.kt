@@ -125,6 +125,12 @@ sealed class IdeAction {
 data class IdeMessage(val id: String, val level: NotificationLevel, val text: String, val actions: Set<JsonObject>) {
 
     /**
+     * The CLI uses this id for notifications that explain why initialization is about to fail.
+     * Other IDE messages are informational and must not hide a later process error.
+     */
+    internal fun isFailureNotification() = id == "upgrade_cta"
+
+    /**
      * Handles the `IdeMessage` that we received from mirrord.
      *
      * @param service Used to build the notification.
@@ -379,7 +385,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         return task.run(service.project)
     }
 
-    private class MirrordExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars, environment) {
+    private class MirrordExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) :
+        MirrordCliTask<MirrordExecution>(cli, "ext", null, projectEnvVars, environment, initializationTask = true) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -391,6 +398,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             setText(MIRRORD_STARTING_MESSAGE)
             logsService.logInfo(MIRRORD_STARTING_MESSAGE)
+
+            var reportedFailure = false
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -428,7 +437,10 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                             logsService.logInfo("IDE Message: $this")
                             val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
                             val service = project.service<MirrordProjectService>()
-                            ideMessage?.handleIdeMessage(service)
+                            ideMessage?.let {
+                                it.handleIdeMessage(service)
+                                reportedFailure = reportedFailure || it.isFailureNotification()
+                            }
                         }
                     }
 
@@ -445,7 +457,14 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                failFromExit(logsService, process, endsExecution = true, message = ::getProcessFailedStderrError)
+                failFromExit(
+                    logsService,
+                    process,
+                    endsExecution = true,
+                    fallbackMessage = MIRRORD_INITIALIZATION_UNKNOWN_ERROR,
+                    alreadyReported = reportedFailure,
+                    message = ::getProcessFailedStderrError
+                )
             } else {
                 logsService.logError("Invalid output from mirrord binary")
                 logsService.onMirrordExecutionEnd()
@@ -454,7 +473,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
     }
 
-    private class MirrordContainerExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<MirrordContainerExecution>(cli, "container-ext", null, projectEnvVars, environment) {
+    private class MirrordContainerExtTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) :
+        MirrordCliTask<MirrordContainerExecution>(cli, "container-ext", null, projectEnvVars, environment, initializationTask = true) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): MirrordContainerExecution {
             val parser = SafeParser()
             val bufferedReader = process.inputStream.reader().buffered()
@@ -466,6 +486,8 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             setText(MIRRORD_CONTAINER_STARTING_MESSAGE)
             logsService.logInfo(MIRRORD_CONTAINER_STARTING_MESSAGE)
+
+            var reportedFailure = false
 
             for (line in bufferedReader.lines()) {
                 val message = parser.parse(line, Message::class.java)
@@ -502,7 +524,10 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                         message.message?.run {
                             val ideMessage = Gson().fromJson(Gson().toJsonTree(this), IdeMessage::class.java)
                             val service = project.service<MirrordProjectService>()
-                            ideMessage?.handleIdeMessage(service)
+                            ideMessage?.let {
+                                it.handleIdeMessage(service)
+                                reportedFailure = reportedFailure || it.isFailureNotification()
+                            }
                             logsService.logInfo("IDE Message: ${ideMessage?.text ?: "Unknown message"}")
                         }
                     }
@@ -520,7 +545,14 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
             process.waitFor()
             if (process.exitValue() != 0) {
-                failFromExit(logsService, process, endsExecution = true, message = ::getContainerProcessFailedStderrError)
+                failFromExit(
+                    logsService,
+                    process,
+                    endsExecution = true,
+                    fallbackMessage = MIRRORD_INITIALIZATION_UNKNOWN_ERROR,
+                    alreadyReported = reportedFailure,
+                    message = ::getContainerProcessFailedStderrError
+                )
             } else {
                 logsService.logError("Invalid output from mirrord container binary")
                 logsService.onMirrordExecutionEnd()
@@ -720,7 +752,8 @@ private abstract class MirrordCliTask<T>(
     private val command: String,
     private val args: List<String>?,
     private val projectEnvVars: Map<String, String>?,
-    private val environment: MirrordEnvironment
+    private val environment: MirrordEnvironment,
+    private val initializationTask: Boolean = false
 ) {
     /**
      * Set when the plugin itself kills the process.
@@ -751,6 +784,8 @@ private abstract class MirrordCliTask<T>(
         logsService: MirrordLogsService,
         process: Process,
         endsExecution: Boolean = false,
+        fallbackMessage: String? = null,
+        alreadyReported: Boolean = false,
         message: (String) -> String
     ): Nothing {
         if (abortedByPlugin) {
@@ -762,7 +797,7 @@ private abstract class MirrordCliTask<T>(
         if (endsExecution) {
             logsService.onMirrordExecutionEnd()
         }
-        throw MirrordError.fromStdErr(stdErr)
+        throw MirrordError.fromStdErr(stdErr, fallbackMessage, alreadyReported)
     }
 
     var target: String? = null
@@ -922,7 +957,7 @@ private abstract class MirrordCliTask<T>(
                 abort(process)
                 val errorMessage = getMirrordTaskTimedOutError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
-                throw MirrordError("mirrord process timed out")
+                throw MirrordError.timedOut(initializationTask)
             }
         } else {
             // Not on the EDT thread and under a read lock.
@@ -936,7 +971,7 @@ private abstract class MirrordCliTask<T>(
                 abort(process)
                 val errorMessage = getMirrordTaskTimedOutUnderReadLockError(spec.describe())
                 logErrorToBoth(logsService, errorMessage)
-                throw MirrordError("mirrord process timed out")
+                throw MirrordError.timedOut(initializationTask)
             }
         }
     }
