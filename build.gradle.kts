@@ -118,7 +118,7 @@ intellijPlatform {
     pluginConfiguration {
         version = providers.gradleProperty("pluginVersion")
         ideaVersion {
-            sinceBuild = "253"
+            sinceBuild = "261"
         }
 
         description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
@@ -151,10 +151,6 @@ intellijPlatform {
 
         // Without this block the verifier has no IDE to check against, so the weekly job
         // proves nothing.
-        //
-        // The compile target is `platformVersion` while sinceBuild claims 253 and upwards. That
-        // gap is real: a platform class that moves between builds resolves at compile time and
-        // fails at run time, and only a verifier run against the newer build catches it.
         ides {
             // `-PverifierLocalIde=<path>` checks an IDE already on disk, which needs no download
             // and is the quickest way to test one specific build. CI has no such install, so it
