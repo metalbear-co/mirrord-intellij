@@ -1,0 +1,7 @@
+// Tomcat support lives behind 
+// `<depends optional="true" config-file="mirrord-tomcat.xml">Tomcat</depends>`, so those classes
+// only load in an IDE that ships the Tomcat plugin. PyCharm, GoLand and Rider do not, but the 
+// verifier checks every class in the artifact regardless of the optional descriptor.
+// Ignore reports about missing Tomcat and JavaEE packages.
+com.metalbear.mirrord::Package 'org\.jetbrains\.idea(\.tomcat)?' is not found
+com.metalbear.mirrord::Package 'com\.intellij\.javaee(\.appServers)?' is not found
