@@ -8,6 +8,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.81.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.81.0) - 2026-09-11
+
+
+### Changed
+
+- Raised the plugin's `sinceBuild` to 2026.1 from 2025.3 which does not support
+  `EelApi`.
+
+
+### Fixed
+
+- Fixed the SBT run configuration breaking on IntelliJ IDEA 2026.2 and later,
+  where
+  the Scala plugin made `SbtCommandLineState` final and removed
+  `SbtRunConfiguration.preprocessTasks`.
+
 ## [3.80.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.80.1) - 2026-09-07
 
 No significant changes.
