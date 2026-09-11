@@ -149,6 +149,10 @@ intellijPlatform {
     pluginVerification {
         failureLevel = EnumSet.of(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS, VerifyPluginTask.FailureLevel.INVALID_PLUGIN)
 
+        if (platformType != "IU") {
+            ignoredProblemsFile = layout.projectDirectory.file("gradle/plugin-verifier-allowlist.txt")
+        }
+
         // Without this block the verifier has no IDE to check against, so the weekly job
         // proves nothing.
         ides {
