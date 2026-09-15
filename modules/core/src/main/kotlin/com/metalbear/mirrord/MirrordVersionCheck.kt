@@ -22,24 +22,25 @@ private const val LAST_CHECK_KEY = "lastCheck"
 class MirrordVersionCheck(private val service: MirrordProjectService) {
     /**
      * Fetch the latest version number, compare to local version. If there is a later version available, notify.
+     * Does nothing unless the user allowed the version check, so no request is sent without consent.
      * Return early without checking if already performed full check in the last 3 minutes.
      */
     fun checkVersion() {
+        // Denied or never answered: don't contact the version endpoint at all.
+        if (MirrordSettingsState.instance.mirrordState.versionCheckEnabled != true) {
+            return
+        }
+
         val pc = PropertiesComponent.getInstance() // Don't pass project, to get ide-wide persistence.
         val lastCheckEpoch = pc.getLong(LAST_CHECK_KEY, 0)
         val nowUTC = LocalDateTime.now(ZoneOffset.UTC)
         val lastCheckUTCDateTime = LocalDateTime.ofEpochSecond(lastCheckEpoch, 0, ZoneOffset.UTC)
         if (lastCheckUTCDateTime.isAfter(nowUTC.minusMinutes(3))) {
-            return // Already checked in the last 3 hours. Don't check again yet.
+            return // Already checked in the last 3 minutes. Don't check again yet.
         }
         val nowEpoch = nowUTC.toEpochSecond(ZoneOffset.UTC)
         pc.setValue(LAST_CHECK_KEY, nowEpoch.toString())
         val remoteVersion = Version.valueOf(URL(VERSION_CHECK_ENDPOINT).readText())
-
-        // Don't show user anything
-        if (MirrordSettingsState.instance.mirrordState.versionCheckEnabled != true) {
-            return
-        }
 
         val localVersion = Version.valueOf(VERSION)
         if (localVersion.lessThan(remoteVersion)) {
