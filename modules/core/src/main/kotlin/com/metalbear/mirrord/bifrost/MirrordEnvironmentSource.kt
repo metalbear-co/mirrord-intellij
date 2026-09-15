@@ -3,9 +3,9 @@
 package com.metalbear.mirrord.bifrost
 
 import com.intellij.execution.configurations.RunProfile
-import com.intellij.execution.target.EelTargetEnvironmentRequest
 import com.intellij.execution.target.TargetEnvironmentRequest
 import com.intellij.execution.target.createEnvironmentRequest
+import com.intellij.execution.target.local.LocalTargetEnvironmentRequest
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.progress.ProcessCanceledException
@@ -72,19 +72,20 @@ class LegacyWslEnvironmentSource(
 }
 
 /**
- * The run configuration's own target, which is the most specific answer available: one project
- * can hold configurations aimed at different environments.
+ * The run configuration's own target. One project can hold configurations aimed at different
+ * environments, so this beats where the project lives.
+ *
+ * Only WSL requests are read. `EelTargetEnvironmentRequest` is skipped because its descriptor is
+ * internal API, so those launches fall through to [ProjectDescriptorEnvironmentSource]:
+ * - Still correct: a project opened inside a dev container, or opened from WSL.
+ * - Unsupported: a project on the host that runs through a WSL, Docker or SSH toolchain (a JDK or
+ *   Node interpreter). mirrord runs on the host instead.
  */
 class TargetRequestEnvironmentSource : MirrordEnvironmentSource {
     override val id = "target-request"
 
     override fun resolve(context: MirrordLaunchContext): MirrordEnvironment? {
         val request = context.targetRequest ?: return null
-
-        // The modern shape; WslTargetEnvironmentRequest is deprecated in favour of it.
-        (request as? EelTargetEnvironmentRequest)?.configuration?.descriptor?.let {
-            return EelEnvironment(it)
-        }
 
         // WSL through EEL rather than wsl.exe. The platform maps the UNC root back to the
         // distribution's descriptor.
@@ -97,6 +98,16 @@ class TargetRequestEnvironmentSource : MirrordEnvironmentSource {
             uncRoot?.let { return EelEnvironment(it.getEelDescriptor()) }
         }
 
+        // INFO, so the fallback to where the project lives is visible in `idea.log`.
+        //
+        // Skipped for a local request: `createEnvironmentRequest` returns one for every run
+        // configuration without a target, and logging those would bury the unsupported ones.
+        if (request !is LocalTargetEnvironmentRequest) {
+            MirrordLogger.logger.info(
+                "mirrord.bifrost: source=$id cannot read target request ${request.javaClass.name}, " +
+                    "falling back for=${context.label}"
+            )
+        }
         return null
     }
 }
