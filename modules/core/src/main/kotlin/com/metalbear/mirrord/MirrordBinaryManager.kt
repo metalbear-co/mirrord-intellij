@@ -88,11 +88,12 @@ class MirrordBinaryManager {
     }
 
     /**
-     * Schedules the update task at project startup.
+     * Schedules the update task at project startup. Skipped when a custom binary path is set.
      */
     class DownloadInitializer : ProjectActivity {
         override suspend fun execute(project: Project) {
-            UpdateTask(project, null, MirrordEnvironments.forProject(project), false).queue()
+            if (MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.isNotBlank()) return
+            UpdateTask(project, null, MirrordEnvironments.forProject(project), true).queue()
         }
     }
 
@@ -141,10 +142,9 @@ class MirrordBinaryManager {
     }
 
     /**
-     * Refreshes [latestSupportedVersion] and downloads the binary into plugin
-     * storage if no local match is available. Notifications (success / format
-     * error / failure) fire from inside, so both the async [UpdateTask] caller
-     * and the synchronous [getBinary] caller surface the same UX.
+     * Downloads the binary into plugin storage if no local match is available.
+     * Fetches [latestSupportedVersion] only when auto-update is on or nothing is installed.
+     * Notifications fire from inside, so [UpdateTask] and [getBinary] share the same UX.
      */
     private fun runUpdate(
         project: Project,
@@ -157,13 +157,6 @@ class MirrordBinaryManager {
 
         val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
         val userSelectedMirrordVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-
-        try {
-            latestSupportedVersion = fetchLatestSupportedVersion(product, indicator)
-        } catch (e: Throwable) {
-            MirrordLogger.logger.debug("binary update: latest-version fetch failed", e)
-            return
-        }
 
         val version = when {
             // auto update -> false -> use mirrordVersion if it's not empty
@@ -185,7 +178,7 @@ class MirrordBinaryManager {
             !autoUpdate && userSelectedMirrordVersion.isEmpty() -> null
 
             // auto update -> true -> fetch latest version
-            else -> latestSupportedVersion
+            else -> refreshLatestSupportedVersion(product, indicator) ?: return
         }
 
         val local = if (checkInPath) {
@@ -200,7 +193,8 @@ class MirrordBinaryManager {
 
         downloadVersion = version
             // auto update -> false -> mirrordVersion is empty -> no cli found locally -> latest version
-            ?: latestSupportedVersion
+            ?: refreshLatestSupportedVersion(product, indicator)
+            ?: return
 
         if (UpdateTask.downloadInProgress.compareAndExchange(false, true)) {
             return
@@ -230,6 +224,15 @@ class MirrordBinaryManager {
             UpdateTask.downloadInProgress.set(false)
         }
     }
+
+    /** Fetches and caches [latestSupportedVersion]. Returns null on failure. */
+    private fun refreshLatestSupportedVersion(product: String?, indicator: ProgressIndicator): String? =
+        try {
+            fetchLatestSupportedVersion(product, indicator).also { latestSupportedVersion = it }
+        } catch (e: Throwable) {
+            MirrordLogger.logger.debug("binary update: latest-version fetch failed", e)
+            null
+        }
 
     private fun fetchLatestSupportedVersion(product: String?, indicator: ProgressIndicator): String {
         val pluginVersion = if (
