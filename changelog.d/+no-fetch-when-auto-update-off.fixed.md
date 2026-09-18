@@ -1,1 +1,0 @@
-Stopped fetching the mirrord binary when auto-update is off: the startup task now honours a custom binary path and a mirrord found in `PATH`, and the version endpoint is only queried when auto-update is on or no binary is installed at all.
