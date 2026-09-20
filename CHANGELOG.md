@@ -8,6 +8,23 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.82.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.82.0) - 2026-09-20
+
+
+### Changed
+
+- Removed intellij internal API use `EelTargetEnvironmentRequest`.
+
+
+### Fixed
+
+- Stopped fetching the mirrord binary when auto-update is off: the startup task
+  now honours a custom binary path and a mirrord found in `PATH`, and the
+  version endpoint is only queried when auto-update is on or no binary is
+  installed at all.
+- The plugin version check no longer contacts the version endpoint when the
+  "Version check" setting is off or the consent prompt was never answered.
+
 ## [3.81.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.81.0) - 2026-09-11
 
 
