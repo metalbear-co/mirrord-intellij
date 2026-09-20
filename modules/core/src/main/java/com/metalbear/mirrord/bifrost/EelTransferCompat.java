@@ -23,6 +23,13 @@ import java.nio.file.Path;
  * <p>Verify with {@code javap -c} after changing this: the emitted call must be
  * {@code transferLocalContentToRemote:(Ljava/nio/file/Path;L...$TransferTarget;)Ljava/nio/file/Path;}
  * with no third parameter.
+ *
+ * <p><b>API status, kept on purpose.</b> Up to and including 2026.2 GA (262.8665) the whole
+ * {@code EelPathUtils} object is {@code @ApiStatus.Internal}, so the plugin verifier reports this
+ * call as internal API on 2026.1 and 2026.2 GA builds. From 2026.2.1 (262.9437, intellij-community
+ * commit d3fb189826) the object is {@code @ApiStatus.Experimental}, and the two-argument overload
+ * comes from the experimental three-parameter function, not the internal four-parameter one. The
+ * violation on those older builds is accepted so that {@code sinceBuild} can stay at 261.
  */
 final class EelTransferCompat {
 
