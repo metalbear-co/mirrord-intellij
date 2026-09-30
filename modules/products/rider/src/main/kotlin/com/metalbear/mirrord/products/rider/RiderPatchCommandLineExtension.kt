@@ -4,6 +4,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessInfo
 import com.intellij.execution.process.ProcessListener
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -15,6 +16,7 @@ import com.jetbrains.rd.util.lifetime.Lifetime
 import com.jetbrains.rider.debugger.DotNetDebugProcess
 import com.jetbrains.rider.run.PatchCommandLineExtension
 import com.jetbrains.rider.run.WorkerRunInfo
+import com.jetbrains.rider.runtime.DotNetExecutable
 import com.jetbrains.rider.runtime.DotNetRuntime
 import com.metalbear.mirrord.MirrordBinaryManager
 import com.metalbear.mirrord.MirrordExecution
@@ -73,7 +75,9 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         lifetime: Lifetime,
         workerRunInfo: WorkerRunInfo,
         processInfo: ProcessInfo?,
-        project: Project
+        dotNetExecutable: DotNetExecutable?,
+        project: Project,
+        dataContext: DataContext?
     ): Promise<WorkerRunInfo> {
         MirrordLogger.logger.info(
             "RiderPatchCommandLineExtension.patchDebugCommandLine: ENTER exe=${workerRunInfo.commandLine.exePath} " +
@@ -237,6 +241,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
     override fun patchRunCommandLine(
         commandLine: GeneralCommandLine,
         dotNetRuntime: DotNetRuntime,
+        dotNetExecutable: DotNetExecutable?,
         project: Project
     ): ProcessListener? {
         MirrordLogger.logger.info(
