@@ -46,17 +46,19 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
 
     /**
      * Runs `mirrord ext` and sets the resulting env vars on the command line.
+     * mirrord reads its settings (for example `MIRRORD_ACTIVE` and `MIRRORD_CONFIG_FILE`) from `launchEnv`.
      * Returns the execution info (env vars map, envToUnset) for the caller to
      * decide how to handle them (pitm wrapping vs. debug attach).
      */
     private fun startMirrordExt(
         commandLine: GeneralCommandLine,
+        launchEnv: Map<String, String>,
         project: Project,
         environment: MirrordEnvironment
     ): MirrordExecution? {
         val service = project.service<MirrordProjectService>()
 
-        val executionInfo = service.execManager.wrapper("rider", commandLine.environment, environment).start()
+        val executionInfo = service.execManager.wrapper("rider", launchEnv, environment).start()
 
         executionInfo?.let { info ->
             for (entry in info.environment.entries) {
@@ -85,7 +87,11 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         )
         val environment = resolveEnvironment(project)
         MirrordLogger.logger.info("patchDebugCommandLine: env=${environment.name}")
-        val executionInfo = startMirrordExt(workerRunInfo.commandLine, project, environment)
+        // This command line starts the debugger worker, not the user's process. Rider sends the launch
+        // profile env vars (for example, from `launchSettings.json`) to the worker through its protocol,
+        // not on this command line. Add them, so that mirrord sees the same variables as when you run.
+        val launchEnv = workerRunInfo.commandLine.environment + dotNetExecutable?.environmentVariables.orEmpty()
+        val executionInfo = startMirrordExt(workerRunInfo.commandLine, launchEnv, project, environment)
         workerRunInfo.commandLine.withEnvironment("MIRRORD_DETECT_DEBUGGER_PORT", "resharper")
 
         val winNative = environment.platform().isWinNative
@@ -250,7 +256,7 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         )
         val environment = resolveEnvironment(project)
         MirrordLogger.logger.info("patchRunCommandLine: env=${environment.name}")
-        val executionInfo = startMirrordExt(commandLine, project, environment) ?: run {
+        val executionInfo = startMirrordExt(commandLine, commandLine.environment, project, environment) ?: run {
             MirrordLogger.logger.info("patchRunCommandLine: startMirrordExt returned null — mirrord disabled or cancelled, exiting")
             return null
         }
