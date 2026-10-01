@@ -8,6 +8,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.82.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.82.1) - 2026-10-01
+
+
+### Fixed
+
+- Fixed mirrord not starting when you debug in Rider with `MIRRORD_ACTIVE` or
+  `MIRRORD_CONFIG_FILE` set in the launch profile (for example, in
+  `launchSettings.json`).
+  [#434](https://github.com/metalbear-co/mirrord-intellij/issues/434)
+
 ## [3.82.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.82.0) - 2026-09-20
 
 
