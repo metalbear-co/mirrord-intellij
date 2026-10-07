@@ -116,11 +116,16 @@ jobs:
           /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
           tests=$!
           # ffmpeg fails at once on a display Xvfb has not opened yet, which ended this step
-          # before any test ran.
-          if ! timeout 60 bash -c 'until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 1; done'; then
-            echo "::error::Xvfb did not open display :99 within 60s"
-            exit 1
-          fi
+          # before any test ran. If the tests end first, their result is the step's.
+          waited=0
+          until xdpyinfo -display :99 >/dev/null 2>&1; do
+            kill -0 "$tests" 2>/dev/null || { wait "$tests"; exit; }
+            if (( ++waited > 60 )); then
+              echo "::error::Xvfb did not open display :99 within 60s"
+              exit 1
+            fi
+            sleep 1
+          done
           # The recording only helps debugging, so its failure does not fail the job. It ends
           # when Xvfb exits after the tests.
           ffmpeg -loglevel error -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm \
@@ -138,11 +143,16 @@ jobs:
           /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
           tests=$!
           # ffmpeg fails at once on a display Xvfb has not opened yet, which ended this step
-          # before any test ran.
-          if ! timeout 60 bash -c 'until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 1; done'; then
-            echo "::error::Xvfb did not open display :99 within 60s"
-            exit 1
-          fi
+          # before any test ran. If the tests end first, their result is the step's.
+          waited=0
+          until xdpyinfo -display :99 >/dev/null 2>&1; do
+            kill -0 "$tests" 2>/dev/null || { wait "$tests"; exit; }
+            if (( ++waited > 60 )); then
+              echo "::error::Xvfb did not open display :99 within 60s"
+              exit 1
+            fi
+            sleep 1
+          done
           # The recording only helps debugging, so its failure does not fail the job. It ends
           # when Xvfb exits after the tests.
           ffmpeg -loglevel error -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm \
