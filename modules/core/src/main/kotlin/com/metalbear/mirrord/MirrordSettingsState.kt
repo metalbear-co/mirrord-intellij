@@ -144,16 +144,23 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         /**
          * Selects [windowsInjectionMethod] for a Windows-native run.
          *
-         * Empty when [inheritedEnv] (the system and run configuration environment) already sets
-         * [MIRRORD_INJECTION_METHOD_ENV], so a value the user set there wins. Windows matches
-         * variable names without regard to case.
+         * Empty when [runConfigurationEnv] or [systemEnv] already sets [MIRRORD_INJECTION_METHOD_ENV],
+         * so a value the user set there wins. Products pass only their run configuration's own
+         * variables, and `mirrord pitm` applies the plugin's value over inherited ones, so the system
+         * environment has to be checked here. Windows matches variable names without regard to case.
          */
-        fun injectionMethodEnvVars(inheritedEnv: Map<String, String>?): Map<String, String> =
-            if (inheritedEnv.orEmpty().keys.any { it.equals(MIRRORD_INJECTION_METHOD_ENV, ignoreCase = true) }) {
+        fun injectionMethodEnvVars(
+            runConfigurationEnv: Map<String, String>?,
+            systemEnv: Map<String, String> = System.getenv()
+        ): Map<String, String> {
+            val alreadySet = (runConfigurationEnv.orEmpty().keys + systemEnv.keys)
+                .any { it.equals(MIRRORD_INJECTION_METHOD_ENV, ignoreCase = true) }
+            return if (alreadySet) {
                 emptyMap()
             } else {
                 mapOf(MIRRORD_INJECTION_METHOD_ENV to windowsInjectionMethod.cliValue)
             }
+        }
 
         /** Trace logging applied only to mirrord's CLI process and the intproxy it starts. */
         fun troubleshootingCliEnvVars(): Map<String, String> =

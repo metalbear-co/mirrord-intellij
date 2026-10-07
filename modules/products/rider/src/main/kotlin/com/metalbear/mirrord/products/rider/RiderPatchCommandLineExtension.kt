@@ -111,7 +111,11 @@ class RiderPatchCommandLineExtension : PatchCommandLineExtension {
         // CLI injection flow:
         // https://github.com/metalbear-co/mirrord/blob/main/mirrord/cli/src/attach.rs
         if (winNative && executionInfo != null) {
-            armRiderTargetReadyAttach(project, lifetime, workerRunInfo.commandLine.environment.toMap(), environment)
+            // The launch profile vars reach the target, so attach sees them too: a profile's
+            // `MIRRORD_INJECTION_METHOD` then picks the method attach uses, as it does for the
+            // target's children.
+            val attachEnv = workerRunInfo.commandLine.environment + dotNetExecutable?.environmentVariables.orEmpty()
+            armRiderTargetReadyAttach(project, lifetime, attachEnv, environment)
         } else {
             MirrordLogger.logger.info("patchDebugCommandLine: skipping armRiderTargetReadyAttach (not Windows-native or no executionInfo)")
         }

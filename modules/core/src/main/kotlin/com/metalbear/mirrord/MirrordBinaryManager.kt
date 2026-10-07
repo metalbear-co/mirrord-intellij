@@ -396,12 +396,20 @@ class MirrordBinaryManager {
      * If still insufficient, surfaces a rich error — Windows-native run/debug will
      * fail until the binary is upgraded; WSL configurations are unaffected.
      *
-     * Skips entirely on non-Windows hosts. On non-x64 Windows, surfaces the
-     * architecture-specific error early (same interest-gauge message as
-     * [updateBinary]) and returns.
+     * Skips entirely on non-Windows hosts, and for projects whose target is not
+     * Windows-native (WSL, dev containers), the same gate [enforceWindowsNativeMin]
+     * applies per run. On non-x64 Windows, surfaces the architecture-specific error
+     * early (same interest-gauge message as [updateBinary]) and returns.
      */
     fun checkWindowsNativeSupport(project: Project, indicator: ProgressIndicator) {
         if (!SystemInfo.isWindows) return
+
+        // Resolve against the project's environment rather than assuming the host, and
+        // honour a custom binary path the way `getBinary` does — otherwise a user who pointed
+        // the plugin at their own build is still told it is unsupported, and can even be
+        // force-fed a download of the managed one.
+        val environment = MirrordEnvironments.forProject(project)
+        if (!environment.platform().isWinNative) return
 
         if (!CpuArch.isIntel64()) {
             MirrordWindowsUnsupportedDialog.showArchUnsupportedOnce(CpuArch.CURRENT.name)
@@ -418,12 +426,6 @@ class MirrordBinaryManager {
             )
             return
         }
-
-        // Resolve against the project's environment rather than assuming the host, and
-        // honour a custom binary path the way `getBinary` does — otherwise a user who pointed
-        // the plugin at their own build is still told it is unsupported, and can even be
-        // force-fed a download of the managed one.
-        val environment = MirrordEnvironments.forProject(project)
 
         fun resolveLocal(): MirrordBinary? = try {
             val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
