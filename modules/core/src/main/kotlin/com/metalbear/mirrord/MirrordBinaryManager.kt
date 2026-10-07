@@ -38,11 +38,10 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
 
 /**
  * Minimum mirrord binary version required for Windows-native execution
- * (pitm + attach). Set to the first release with the hardened Windows Java
- * Debug runtime (https://github.com/metalbear-co/mirrord/pull/4661) that
- * Gradle Run and Debug rely on.
+ * (pitm + attach). Set to the first release that reads the injection method
+ * from `MIRRORD_INJECTION_METHOD` (https://github.com/metalbear-co/mirrord/pull/4910).
  */
-private const val MIN_WINDOWS_NATIVE_VERSION = "3.245.0"
+private const val MIN_WINDOWS_NATIVE_VERSION = "3.271.0"
 
 /** How long to wait for a short probe such as `mirrord --version` or `which mirrord`. */
 private const val PROBE_TIMEOUT_MILLIS = 5000L

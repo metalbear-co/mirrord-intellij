@@ -21,6 +21,20 @@ private const val RUST_LOG_ENV = "RUST_LOG"
 /** Directory the layer writes a per-process trace log file into. */
 private const val MIRRORD_LAYER_LOG_PATH_ENV = "MIRRORD_LAYER_LOG_PATH"
 
+/** Windows injection method, read by `mirrord attach`, `mirrord pitm` and the layer's child process hooks. */
+private const val MIRRORD_INJECTION_METHOD_ENV = "MIRRORD_INJECTION_METHOD"
+
+/** How mirrord injects its layer into Windows-native processes. */
+enum class WindowsInjectionMethod(val cliValue: String, private val presentableName: String) {
+    /** Loads the layer through a remote thread, and waits for it to be ready before the process runs. */
+    LOAD_LIBRARY("load-library", "LoadLibrary (remote thread)"),
+
+    /** Queues the layer load on the process' main thread, which runs it when the process is resumed. */
+    APC("apc", "APC (queued on the main thread)");
+
+    override fun toString(): String = presentableName
+}
+
 @State(name = "MirrordSettingsState", storages = [Storage("mirrord.xml")])
 open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.MirrordState> {
     companion object {
@@ -91,6 +105,9 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         /** Directory the layer writes its per-process trace log into ([MIRRORD_LAYER_LOG_PATH_ENV]). */
         var troubleshootingLogsPath: String = ""
 
+        /** Passed to mirrord as [MIRRORD_INJECTION_METHOD_ENV] on Windows-native runs. */
+        var windowsInjectionMethod: WindowsInjectionMethod = WindowsInjectionMethod.LOAD_LIBRARY
+
         fun disableNotification(id: NotificationId) {
             disabledNotifications = disabledNotifications.orEmpty() + id
         }
@@ -123,6 +140,20 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
                 }
             return env
         }
+
+        /**
+         * Selects [windowsInjectionMethod] for a Windows-native run.
+         *
+         * Empty when [inheritedEnv] (the system and run configuration environment) already sets
+         * [MIRRORD_INJECTION_METHOD_ENV], so a value the user set there wins. Windows matches
+         * variable names without regard to case.
+         */
+        fun injectionMethodEnvVars(inheritedEnv: Map<String, String>?): Map<String, String> =
+            if (inheritedEnv.orEmpty().keys.any { it.equals(MIRRORD_INJECTION_METHOD_ENV, ignoreCase = true) }) {
+                emptyMap()
+            } else {
+                mapOf(MIRRORD_INJECTION_METHOD_ENV to windowsInjectionMethod.cliValue)
+            }
 
         /** Trace logging applied only to mirrord's CLI process and the intproxy it starts. */
         fun troubleshootingCliEnvVars(): Map<String, String> =

@@ -1,6 +1,7 @@
 package com.metalbear.mirrord
 
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
@@ -73,6 +74,12 @@ class MirrordSettingsComponent {
                 "it restores the previous wsl.exe integration. Has no effect outside WSL."
         }
 
+    private val windowsInjectionMethodLabel = JBLabel("Windows injection method:")
+    private val windowsInjectionMethod = ComboBox(WindowsInjectionMethod.values()).apply {
+        toolTipText = "how mirrord injects its layer into Windows processes (sets MIRRORD_INJECTION_METHOD, " +
+            "unless the run configuration or system environment already sets it)"
+    }
+
     private val autoUpdatePanel = FormBuilder
         .createFormBuilder()
         .addComponent(autoUpdate)
@@ -93,6 +100,7 @@ class MirrordSettingsComponent {
         .addComponent(troubleshootingLogsEnabled)
         .addLabeledComponent(troubleshootingLogsPathLabel, troubleshootingLogsPath)
         .addComponent(useLegacyWsl)
+        .addLabeledComponent(windowsInjectionMethodLabel, windowsInjectionMethod)
         .addSeparator()
         .addComponent(JBLabel("Notify when:"))
         .apply {
@@ -177,5 +185,11 @@ class MirrordSettingsComponent {
         get() = useLegacyWsl.isSelected
         set(value) {
             useLegacyWsl.isSelected = value
+        }
+
+    var windowsInjectionMethodStatus: WindowsInjectionMethod
+        get() = windowsInjectionMethod.item ?: WindowsInjectionMethod.LOAD_LIBRARY
+        set(value) {
+            windowsInjectionMethod.item = value
         }
 }
