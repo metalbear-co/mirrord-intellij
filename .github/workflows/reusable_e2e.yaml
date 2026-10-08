@@ -112,10 +112,25 @@ jobs:
           MIRRORD_AGENT_IMAGE: "test"
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          sudo apt-get install -y xvfb x11-xserver-utils x11-utils ffmpeg
           /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
-          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
-          wait -n
+          tests=$!
+          # ffmpeg fails at once on a display Xvfb has not opened yet, which ended this step
+          # before any test ran. If the tests end first, their result is the step's.
+          waited=0
+          until xdpyinfo -display :99 >/dev/null 2>&1; do
+            kill -0 "$tests" 2>/dev/null || { wait "$tests"; exit; }
+            if (( ++waited > 60 )); then
+              echo "::error::Xvfb did not open display :99 within 60s"
+              exit 1
+            fi
+            sleep 1
+          done
+          # The recording only helps debugging, so its failure does not fail the job. It ends
+          # when Xvfb exits after the tests.
+          ffmpeg -loglevel error -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm \
+            || echo "::warning::screen recording stopped with exit code $?"
+          wait "$tests"
 
       - name: Run intellij e2e in headless state
         if: ${{ !inputs.mirrord_release_branch }}
@@ -124,10 +139,25 @@ jobs:
           KUBE_SERVICE: ${{ env.KUBE_SERVICE }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-xserver-utils ffmpeg
+          sudo apt-get install -y xvfb x11-xserver-utils x11-utils ffmpeg
           /usr/bin/xvfb-run -s ":99 -auth /tmp/xvfb.auth -ac -screen 0 1920x1080x24" ./gradlew test &
-          ffmpeg -loglevel panic -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm
-          wait -n
+          tests=$!
+          # ffmpeg fails at once on a display Xvfb has not opened yet, which ended this step
+          # before any test ran. If the tests end first, their result is the step's.
+          waited=0
+          until xdpyinfo -display :99 >/dev/null 2>&1; do
+            kill -0 "$tests" 2>/dev/null || { wait "$tests"; exit; }
+            if (( ++waited > 60 )); then
+              echo "::error::Xvfb did not open display :99 within 60s"
+              exit 1
+            fi
+            sleep 1
+          done
+          # The recording only helps debugging, so its failure does not fail the job. It ends
+          # when Xvfb exits after the tests.
+          ffmpeg -loglevel error -y -framerate 30 -f x11grab -video_size 1920x1080 -i :99 out.webm \
+            || echo "::warning::screen recording stopped with exit code $?"
+          wait "$tests"
 
       - name: Save the failure video
         continue-on-error: true
