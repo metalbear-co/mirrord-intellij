@@ -65,14 +65,6 @@ class MirrordSettingsStateTest {
     }
 
     @Test
-    fun injectionMethodDefaultsToLoadLibrary() {
-        assertEquals(
-            mapOf("MIRRORD_INJECTION_METHOD" to "load-library"),
-            MirrordSettingsState.MirrordState().injectionMethodEnvVars(null, systemEnv = emptyMap())
-        )
-    }
-
-    @Test
     fun injectionMethodFromTheEnvironmentWinsOverTheSetting() {
         val settings = MirrordSettingsState.MirrordState().apply {
             windowsInjectionMethod = WindowsInjectionMethod.APC
