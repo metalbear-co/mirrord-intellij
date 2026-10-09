@@ -38,11 +38,10 @@ private const val DOWNLOAD_ENDPOINT = "https://github.com/metalbear-co/mirrord/r
 
 /**
  * Minimum mirrord binary version required for Windows-native execution
- * (pitm + attach). Set to the first release with the hardened Windows Java
- * Debug runtime (https://github.com/metalbear-co/mirrord/pull/4661) that
- * Gradle Run and Debug rely on.
+ * (pitm + attach). Set to the first release that reads the injection method
+ * from `MIRRORD_INJECTION_METHOD` (https://github.com/metalbear-co/mirrord/pull/4910).
  */
-private const val MIN_WINDOWS_NATIVE_VERSION = "3.245.0"
+private const val MIN_WINDOWS_NATIVE_VERSION = "3.271.0"
 
 /** How long to wait for a short probe such as `mirrord --version` or `which mirrord`. */
 private const val PROBE_TIMEOUT_MILLIS = 5000L
@@ -397,12 +396,20 @@ class MirrordBinaryManager {
      * If still insufficient, surfaces a rich error — Windows-native run/debug will
      * fail until the binary is upgraded; WSL configurations are unaffected.
      *
-     * Skips entirely on non-Windows hosts. On non-x64 Windows, surfaces the
-     * architecture-specific error early (same interest-gauge message as
-     * [updateBinary]) and returns.
+     * Skips entirely on non-Windows hosts, and for projects whose target is not
+     * Windows-native (WSL, dev containers), the same gate [enforceWindowsNativeMin]
+     * applies per run. On non-x64 Windows, surfaces the architecture-specific error
+     * early (same interest-gauge message as [updateBinary]) and returns.
      */
     fun checkWindowsNativeSupport(project: Project, indicator: ProgressIndicator) {
         if (!SystemInfo.isWindows) return
+
+        // Resolve against the project's environment rather than assuming the host, and
+        // honour a custom binary path the way `getBinary` does — otherwise a user who pointed
+        // the plugin at their own build is still told it is unsupported, and can even be
+        // force-fed a download of the managed one.
+        val environment = MirrordEnvironments.forProject(project)
+        if (!environment.platform().isWinNative) return
 
         if (!CpuArch.isIntel64()) {
             MirrordWindowsUnsupportedDialog.showArchUnsupportedOnce(CpuArch.CURRENT.name)
@@ -419,12 +426,6 @@ class MirrordBinaryManager {
             )
             return
         }
-
-        // Resolve against the project's environment rather than assuming the host, and
-        // honour a custom binary path the way `getBinary` does — otherwise a user who pointed
-        // the plugin at their own build is still told it is unsupported, and can even be
-        // force-fed a download of the managed one.
-        val environment = MirrordEnvironments.forProject(project)
 
         fun resolveLocal(): MirrordBinary? = try {
             val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()

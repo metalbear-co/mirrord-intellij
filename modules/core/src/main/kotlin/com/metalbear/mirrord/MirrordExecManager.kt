@@ -272,6 +272,13 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                     }
             }
         )
+        // Reaches `mirrord pitm` through the MIRRORD_CHILD_ENV payload, and the target's own
+        // environment, from which the layer injects the target's child processes.
+        if (environment.platform().isWinNative) {
+            executionInfo.environment.putAll(
+                MirrordSettingsState.instance.mirrordState.injectionMethodEnvVars(projectEnvVars)
+            )
+        }
         return executionInfo
     }
 
@@ -291,7 +298,9 @@ class MirrordExecManager(private val service: MirrordProjectService) {
             "MirrordExecManager.attach: ENTER pid=$pid cliPath=$cliPath projectEnvVars=${projectEnvVars.size}"
         )
         val started = System.currentTimeMillis()
-        val mirrordApi = service.mirrordApi(projectEnvVars)
+        val mirrordApi = service.mirrordApi(
+            projectEnvVars + MirrordSettingsState.instance.mirrordState.injectionMethodEnvVars(projectEnvVars)
+        )
         try {
             val result = mirrordApi.attach(cliPath, pid, environment)
             MirrordLogger.logger.info(

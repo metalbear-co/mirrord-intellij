@@ -25,7 +25,8 @@ class MirrordSettingsConfigurable : Configurable {
                 (taskTimeoutMinutesStatus != settings.taskTimeoutMinutes) ||
                 (troubleshootingLogsEnabledStatus != settings.troubleshootingLogsEnabled) ||
                 (troubleshootingLogsPathStatus != settings.troubleshootingLogsPath) ||
-                (useLegacyWslStatus != settings.useLegacyWsl)
+                (useLegacyWslStatus != settings.useLegacyWsl) ||
+                (windowsInjectionMethodStatus != settings.windowsInjectionMethod)
         }
     }
 
@@ -43,6 +44,7 @@ class MirrordSettingsConfigurable : Configurable {
             settings.troubleshootingLogsEnabled = troubleshootingLogsEnabledStatus
             settings.troubleshootingLogsPath = troubleshootingLogsPathStatus
             settings.useLegacyWsl = useLegacyWslStatus
+            settings.windowsInjectionMethod = windowsInjectionMethodStatus
         }
     }
 
@@ -60,6 +62,7 @@ class MirrordSettingsConfigurable : Configurable {
             troubleshootingLogsEnabledStatus = settings.troubleshootingLogsEnabled
             troubleshootingLogsPathStatus = settings.troubleshootingLogsPath
             useLegacyWslStatus = settings.useLegacyWsl
+            windowsInjectionMethodStatus = settings.windowsInjectionMethod
         }
     }
 
