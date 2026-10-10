@@ -23,7 +23,7 @@ plugins {
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
-val remoteRobotVersion = "0.11.19"
+val remoteRobotVersion = "0.11.24.507"
 val platformType = System.getenv("PLATFORMTYPE") ?: "IU"
 
 repositories {
