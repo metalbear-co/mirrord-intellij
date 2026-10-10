@@ -1,0 +1,68 @@
+name: CI Failure Alerts
+
+on:
+  workflow_run:
+    workflows: ["CI", "PluginVerifier"]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  notify-failure:
+    # Keep development runs out of #ci-alerts; only main integration and scheduled compatibility failures belong here.
+    if: >-
+      ${{ (github.event.workflow_run.conclusion == 'failure' ||
+           github.event.workflow_run.conclusion == 'timed_out') &&
+          github.event.workflow_run.head_branch == 'main' &&
+          ((github.event.workflow_run.name == 'CI' &&
+            github.event.workflow_run.event == 'push') ||
+           (github.event.workflow_run.name == 'PluginVerifier' &&
+            github.event.workflow_run.event == 'schedule')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Send Slack notification
+        env:
+          SLACK_CI_ALERTS_WEBHOOK_URL: ${{ secrets.SLACK_CI_ALERTS_WEBHOOK_URL }}
+          ALERT_REPOSITORY: ${{ github.repository }}
+          ALERT_WORKFLOW: ${{ github.event.workflow_run.name }}
+          ALERT_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          ALERT_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          ALERT_SHA: ${{ github.event.workflow_run.head_sha }}
+          ALERT_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          ALERT_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "$SLACK_CI_ALERTS_WEBHOOK_URL" ]; then
+            echo "::error::SLACK_CI_ALERTS_WEBHOOK_URL is not set; cannot notify #ci-alerts."
+            exit 1
+          fi
+
+          payload=$(jq --null-input \
+            --arg repository "$ALERT_REPOSITORY" \
+            --arg workflow "$ALERT_WORKFLOW" \
+            --arg conclusion "$ALERT_CONCLUSION" \
+            --arg branch "$ALERT_BRANCH" \
+            --arg sha "$ALERT_SHA" \
+            --arg run_url "$ALERT_RUN_URL" \
+            --arg attempt "$ALERT_RUN_ATTEMPT" '
+              def slack: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+              {text: ":rotating_light: *CI failure for `\($repository | slack)`*\n• *Workflow:* `\($workflow | slack)`\n• *Conclusion:* `\($conclusion | slack)`\n• *Branch:* `\($branch | slack)`\n• *Commit:* `\($sha | slack)`\n• *Attempt:* `\($attempt | slack)`\n• *Run:* <\($run_url | slack)|Open GitHub Actions>"}
+            ')
+
+          curl_exit=0
+          http_status=$(curl --fail --silent --output /dev/null \
+            --write-out '%{http_code}' \
+            --connect-timeout 10 --max-time 30 \
+            --request POST \
+            --header 'Content-type: application/json' \
+            --data "$payload" \
+            "$SLACK_CI_ALERTS_WEBHOOK_URL") || curl_exit=$?
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error::Slack notification failed (HTTP status ${http_status:-000}; curl exit $curl_exit)."
+            exit 1
+          fi
