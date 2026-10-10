@@ -53,12 +53,16 @@ jobs:
               {text: ":rotating_light: *CI failure for `\($repository | slack)`*\n• *Workflow:* `\($workflow | slack)`\n• *Conclusion:* `\($conclusion | slack)`\n• *Branch:* `\($branch | slack)`\n• *Commit:* `\($sha | slack)`\n• *Attempt:* `\($attempt | slack)`\n• *Run:* <\($run_url | slack)|Open GitHub Actions>"}
             ')
 
-          if ! curl --fail --silent --output /dev/null \
+          curl_exit=0
+          http_status=$(curl --fail --silent --output /dev/null \
+            --write-out '%{http_code}' \
             --connect-timeout 10 --max-time 30 \
             --request POST \
             --header 'Content-type: application/json' \
             --data "$payload" \
-            "$SLACK_CI_ALERTS_WEBHOOK_URL"; then
-            echo "::error::Slack notification failed (HTTP rejection or transport error)."
+            "$SLACK_CI_ALERTS_WEBHOOK_URL") || curl_exit=$?
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error::Slack notification failed (HTTP status ${http_status:-000}; curl exit $curl_exit)."
             exit 1
           fi
