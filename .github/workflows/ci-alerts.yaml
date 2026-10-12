@@ -2,7 +2,7 @@ name: CI Failure Alerts
 
 on:
   workflow_run:
-    workflows: ["CI", "PluginVerifier"]
+    workflows: ["CI", "PluginVerifier", "Scheduled Release"]
     types: [completed]
     branches: [main]
 
@@ -10,13 +10,15 @@ permissions: {}
 
 jobs:
   notify-failure:
-    # Keep development runs out of #ci-alerts; only main integration and scheduled compatibility failures belong here.
+    # Keep development runs out of #ci-alerts; only main CI pushes and scheduled compatibility/release failures belong here.
     if: >-
       ${{ (github.event.workflow_run.conclusion == 'failure' ||
            github.event.workflow_run.conclusion == 'timed_out') &&
           ((github.event.workflow_run.name == 'CI' &&
             github.event.workflow_run.event == 'push') ||
            (github.event.workflow_run.name == 'PluginVerifier' &&
+            github.event.workflow_run.event == 'schedule') ||
+           (github.event.workflow_run.name == 'Scheduled Release' &&
             github.event.workflow_run.event == 'schedule')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
