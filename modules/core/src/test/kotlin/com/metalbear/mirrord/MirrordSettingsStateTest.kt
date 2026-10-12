@@ -63,4 +63,35 @@ class MirrordSettingsStateTest {
             settings.troubleshootingLayerEnvVars { "" }
         )
     }
+
+    @Test
+    fun injectionMethodFromTheEnvironmentWinsOverTheSetting() {
+        val settings = MirrordSettingsState.MirrordState().apply {
+            windowsInjectionMethod = WindowsInjectionMethod.APC
+        }
+
+        assertEquals(
+            mapOf("MIRRORD_INJECTION_METHOD" to "apc"),
+            settings.injectionMethodEnvVars(mapOf("PATH" to "C:/Windows"), systemEnv = emptyMap())
+        )
+        assertTrue(
+            settings.injectionMethodEnvVars(
+                mapOf("Mirrord_Injection_Method" to "load-library"),
+                systemEnv = emptyMap()
+            ).isEmpty()
+        )
+    }
+
+    /** Products pass only the run configuration's variables, so a system-only value must still win. */
+    @Test
+    fun injectionMethodFromTheSystemEnvironmentWinsOverTheSetting() {
+        val settings = MirrordSettingsState.MirrordState()
+
+        assertTrue(
+            settings.injectionMethodEnvVars(
+                mapOf("PATH" to "C:/Windows"),
+                systemEnv = mapOf("MIRRORD_INJECTION_METHOD" to "apc")
+            ).isEmpty()
+        )
+    }
 }
