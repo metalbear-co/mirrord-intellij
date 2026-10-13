@@ -32,6 +32,11 @@ class MirrordSettingsConfigurable : Configurable {
 
     override fun apply() {
         val settings = MirrordSettingsState.instance.mirrordState
+        val binaryChanged = mySettingsComponent.run {
+            (autoUpdateEnabledStatus != settings.autoUpdate) ||
+                (mirrordVersionStatus != settings.mirrordVersion) ||
+                (mirrordBinaryPathStatus != settings.mirrordBinaryPath)
+        }
         mySettingsComponent.run {
             settings.versionCheckEnabled = versionCheckEnabledStatus
             settings.disabledNotifications = notificationsDisabledStatus
@@ -45,6 +50,9 @@ class MirrordSettingsConfigurable : Configurable {
             settings.troubleshootingLogsPath = troubleshootingLogsPathStatus
             settings.useLegacyWsl = useLegacyWslStatus
             settings.windowsInjectionMethod = windowsInjectionMethodStatus
+        }
+        if (binaryChanged) {
+            MirrordBinaryListener.publish()
         }
     }
 
