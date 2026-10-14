@@ -109,10 +109,10 @@ class MirrordSchemaFileProviderTest : BasePlatformTestCase() {
         }
 
     /** Waits until the IDE uses a schema for [file] whose text contains [text]. */
-    private fun waitForSchemaWith(file: VirtualFile, text: String) {
+    private fun waitForSchemaWith(file: VirtualFile, text: String, timeoutSeconds: Int = 30) {
         PlatformTestUtil.waitWithEventsDispatching("the IDE did not get the schema from the binary", {
             schemaFilesFor(file).any { VfsUtilCore.loadText(it).contains(text) }
-        }, 30)
+        }, timeoutSeconds)
     }
 
     /** Starts the first load of the schema, and waits until it ends. */
@@ -250,6 +250,35 @@ class MirrordSchemaFileProviderTest : BasePlatformTestCase() {
 
         // A download of the missing version would fail, and show a notification.
         assertEmpty(notifications)
+    }
+
+    fun testSchemaLoadingRecoversAfterTheBinaryCannotStart() {
+        if (SystemInfo.isWindows) return
+        val recovered = fakeBinary(schemaAllowing("after_retry"))
+        val binary = fakeBinary("{}").apply {
+            writeText(
+                """
+                |#!/bin/sh
+                |if [ "${'$'}1" = "--version" ]; then
+                |  echo "mirrord 3.272.0"
+                |  printf '#!/missing-mirrord-interpreter\n' > "${'$'}0"
+                |fi
+                |
+                """.trimMargin()
+            )
+        }
+        settings.mirrordBinaryPath = binary.path
+        val config = myFixture.configureByText("mirrord.json", "{}")
+        val schema = project.service<MirrordConfigSchema>()
+        schema.markNeeded()
+        PlatformTestUtil.waitWithEventsDispatching("the schema probe did not fail", {
+            schema.source == MirrordConfigSchemaSource.Failed
+        }, 30)
+
+        // Restore the executable without sending a binary-change event.
+        binary.writeText(recovered.readText())
+
+        waitForSchemaWith(config.virtualFile, "after_retry", timeoutSeconds = 5)
     }
 
     fun testLoadingTheSchemaDoesNotWarnAboutTheCustomBinaryPath() {

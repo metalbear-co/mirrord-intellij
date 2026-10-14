@@ -44,21 +44,21 @@ class MirrordConfigSchemaTest {
     }
 
     @Test
-    fun `a binary that cannot run gives no schema`() {
+    fun `a binary that cannot run gives a retryable failure`() {
         val environment = FakeMirrordEnvironment().apply {
             probeAnswer = { throw IOException("Cannot run program \"/usr/bin/mirrord\": error=13, Permission denied") }
         }
 
-        assertSame(MirrordConfigSchemaSource.None, configSchemaOf(binary, environment))
+        assertSame(MirrordConfigSchemaSource.Failed, configSchemaOf(binary, environment))
     }
 
     @Test
-    fun `a binary that does not finish in time gives no schema`() {
+    fun `a binary that does not finish in time gives a retryable failure`() {
         // Some environments report the timeout in the output, and do not throw.
         val environment = FakeMirrordEnvironment().apply {
             probeAnswer = { ProcessOutput().apply { setTimeout() } }
         }
 
-        assertSame(MirrordConfigSchemaSource.None, configSchemaOf(binary, environment))
+        assertSame(MirrordConfigSchemaSource.Failed, configSchemaOf(binary, environment))
     }
 }

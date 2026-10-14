@@ -17,10 +17,13 @@ import com.metalbear.mirrord.bifrost.MirrordEnvironments
 import com.metalbear.mirrord.bifrost.TargetPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -33,6 +36,8 @@ internal const val GITHUB_CONFIG_SCHEMA_URL = "https://raw.githubusercontent.com
 
 /** How long to wait for `mirrord print-schema`. */
 private const val PRINT_SCHEMA_TIMEOUT_MILLIS = 10_000L
+private const val SCHEMA_RETRY_DELAY_MILLIS = 1_000L
+private const val MAX_SCHEMA_RETRIES = 2
 
 /** Where the schema of the mirrord config file comes from. */
 internal sealed interface MirrordConfigSchemaSource {
@@ -47,9 +52,12 @@ internal sealed interface MirrordConfigSchemaSource {
 
     /**
      * There is no schema. This is the case before the first load, when there is no mirrord binary,
-     * when the binary could not run, and while the plugin waits to learn the latest mirrord version.
+     * and while the plugin waits to learn the latest mirrord version.
      */
     data object None : MirrordConfigSchemaSource
+
+    /** The binary could not print its schema because execution failed or timed out. */
+    data object Failed : MirrordConfigSchemaSource
 }
 
 /**
@@ -57,7 +65,7 @@ internal sealed interface MirrordConfigSchemaSource {
  *
  * Binaries older than 3.257.0 do not have the `print-schema` command, so it fails. For them, this
  * returns [MirrordConfigSchemaSource.GitHub]. When the binary cannot run, for example when it does
- * not finish in time, this returns [MirrordConfigSchemaSource.None].
+ * not finish in time, this returns [MirrordConfigSchemaSource.Failed] so the service can retry.
  */
 internal fun configSchemaOf(binary: TargetPath, environment: MirrordEnvironment): MirrordConfigSchemaSource {
     val output = try {
@@ -66,13 +74,13 @@ internal fun configSchemaOf(binary: TargetPath, environment: MirrordEnvironment)
         throw e
     } catch (e: Exception) {
         MirrordLogger.logger.warn("mirrord config schema: `$binary print-schema` did not run, so there is no schema", e)
-        return MirrordConfigSchemaSource.None
+        return MirrordConfigSchemaSource.Failed
     }
 
     // Some environments report a timeout in the output, and do not throw.
     if (output.isTimeout || output.isCancelled) {
         MirrordLogger.logger.warn("mirrord config schema: `$binary print-schema` did not finish, so there is no schema")
-        return MirrordConfigSchemaSource.None
+        return MirrordConfigSchemaSource.Failed
     }
 
     val stdout = output.stdout
@@ -101,6 +109,7 @@ internal fun configSchemaOf(binary: TargetPath, environment: MirrordEnvironment)
  * appears when the binary appears, for example when its download ends.
  */
 @Service(Service.Level.PROJECT)
+@OptIn(ExperimentalCoroutinesApi::class)
 class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
     /** The source of the schema that the IDE uses now. */
     @Volatile
@@ -151,23 +160,41 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
         )
 
         scope.launch(Dispatchers.IO) {
-            for (request in loadRequests) {
+            var request = loadRequests.receive()
+            var retries = 0
+            while (true) {
                 val loaded = findSource()
                 // A project can close while the blocking lookup runs.
                 currentCoroutineContext().ensureActive()
 
                 // Keep the old file when the text is equal, so the IDE does not parse it again.
                 val changed = loaded != source
-                val refresh = synchronized(loadRequests) {
+                val current = synchronized(loadRequests) {
                     // Finish each lookup, but discard its result if a newer request arrived.
                     if (request != latestRequest) return@synchronized false
 
                     if (changed) source = loaded
                     isLoaded = true
-                    changed
+                    true
                 }
-                if (refresh) {
+                if (current && changed) {
                     JsonSchemaService.Impl.get(project).reset()
+                }
+
+                // A newer request replaces a delayed retry immediately.
+                val next = if (current && loaded == MirrordConfigSchemaSource.Failed && retries < MAX_SCHEMA_RETRIES) {
+                    select<Long?> {
+                        loadRequests.onReceive { it }
+                        onTimeout(SCHEMA_RETRY_DELAY_MILLIS * (retries + 1)) { null }
+                    }
+                } else {
+                    loadRequests.receive()
+                }
+                if (next == null) {
+                    retries += 1
+                } else {
+                    request = next
+                    retries = 0
                 }
             }
         }
@@ -185,7 +212,7 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
     internal fun schemaFile(): VirtualFile = when (val current = source) {
         is MirrordConfigSchemaSource.Binary -> current.file
         MirrordConfigSchemaSource.GitHub -> JsonFileResolver.urlToFile(GITHUB_CONFIG_SCHEMA_URL) ?: placeholder
-        MirrordConfigSchemaSource.None -> placeholder
+        MirrordConfigSchemaSource.None, MirrordConfigSchemaSource.Failed -> placeholder
     }
 
     /**
