@@ -176,10 +176,11 @@ class MirrordBinaryManager {
         indicator: ProgressIndicator
     ) {
         val latestBefore = latestSupportedVersion
+        var downloaded = false
         try {
-            updateIfNeeded(project, product, environment, checkInPath, indicator)
+            updateIfNeeded(project, product, environment, checkInPath, indicator) { downloaded = true }
         } finally {
-            if (latestSupportedVersion != latestBefore) {
+            if (downloaded || latestSupportedVersion != latestBefore) {
                 MirrordBinaryListener.publish()
             }
         }
@@ -195,7 +196,8 @@ class MirrordBinaryManager {
         product: String?,
         environment: MirrordEnvironment,
         checkInPath: Boolean,
-        indicator: ProgressIndicator
+        indicator: ProgressIndicator,
+        onDownload: () -> Unit
     ) {
         indicator.isIndeterminate = false
 
@@ -246,6 +248,7 @@ class MirrordBinaryManager {
 
         try {
             updateBinary(indicator, environment.platform())
+            onDownload()
             val downloaded = downloadVersion
             if (downloaded != null) {
                 project
@@ -350,8 +353,6 @@ class MirrordBinaryManager {
         // Set the bit on the file we are about to move, not on the one it replaces.
         tmpDestination.toFile().setExecutable(true)
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
-
-        MirrordBinaryListener.publish()
     }
 
     /** See [advertiseLargeBinary]. A released mirrord is comfortably below this. */
@@ -535,6 +536,7 @@ class MirrordBinaryManager {
             latestSupportedVersion = latest
             downloadVersion = latest
             updateBinary(indicator, environment.platform())
+            MirrordBinaryListener.publish()
         } catch (e: Exception) {
             MirrordLogger.logger.warn("checkWindowsNativeSupport: auto-update failed: ${e.message}", e)
         } finally {
