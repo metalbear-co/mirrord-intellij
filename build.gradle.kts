@@ -1,3 +1,4 @@
+import org.gradle.jvm.tasks.Jar
 import org.gradle.process.ProcessForkOptions
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
@@ -263,4 +264,16 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         allWarningsAsErrors.set(true)
     }
+}
+
+tasks.named<KotlinCompile>("compileTestKotlin") {
+    // The IDE tests also check the core module's internal interfaces.
+    compilerOptions.freeCompilerArgs.add(
+        providers.provider {
+            val coreJars = listOf("jar", "instrumentedJar", "composedJar").map { name ->
+                project(":mirrord-core").tasks.named<Jar>(name).get().archiveFile.get().asFile.absolutePath
+            }
+            "-Xfriend-paths=${coreJars.joinToString(",")}"
+        }
+    )
 }

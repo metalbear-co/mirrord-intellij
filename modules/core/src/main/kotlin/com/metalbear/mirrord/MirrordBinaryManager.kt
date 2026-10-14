@@ -634,9 +634,9 @@ class MirrordBinaryManager {
      */
     internal fun findBinary(environment: MirrordEnvironment): MirrordBinarySelection {
         val customPath = customBinaryPath()
-        val isSettled = customPath != null ||
-            !MirrordSettingsState.instance.mirrordState.autoUpdate || latestSupportedVersion != null
         val custom = customPath?.let { validateCustomBinary(it, environment, onLargeCopy = {}, onInvalid = {}) }
+        val isSettled = custom != null ||
+            !MirrordSettingsState.instance.mirrordState.autoUpdate || latestSupportedVersion != null
         val binary = custom ?: getLocalBinary(wantedVersion(), environment)
         return MirrordBinarySelection(binary?.command, isSettled)
     }
