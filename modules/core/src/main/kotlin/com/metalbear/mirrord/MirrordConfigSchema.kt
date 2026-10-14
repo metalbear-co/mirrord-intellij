@@ -104,6 +104,10 @@ internal fun configSchemaOf(binary: TargetPath, environment: MirrordEnvironment)
  * background: first when a mirrord config file needs the schema, and again each time that the
  * binary may have changed ([MirrordBinaryListener]).
  *
+ * While automatic updates check the latest version, an installed binary can still supply its
+ * schema. This keeps validation working if the version check fails. GitHub fallback waits until
+ * the binary selection is settled.
+ *
  * When there is no binary, there is no schema. The plugin does not fetch the schema from GitHub
  * in this case, because some security tools block or warn about requests to GitHub. The schema
  * appears when the binary appears, for example when its download ends.
