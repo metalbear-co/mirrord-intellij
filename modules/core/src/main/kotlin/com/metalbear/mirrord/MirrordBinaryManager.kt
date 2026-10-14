@@ -2,6 +2,7 @@ package com.metalbear.mirrord
 
 import com.github.zafarkhaja.semver.Version
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.EmptyProgressIndicator
@@ -12,6 +13,7 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.util.SystemInfo
+import com.intellij.util.messages.Topic
 import com.intellij.util.system.CpuArch
 import com.metalbear.mirrord.bifrost.HostPath
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
@@ -70,6 +72,26 @@ internal fun mirrordDownloadUrl(version: String, platform: MirrordTargetPlatform
         MirrordTargetArch.X86_64 -> "$DOWNLOAD_ENDPOINT/$version/mirrord_linux_x86_64"
     }
 }
+
+/**
+ * Tells when the mirrord binary that the plugin uses may have changed, for example after a
+ * download, or after a change to the binary settings.
+ */
+fun interface MirrordBinaryListener {
+    fun binaryChanged()
+
+    companion object {
+        @Topic.AppLevel
+        val TOPIC = Topic.create("mirrord binary changed", MirrordBinaryListener::class.java)
+
+        fun publish() {
+            ApplicationManager.getApplication().messageBus.syncPublisher(TOPIC).binaryChanged()
+        }
+    }
+}
+
+/** A binary found without an update, and whether runs are expected to keep using it. */
+internal data class MirrordBinarySelection(val command: TargetPath?, val isSettled: Boolean)
 
 /**
  * For dynamically fetching and storing mirrord binary.
@@ -141,11 +163,34 @@ class MirrordBinaryManager {
     }
 
     /**
+     * Runs [updateIfNeeded], and tells the listeners when the latest version changed.
+     *
+     * [findBinary] looks for the latest version, so the binary that it finds can change. The event
+     * comes after the download, so that the new binary is already there.
+     */
+    private fun runUpdate(
+        project: Project,
+        product: String?,
+        environment: MirrordEnvironment,
+        checkInPath: Boolean,
+        indicator: ProgressIndicator
+    ) {
+        val latestBefore = latestSupportedVersion
+        try {
+            updateIfNeeded(project, product, environment, checkInPath, indicator)
+        } finally {
+            if (latestSupportedVersion != latestBefore) {
+                MirrordBinaryListener.publish()
+            }
+        }
+    }
+
+    /**
      * Downloads the binary into plugin storage if no local match is available.
      * Fetches [latestSupportedVersion] only when auto-update is on or nothing is installed.
      * Notifications fire from inside, so [UpdateTask] and [getBinary] share the same UX.
      */
-    private fun runUpdate(
+    private fun updateIfNeeded(
         project: Project,
         product: String?,
         environment: MirrordEnvironment,
@@ -305,6 +350,8 @@ class MirrordBinaryManager {
         // Set the bit on the file we are about to move, not on the one it replaces.
         tmpDestination.toFile().setExecutable(true)
         Files.move(tmpDestination, destination, StandardCopyOption.REPLACE_EXISTING)
+
+        MirrordBinaryListener.publish()
     }
 
     /** See [advertiseLargeBinary]. A released mirrord is comfortably below this. */
@@ -428,10 +475,7 @@ class MirrordBinaryManager {
         }
 
         fun resolveLocal(): MirrordBinary? = try {
-            val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
-            customPath.takeIf { it.isNotEmpty() }
-                ?.let { validateCustomBinary(it, environment, project) }
-                ?: getLocalBinary(null, environment)
+            customBinaryForRun(environment, project) ?: getLocalBinary(null, environment)
         } catch (e: Exception) {
             MirrordLogger.logger.debug("checkWindowsNativeSupport: local lookup failed", e)
             null
@@ -558,26 +602,15 @@ class MirrordBinaryManager {
      * @return the path to the binary
      */
     fun getBinary(product: String, environment: MirrordEnvironment, project: Project): TargetPath {
-        val customPath = MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim()
-        if (customPath.isNotEmpty()) {
-            validateCustomBinary(customPath, environment, project)?.let {
-                enforceWindowsNativeMin(it, environment.platform())
-                return it.command
-            }
+        customBinaryForRun(environment, project)?.let {
+            enforceWindowsNativeMin(it, environment.platform())
+            return it.command
         }
 
         val indicator = ProgressManager.getInstance().progressIndicator ?: EmptyProgressIndicator()
         runUpdate(project, product, environment, true, indicator)
 
-        val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
-        val userVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
-        val wantedVersion = when {
-            autoUpdate -> latestSupportedVersion
-            userVersion.isNotEmpty() -> userVersion
-            else -> null
-        }
-
-        getLocalBinary(wantedVersion, environment)?.let {
+        getLocalBinary(wantedVersion(), environment)?.let {
             enforceWindowsNativeMin(it, environment.platform())
             return it.command
         }
@@ -586,6 +619,68 @@ class MirrordBinaryManager {
             "no local installation of mirrord binary was found",
             "mirrord binary will be downloaded in the background"
         )
+    }
+
+    /**
+     * Finds the mirrord binary that [getBinary] would use, but does not update it first.
+     *
+     * So this sends no requests, downloads nothing and shows no notifications. It can still copy
+     * the binary into the target, for example into a dev container. It does not check the minimum
+     * version for Windows-native runs, because that check is only for runs.
+     *
+     * The selection is not settled while auto-update waits to learn the latest version. In that
+     * case, the binary can be any installed version, rather than the version that runs will use.
+     * The command is null when there is no binary yet.
+     */
+    internal fun findBinary(environment: MirrordEnvironment): MirrordBinarySelection {
+        val customPath = customBinaryPath()
+        val isSettled = customPath != null ||
+            !MirrordSettingsState.instance.mirrordState.autoUpdate || latestSupportedVersion != null
+        val custom = customPath?.let { validateCustomBinary(it, environment, onLargeCopy = {}, onInvalid = {}) }
+        val binary = custom ?: getLocalBinary(wantedVersion(), environment)
+        return MirrordBinarySelection(binary?.command, isSettled)
+    }
+
+    /** The custom binary path in the settings, or null when it is not set. */
+    private fun customBinaryPath(): String? =
+        MirrordSettingsState.instance.mirrordState.mirrordBinaryPath.trim().ifEmpty { null }
+
+    /**
+     * The binary at the custom path in the settings, for a run, or null when the path is not set
+     * or the binary there does not work. Warns the user when the binary does not work, or when it
+     * is large to copy into the target.
+     */
+    private fun customBinaryForRun(environment: MirrordEnvironment, project: Project): MirrordBinary? {
+        val path = customBinaryPath() ?: return null
+        return validateCustomBinary(
+            path,
+            environment,
+            onLargeCopy = { bytes -> advertiseLargeBinary(bytes, environment, project) },
+            onInvalid = { message ->
+                project
+                    .service<MirrordProjectService>()
+                    .notifier
+                    .notification(message, NotificationType.WARNING)
+                    .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
+                    .fire()
+            }
+        )
+    }
+
+    /**
+     * The version of the binary that the settings ask for, or null when any version will do.
+     *
+     * With auto-update, this is the latest version. It is also null while the plugin does not know
+     * the latest version yet.
+     */
+    private fun wantedVersion(): String? {
+        val autoUpdate = MirrordSettingsState.instance.mirrordState.autoUpdate
+        val userVersion = MirrordSettingsState.instance.mirrordState.mirrordVersion
+        return when {
+            autoUpdate -> latestSupportedVersion
+            userVersion.isNotEmpty() -> userVersion
+            else -> null
+        }
     }
 
     /**
@@ -613,10 +708,15 @@ class MirrordBinaryManager {
             .fire()
     }
 
+    /**
+     * @param onLargeCopy called with the size of the binary, when it is copied into the target
+     * @param onInvalid called with the reason, when the binary does not work
+     */
     private fun validateCustomBinary(
         path: String,
         environment: MirrordEnvironment,
-        project: Project
+        onLargeCopy: (Long) -> Unit,
+        onInvalid: (message: String) -> Unit
     ): MirrordBinary? {
         // On-device first, remote second. The setting is filled in with a file chooser on the
         // user's own machine, so a host path is the normal case.
@@ -626,12 +726,7 @@ class MirrordBinaryManager {
         val hostFile = runCatching { HostPath.of(path) }.getOrNull()
         if (hostFile != null && runCatching { Files.isRegularFile(hostFile.path) }.getOrDefault(false)) {
             runCatching {
-                MirrordBinary(
-                    environment.provide(hostFile, "mirrord") { bytes ->
-                        advertiseLargeBinary(bytes, environment, project)
-                    },
-                    environment
-                )
+                MirrordBinary(environment.provide(hostFile, "mirrord", onLargeCopy), environment)
             }
                 .onFailure {
                     hostFailure = it.message
@@ -649,17 +744,11 @@ class MirrordBinaryManager {
             .getOrNull()
             ?.let { return it }
 
-        project
-            .service<MirrordProjectService>()
-            .notifier
-            .notification(
-                hostFailure
-                    ?.let { "mirrord binary at $path does not run in ${environment.name}: $it" }
-                    ?: "custom mirrord binary path is invalid: $path",
-                NotificationType.WARNING
-            )
-            .withDontShowAgain(MirrordSettingsState.NotificationId.MIRRORD_BINARY_PATH_INVALID)
-            .fire()
+        onInvalid(
+            hostFailure
+                ?.let { "mirrord binary at $path does not run in ${environment.name}: $it" }
+                ?: "custom mirrord binary path is invalid: $path"
+        )
         return null
     }
 }
