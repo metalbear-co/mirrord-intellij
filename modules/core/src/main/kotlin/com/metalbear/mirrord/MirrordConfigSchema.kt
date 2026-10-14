@@ -1,5 +1,8 @@
 package com.metalbear.mirrord
 
+import com.intellij.execution.RunManager
+import com.intellij.execution.RunManagerListener
+import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -88,8 +91,8 @@ internal fun configSchemaOf(binary: TargetPath, environment: MirrordEnvironment)
 /**
  * Holds the schema of the mirrord config file for one project.
  *
- * The schema comes from the mirrord binary that the plugin would run for this project, so it
- * matches the version of mirrord that reads the config. The binary is asked for the schema in the
+ * The editor follows the selected run configuration's target. With no selection, it uses the
+ * project's environment. The binary is asked for the schema in the
  * background: first when a mirrord config file needs the schema, and again each time that the
  * binary may have changed ([MirrordBinaryListener]).
  *
@@ -128,6 +131,21 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
             MirrordBinaryListener {
                 if (needed.get()) {
                     requestLoad()
+                }
+            }
+        )
+
+        project.messageBus.connect(scope).subscribe(
+            RunManagerListener.TOPIC,
+            object : RunManagerListener {
+                override fun runConfigurationSelected(settings: RunnerAndConfigurationSettings?) {
+                    if (needed.get()) requestLoad()
+                }
+
+                override fun runConfigurationChanged(settings: RunnerAndConfigurationSettings) {
+                    if (needed.get() && RunManager.getInstance(project).selectedConfiguration == settings) {
+                        requestLoad()
+                    }
                 }
             }
         )
@@ -188,7 +206,12 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
     }
 
     private fun findSource(): MirrordConfigSchemaSource = try {
-        val environment = MirrordEnvironments.forProject(project)
+        val profile = RunManager.getInstance(project).selectedConfiguration?.configuration
+        val environment = if (profile == null) {
+            MirrordEnvironments.forProject(project)
+        } else {
+            MirrordEnvironments.forRunProfile(project, profile)
+        }
         val selection = service<MirrordBinaryManager>().findBinary(environment)
         val binary = selection.command
         val found = if (binary == null) {

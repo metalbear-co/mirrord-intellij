@@ -1,5 +1,8 @@
 package com.metalbear.mirrord
 
+import com.intellij.execution.RunManager
+import com.intellij.execution.application.ApplicationConfigurationType
+import com.intellij.execution.impl.RunManagerImpl
 import com.intellij.notification.Notification
 import com.intellij.notification.Notifications
 import com.intellij.openapi.application.ApplicationManager
@@ -195,6 +198,46 @@ class MirrordSchemaFileProviderTest : BasePlatformTestCase() {
 
         assertFalse("the worker loaded a binary that was already replaced", startedMarker(middleBinary).exists())
         assertTrue("the IDE got the schema of the old binary: $schemas", schemas.none { it.contains("from_old_binary") })
+    }
+
+    fun testSelectingAnotherRunConfigurationReloadsTheSchema() {
+        if (SystemInfo.isWindows) return
+        val manager = RunManager.getInstance(project)
+        val factory = ApplicationConfigurationType.getInstance().configurationFactories.single()
+        val first = manager.createConfiguration("first", factory)
+        val second = manager.createConfiguration("second", factory)
+        manager.addConfiguration(first)
+        manager.addConfiguration(second)
+        manager.selectedConfiguration = first
+        val binary = fakeBinary(schemaAllowing("before_selection"))
+        settings.mirrordBinaryPath = binary.path
+        val config = myFixture.configureByText("mirrord.json", "{}")
+        waitForSchemaWith(config.virtualFile, "before_selection")
+
+        // Changing the selected run target must reload even without a binary-change event.
+        binary.writeText(fakeBinary(schemaAllowing("after_selection")).readText())
+        manager.selectedConfiguration = second
+
+        waitForSchemaWith(config.virtualFile, "after_selection")
+    }
+
+    fun testEditingTheSelectedRunConfigurationReloadsTheSchema() {
+        if (SystemInfo.isWindows) return
+        val manager = RunManager.getInstance(project)
+        val factory = ApplicationConfigurationType.getInstance().configurationFactories.single()
+        val selected = manager.createConfiguration("selected", factory)
+        manager.addConfiguration(selected)
+        manager.selectedConfiguration = selected
+        val binary = fakeBinary(schemaAllowing("before_edit"))
+        settings.mirrordBinaryPath = binary.path
+        val config = myFixture.configureByText("mirrord.json", "{}")
+        waitForSchemaWith(config.virtualFile, "before_edit")
+
+        binary.writeText(fakeBinary(schemaAllowing("after_edit")).readText())
+        selected.name = "edited"
+        (manager as RunManagerImpl).fireRunConfigurationChanged(selected)
+
+        waitForSchemaWith(config.virtualFile, "after_edit")
     }
 
     fun testLoadingTheSchemaDoesNotDownloadTheBinary() {
