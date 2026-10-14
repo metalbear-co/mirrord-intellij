@@ -47,6 +47,8 @@ dependencies {
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
     testImplementation("com.squareup.okhttp3:logging-interceptor:5.4.0")
     testImplementation("junit:junit:4.13.2")
+    // The composed product modules already bring the core module to the tests at runtime.
+    testCompileOnly(project(":mirrord-core"))
 
     intellijPlatform {
         create(platformType, properties("platformVersion"))
@@ -66,6 +68,11 @@ dependencies {
                 .map(String::trim)
                 .filter(String::isNotEmpty)
                 .forEach { bundledPlugin(it) }
+            // `plugin.xml` loads `mirrord-schema.xml`, which registers the schema provider, only
+            // when the JavaScript plugin is there. That plugin needs the CSS plugin, and the Gradle
+            // plugin does not add it.
+            testBundledPlugin("JavaScript")
+            testBundledPlugin("com.intellij.css")
         }
 
         testFramework(TestFrameworkType.Platform)

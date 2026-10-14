@@ -18,6 +18,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -103,6 +104,12 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
     internal var source: MirrordConfigSchemaSource = MirrordConfigSchemaSource.None
         private set
 
+    /** True after the first load ended. */
+    @Volatile
+    @get:TestOnly
+    var isLoaded = false
+        private set
+
     /** True after a mirrord config file needed the schema. Before that, nothing is loaded. */
     private val needed = AtomicBoolean(false)
 
@@ -138,6 +145,7 @@ class MirrordConfigSchema(private val project: Project, scope: CoroutineScope) {
                     if (request != latestRequest) return@synchronized false
 
                     if (changed) source = loaded
+                    isLoaded = true
                     changed
                 }
                 if (refresh) {
