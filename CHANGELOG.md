@@ -8,6 +8,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.83.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.83.0) - 2026-10-08
+
+
+### Security
+
+- Updated Flask, Jinja2, Werkzeug, and Click in the Python E2E fixture to
+  address dependency vulnerabilities.
+
 ## [3.82.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.82.1) - 2026-10-01
 
 
