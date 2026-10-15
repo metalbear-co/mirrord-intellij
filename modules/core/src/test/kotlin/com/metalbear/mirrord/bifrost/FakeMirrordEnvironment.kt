@@ -42,6 +42,11 @@ class FakeMirrordEnvironment(
         throw UnsupportedOperationException("FakeMirrordEnvironment does not start real processes")
     }
 
-    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput =
+    /** What [probe] answers. By default, the output of `mirrord --version`. */
+    var probeAnswer: (args: List<String>) -> ProcessOutput = {
         ProcessOutput(0).apply { appendStdout("mirrord 3.247.0") }
+    }
+
+    override fun probe(executable: TargetPath, args: List<String>, timeoutMillis: Long): ProcessOutput =
+        probeAnswer(args)
 }

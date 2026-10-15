@@ -7,6 +7,6 @@ import com.jetbrains.jsonSchema.extension.JsonSchemaProviderFactory
 
 class MirrordSchemaProviderFactory : JsonSchemaProviderFactory, DumbAware {
     override fun getProviders(project: Project): List<JsonSchemaFileProvider> {
-        return listOf(MirrordSchemaFileProvider())
+        return listOf(MirrordSchemaFileProvider(project))
     }
 }
