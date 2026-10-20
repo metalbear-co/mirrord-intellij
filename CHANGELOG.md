@@ -8,6 +8,31 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [3.83.0](https://github.com/metalbear-co/mirrord-intellij/tree/3.83.0) - 2026-10-20
+
+
+### Security
+
+- Updated Flask, Jinja2, Werkzeug, and Click in the Python E2E fixture to
+  address dependency vulnerabilities.
+
+
+### Added
+
+- Added a Windows injection method setting (LoadLibrary or APC), passed to
+  mirrord as `MIRRORD_INJECTION_METHOD`. Windows-native runs now require
+  mirrord 3.271.0 or later.
+
+
+### Changed
+
+- Changed the mirrord config JSON schema to come from the mirrord binary that
+  the plugin uses. So the schema matches the version of mirrord that reads the
+  config. The plugin fetches the schema from GitHub only when `mirrord
+  print-schema` fails, for example because the binary is older than mirrord
+  3.257.0. When the plugin has no mirrord binary, config files have no schema
+  until the plugin downloads one or you set a binary path.
+
 ## [3.82.1](https://github.com/metalbear-co/mirrord-intellij/tree/3.82.1) - 2026-10-01
 
 
