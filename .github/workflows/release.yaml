@@ -86,12 +86,20 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.source.outputs.sha }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Avoid persisting GITHUB_TOKEN credentials in release jobs.
           persist-credentials: false
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+
+      - name: Record artifact source commit
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Get version
         id: version
@@ -173,6 +181,17 @@ jobs:
           target_commitish: ${{ github.sha }}
           token: ${{ steps.app_token.outputs.token }}
           files: /tmp/release/**
+
+  update-changelog-web-docs:
+    needs: [validate_release_request, release, release_gh]
+    if: needs.validate_release_request.outputs.should_release == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/changelog-update.yaml
+    with:
+      ref: ${{ needs.release.outputs.sha }}
+    secrets:
+      CHANGELOG_PAT: ${{ secrets.CHANGELOG_PAT }}
 
   update_latest:
     runs-on: ubuntu-24.04
