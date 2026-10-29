@@ -24,7 +24,7 @@ plugins {
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
-val remoteRobotVersion = "0.11.19"
+val remoteRobotVersion = "0.11.24.507"
 val platformType = System.getenv("PLATFORMTYPE") ?: "IU"
 
 repositories {
@@ -46,7 +46,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
     // BasePlatformTestCase is JUnit3; the other tests are JUnit5.
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
-    testImplementation("com.squareup.okhttp3:logging-interceptor:5.4.0")
+    testImplementation("com.squareup.okhttp3:logging-interceptor:5.5.1")
     testImplementation("junit:junit:4.13.2")
     // The composed product modules already bring the core module to the tests at runtime.
     testCompileOnly(project(":mirrord-core"))
