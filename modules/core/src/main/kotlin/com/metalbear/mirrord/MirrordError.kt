@@ -6,11 +6,31 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
-open class MirrordError(private val richMessage: String, private val help: String?, override val cause: Throwable?) : ExecutionException(cause) {
+const val MIRRORD_INITIALIZATION_TIMEOUT_ERROR =
+    "mirrord initialization timed out. Check that your Kubernetes cluster and target are reachable, " +
+        "or increase the mirrord task timeout in Settings > Tools > mirrord."
+
+const val MIRRORD_INITIALIZATION_UNKNOWN_ERROR =
+    "mirrord initialization failed, but mirrord did not provide a detailed error. Check the mirrord logs for details."
+
+open class MirrordError(
+    private val richMessage: String,
+    private val help: String?,
+    override val cause: Throwable?,
+    private val alreadyReported: Boolean = false
+) : ExecutionException(cause) {
     override val message: String = "mirrord failed"
 
     companion object {
-        fun fromStdErr(processStdErr: String): MirrordError {
+        fun fromStdErr(
+            processStdErr: String,
+            fallbackMessage: String? = null,
+            alreadyReported: Boolean = false
+        ): MirrordError {
+            if (alreadyReported) {
+                return MirrordError("", null, null, true)
+            }
+
             val info = try {
                 val trimmedError = processStdErr.removePrefix("Error: ")
                 val gson = Gson()
@@ -21,17 +41,33 @@ open class MirrordError(private val richMessage: String, private val help: Strin
                 Pair(processStdErr, null)
             }
 
-            return MirrordError(info.first, info.second, null)
+            return MirrordError(
+                info.first.takeIf { it.isNotBlank() } ?: fallbackMessage.orEmpty(),
+                info.second,
+                null
+            )
         }
+
+        fun timedOut(duringInitialization: Boolean) = MirrordError(
+            if (duringInitialization) MIRRORD_INITIALIZATION_TIMEOUT_ERROR else "mirrord process timed out"
+        )
     }
 
-    constructor(richMessage: String) : this(richMessage, null, null)
+    constructor(richMessage: String) : this(richMessage, null, null, false)
 
-    constructor(richMessage: String, help: String) : this(richMessage, help, null)
+    constructor(richMessage: String, help: String) : this(richMessage, help, null, false)
 
-    constructor(richMessage: String, cause: Throwable) : this(richMessage, null, cause)
+    constructor(richMessage: String, cause: Throwable) : this(richMessage, null, cause, false)
+
+    internal fun richMessageForTest() = richMessage
+
+    internal fun helpForTest() = help
 
     fun showHelp(project: Project) {
+        if (alreadyReported) {
+            return
+        }
+
         val notifier = project
             .service<MirrordProjectService>()
             .notifier
