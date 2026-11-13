@@ -191,7 +191,8 @@ jobs:
     with:
       ref: ${{ needs.release.outputs.sha }}
     secrets:
-      CHANGELOG_PAT: ${{ secrets.CHANGELOG_PAT }}
+      CUBBY_CLIENT_ID: ${{ secrets.CUBBY_CLIENT_ID }}
+      CUBBY_PRIVATE_KEY: ${{ secrets.CUBBY_PRIVATE_KEY }}
 
   update_latest:
     runs-on: ubuntu-24.04
