@@ -35,6 +35,34 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             Duration.ofSeconds(30)
         )
 
+    /**
+     * The open dropdown, or null when it is not open.
+     *
+     * Deliberately does not wait, and never throws. The previous form waited 60s and
+     * ended in `list!!`, so a menu that never opened raised an NPE -- which aborted the
+     * caller's own `waitFor` instead of letting it retry. Waiting here is also useless:
+     * the menu only appears in response to a click, so the caller must re-click, not
+     * wait harder. See openMirrordDropdown.
+     */
+    val mirrordDropdownMenu: ContainerFixture?
+        get() = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
+            .firstOrNull { it.hasText("mirrord for Teams") }
+
+    /**
+     * Clicks the mirrord button until the dropdown actually opens.
+     *
+     * A single click is sometimes swallowed -- the button exists and is enabled, but the
+     * action does not register -- and then nothing reopens it.
+     */
+    fun openMirrordDropdown(timeout: Duration = Duration.ofSeconds(90)): ContainerFixture {
+        waitFor(timeout, Duration.ofSeconds(3)) {
+            if (mirrordDropdownMenu != null) return@waitFor true
+            runCatching { mirrordDropdownButton.click() }
+            mirrordDropdownMenu != null
+        }
+        return mirrordDropdownMenu ?: error("mirrord dropdown did not open within $timeout")
+    }
+
     val startDebugging
         get() = find<ContainerFixture>(
             byXpath("//div[@class='ActionButton' and @myaction='Debug (Debug selected configuration)']")
@@ -45,16 +73,24 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             byXpath("//div[@class='ActionButton' and @myaction='Stop (Stop the process)']")
         ).first()
 
+    // These two `find`s THROW on timeout, and that exception escapes the enclosing
+    // `waitFor(ofSeconds(60))` instead of being retried -- so the real budget was 30s,
+    // not the 60s the call site appears to give. Measured on a failing CI run: the wait
+    // ended after 31.6s (elapsed 166881ms -> 198487ms).
+    //
+    // The debugger attaching and the app binding its port both cross the cluster through
+    // mirrord, which is the slowest part of the run. 30s is not a generous budget for
+    // that on a loaded CI runner.
     val debuggerConnected
         get() = find<ContainerFixture>(
             byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Connected to pydev debugger')]"),
-            Duration.ofSeconds(30)
+            Duration.ofSeconds(120)
         )
 
     val appRunning
         get() = find<ContainerFixture>(
             byXpath("//div[@class='EditorComponentImpl' and contains(@visible_text, 'Press CTRL+C to quit')]"),
-            Duration.ofSeconds(30)
+            Duration.ofSeconds(120)
         )
 
     val xDebuggerFramesList
@@ -64,49 +100,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
             ),
             Duration.ofSeconds(30)
         )
-
-    /**
-     * Opens the mirrord toolbar dropdown and returns its menu.
-     *
-     * The toolbar recomputes action presentations on a background thread while the project is
-     * being opened and indexed, so the button can report itself enabled and be disabled again
-     * before the click lands. Clicks on a disabled button are silently dropped, so the button is
-     * clicked again until the menu shows up.
-     */
-    fun openMirrordDropdownMenu(timeout: Duration = Duration.ofMinutes(2)): ContainerFixture {
-        val menu = waitFor<ContainerFixture?>(
-            duration = timeout,
-            interval = Duration.ofSeconds(1),
-            errorMessage = "mirrord dropdown menu did not open"
-        ) {
-            findMirrordDropdownMenu(Duration.ofSeconds(1))?.let { return@waitFor Pair(true, it) }
-
-            clickMirrordDropdownButton()
-            // Give the popup time to show before clicking again - the button is a toggle, so
-            // clicking it while the popup is open would close it.
-            val opened = findMirrordDropdownMenu(Duration.ofSeconds(10))
-            Pair(opened != null, opened)
-        }
-
-        return menu!!
-    }
-
-    private fun findMirrordDropdownMenu(timeout: Duration): ContainerFixture? = runCatching {
-        waitFor<ContainerFixture?>(duration = timeout, interval = Duration.ofMillis(500)) {
-            val menu = findAll<ContainerFixture>(byXpath("//div[@class='MyList']"))
-                .firstOrNull { it.hasText("mirrord for Teams") }
-            Pair(menu != null, menu)
-        }
-    }.getOrNull()
-
-    private fun clickMirrordDropdownButton() {
-        runCatching {
-            val button = mirrordDropdownButton
-            if (button.isShowing && button.isComponentEnabled()) {
-                button.click()
-            }
-        }
-    }
 
     fun ContainerFixture.isComponentEnabled(): Boolean {
         return callJs(
@@ -119,16 +112,16 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
 
     // dumb and smart mode refer to the state of the IDE when it is indexing and not indexing respectively
     @JvmOverloads
-    fun <T> dumbAware(
+    fun dumbAware(
         timeout: Duration = Duration.ofMinutes(5),
         waitAfter: Boolean = true,
-        function: () -> T
-    ): T {
-        return step("Wait for smart mode") {
+        function: () -> Unit
+    ) {
+        step("Wait for smart mode") {
             waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
                 runCatching { isDumbMode().not() }.getOrDefault(false)
             }
-            val result = function()
+            function()
             if (waitAfter) {
                 step("...wait for smart mode again") {
                     waitFor(duration = timeout, interval = Duration.ofSeconds(5)) {
@@ -136,7 +129,6 @@ class IdeaFrame(remoteRobot: RemoteRobot, remoteComponent: RemoteComponent) :
                     }
                 }
             }
-            result
         }
     }
 
