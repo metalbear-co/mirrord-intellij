@@ -141,13 +141,21 @@ fun approvalUrl(taskName: String): String? {
 }
 
 /**
- * How a login reads in the pickers.
+ * How a login reads in the pickers. It names the URL, which the store keys logins by, so no two
+ * labels are the same.
  */
 private fun OperatorLogin.label(): String {
     val marker = if (active) "(in use) " else ""
     val expiry = if (expiresIn == "expired") "expired" else "expires $expiresIn"
-    return "$marker$host, $account, $expiry"
+    return "$marker$url, $account, $expiry"
 }
+
+/**
+ * Where a failed run read its login: its environment (a WSL distribution, a container) and its
+ * variables (`HOME` decides which login store the CLI reads). Renewing the login there makes the next
+ * run find it. `null` fields use the project's.
+ */
+data class LoginTarget(val environment: MirrordEnvironment?, val envVars: Map<String, String>?)
 
 /**
  * Logging in to an operator, logging out, and showing the logins, through `mirrord login`, `logout` and
@@ -156,7 +164,8 @@ private fun OperatorLogin.label(): String {
 @Service(Service.Level.PROJECT)
 class MirrordLoginService(private val project: Project) {
     /**
-     * The logins last read, `null` until they were read once.
+     * The logins last read in the project's environment, `null` until they were read once. Reads for
+     * a run's [LoginTarget] do not land here, since the menu's actions use the project's environment.
      */
     @Volatile
     private var lastWhoami: Whoami? = null
@@ -178,19 +187,19 @@ class MirrordLoginService(private val project: Project) {
      *
      * @param quiet For calls the user did not start: finds the CLI without updating it, which sends no
      * requests and shows nothing, skips when there is none yet, and only logs failures.
-     * @param environment Where to run; the project's when `null`.
+     * @param target Where to run; the project's environment and no extra variables when `null`.
      */
-    private fun withCli(quiet: Boolean, environment: MirrordEnvironment? = null, block: (MirrordApi, TargetPath, MirrordEnvironment) -> Unit) {
+    private fun withCli(quiet: Boolean, target: LoginTarget? = null, block: (MirrordApi, TargetPath, MirrordEnvironment) -> Unit) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val target = environment ?: MirrordEnvironments.forProject(project)
+                val environment = target?.environment ?: MirrordEnvironments.forProject(project)
                 val binaries = service<MirrordBinaryManager>()
                 val cli = if (quiet) {
-                    binaries.findBinary(target).command ?: return@executeOnPooledThread
+                    binaries.findBinary(environment).command ?: return@executeOnPooledThread
                 } else {
-                    binaries.getCliPath(ApplicationNamesInfo.getInstance().productName.lowercase(), target, project)
+                    binaries.getCliPath(ApplicationNamesInfo.getInstance().productName.lowercase(), environment, project)
                 }
-                block(service.mirrordApi(null), cli, target)
+                block(service.mirrordApi(target?.envVars), cli, environment)
             } catch (e: ProcessCanceledException) {
                 MirrordLogger.logger.debug("mirrord login command cancelled", e)
             } catch (e: MirrordError) {
@@ -202,9 +211,12 @@ class MirrordLoginService(private val project: Project) {
     }
 
     /**
-     * Keeps the logins just read, when there are any.
+     * Keeps the logins just read for the menu, when they were read in the project's environment.
      */
-    private fun keep(result: WhoamiResult) {
+    private fun keep(result: WhoamiResult, target: LoginTarget?) {
+        if (target != null) {
+            return
+        }
         result.whoami?.let {
             lastWhoami = it
             lastRefreshMillis = System.currentTimeMillis()
@@ -220,22 +232,22 @@ class MirrordLoginService(private val project: Project) {
             return
         }
         lastRefreshMillis = System.currentTimeMillis()
-        withCli(quiet = true) { api, cli, environment -> keep(api.whoami(cli, environment)) }
+        withCli(quiet = true) { api, cli, environment -> keep(api.whoami(cli, environment, quiet = true), null) }
     }
 
     /**
      * Shows the CLI's expired-login message with a Log in action for `url`, or for the login
      * `mirrord whoami` names as active when `url` is `null`.
      *
-     * @param environment Where the session ran, so the new login lands where the next run reads it.
+     * @param target Where the run read its login, so the new login lands where the next run reads it.
      */
-    fun showLoginExpired(message: String, url: String?, environment: MirrordEnvironment?) {
+    fun showLoginExpired(message: String, url: String?, target: LoginTarget) {
         val fire = { loginUrl: String? ->
             val notification = service.notifier.notification(message, NotificationType.ERROR)
-            loginUrl?.let { target ->
+            loginUrl?.let { renew ->
                 notification.withAction("Log In") { _, n ->
                     n.expire()
-                    login(target, environment)
+                    login(renew, target)
                 }
             }
             notification.fire()
@@ -246,10 +258,18 @@ class MirrordLoginService(private val project: Project) {
             refresh(force = true)
             return
         }
-        withCli(quiet = true, environment) { api, cli, target ->
-            val result = api.whoami(cli, target)
-            keep(result)
-            fire(result.whoami?.activeOperator)
+        // The message is shown whatever happens to the lookup; only the Log In action needs its URL.
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val loginUrl = try {
+                val environment = target.environment ?: MirrordEnvironments.forProject(project)
+                service<MirrordBinaryManager>().findBinary(environment).command?.let { cli ->
+                    service.mirrordApi(target.envVars).whoami(cli, environment, quiet = true).whoami?.activeOperator
+                }
+            } catch (e: Throwable) {
+                MirrordLogger.logger.info("could not find the expired login", e)
+                null
+            }
+            fire(loginUrl)
         }
     }
 
@@ -280,19 +300,19 @@ class MirrordLoginService(private val project: Project) {
      * Runs `mirrord login --url`. Without `url`, asks for it first. The CLI opens the browser itself;
      * the notification also offers the page, for when the browser did not open.
      *
-     * @param environment Where to log in; the project's when `null`.
+     * @param target Where to log in; the project's environment when `null`.
      */
-    fun login(url: String? = null, environment: MirrordEnvironment? = null) {
+    fun login(url: String? = null, target: LoginTarget? = null) {
         if (url == null) {
             ApplicationManager.getApplication().invokeLater {
-                askForUrl()?.let { login(it, environment) }
+                askForUrl()?.let { login(it, target) }
             }
             return
         }
 
         MirrordSettingsState.instance.mirrordState.lastLoginUrl = url
-        withCli(quiet = false, environment) { api, cli, target ->
-            val finalMessage = api.login(cli, url, target) { page ->
+        withCli(quiet = false, target) { api, cli, environment ->
+            val finalMessage = api.login(cli, url, environment) { page ->
                 service.notifier.notification("Approve the mirrord login in your browser.", NotificationType.INFORMATION)
                     .withAction("Open Login Page") { _, n ->
                         n.expire()
@@ -301,7 +321,7 @@ class MirrordLoginService(private val project: Project) {
                     .fire()
             }
             service.notifier.notifySimple(finalMessage ?: "Logged in to $url.", NotificationType.INFORMATION)
-            keep(api.whoami(cli, target))
+            keep(api.whoami(cli, environment, quiet = true), target)
         }
     }
 
@@ -311,7 +331,7 @@ class MirrordLoginService(private val project: Project) {
     private fun whoamiForUser(api: MirrordApi, cli: TargetPath, environment: MirrordEnvironment): Whoami? {
         val result = api.whoami(cli, environment)
         result.failure?.let { service.notifier.notifySimple(it, NotificationType.ERROR) }
-        keep(result)
+        keep(result, null)
         return result.whoami
     }
 
@@ -341,9 +361,9 @@ class MirrordLoginService(private val project: Project) {
                 return@withCli
             }
             choose("Log Out of a mirrord Operator", operators, { it.label() }) { picked ->
-                withCli(quiet = false, environment) { logoutApi, logoutCli, logoutEnvironment ->
+                withCli(quiet = false) { logoutApi, logoutCli, logoutEnvironment ->
                     service.notifier.notifySimple(logoutApi.logout(logoutCli, picked.url, logoutEnvironment), NotificationType.INFORMATION)
-                    keep(logoutApi.whoami(logoutCli, logoutEnvironment))
+                    keep(logoutApi.whoami(logoutCli, logoutEnvironment, quiet = true), null)
                 }
             }
         }
@@ -365,7 +385,7 @@ class MirrordLoginService(private val project: Project) {
 
             val items = whoami.operators.orEmpty().map { it.label() to it.url } + (anotherOperator to null)
             service.notifier.notifySimple("${loginSummary(whoami, Instant.now()) ?: "No operator logins"}. $fallback $cloud", NotificationType.INFORMATION)
-            choose("mirrord Operator Logins", items, { it.first }) { (_, url) -> login(url, environment) }
+            choose("mirrord Operator Logins", items, { it.first }) { (_, url) -> login(url) }
         }
     }
 }

@@ -15,6 +15,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.util.concurrency.AppExecutorUtil
 import com.metalbear.mirrord.bifrost.MirrordEnvironment
 import com.metalbear.mirrord.bifrost.MirrordProcessSpec
 import com.metalbear.mirrord.bifrost.TargetPath
@@ -575,8 +576,9 @@ class MirrordApi(private val service: MirrordProjectService, private val project
         }
 
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): WhoamiResult {
+            val stderrText = drainStderr(process)
             val stdout = process.inputStream.bufferedReader().readText()
-            val stderr = process.errorStream.bufferedReader().readText()
+            val stderr = stderrText.get()
             process.waitFor()
             val whoami = if (process.exitValue() == 0) parseWhoami(stdout) else null
             if (whoami != null) {
@@ -592,8 +594,9 @@ class MirrordApi(private val service: MirrordProjectService, private val project
      */
     private class MirrordLogoutTask(cli: TargetPath, url: String, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<String>(cli, "logout", listOf("--url", url), projectEnvVars, environment) {
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
+            val stderrText = drainStderr(process)
             val stdout = process.inputStream.bufferedReader().readText()
-            val stderr = process.errorStream.bufferedReader().readText()
+            val stderr = stderrText.get()
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw MirrordError("mirrord logout failed: ${cliErrorText(stderr)}")
@@ -614,6 +617,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
         override fun compute(project: Project, process: Process, setText: (String) -> Unit): String? {
             setText("Waiting for the login in your browser")
+            val stderrText = drainStderr(process)
             var finalMessage: String? = null
             for (line in process.inputStream.reader().buffered().lines()) {
                 val message = try {
@@ -628,7 +632,7 @@ class MirrordApi(private val service: MirrordProjectService, private val project
                     else -> {}
                 }
             }
-            val stderr = process.errorStream.bufferedReader().readText()
+            val stderr = stderrText.get()
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw MirrordError("mirrord login failed: ${cliErrorText(stderr)}")
@@ -639,9 +643,13 @@ class MirrordApi(private val service: MirrordProjectService, private val project
 
     /**
      * Runs `mirrord whoami -o json`.
+     *
+     * @param quiet For reads the user did not start: no progress indicator. The command returns in
+     * moments, since it only reads the login store.
      */
-    fun whoami(cli: TargetPath, environment: MirrordEnvironment): WhoamiResult {
-        return MirrordWhoamiTask(cli, projectEnvVars, environment).run(service.project)
+    fun whoami(cli: TargetPath, environment: MirrordEnvironment, quiet: Boolean = false): WhoamiResult {
+        val task = MirrordWhoamiTask(cli, projectEnvVars, environment)
+        return if (quiet) task.runWithoutProgress(service.project) else task.run(service.project)
     }
 
     /**
@@ -860,7 +868,7 @@ private abstract class MirrordCliTask<T>(
         if (endsExecution) {
             logsService.onMirrordExecutionEnd()
         }
-        throw MirrordError.fromStdErr(stdErr, environment)
+        throw MirrordError.fromStdErr(stdErr, environment, projectEnvVars)
     }
 
     /**
@@ -961,6 +969,15 @@ private abstract class MirrordCliTask<T>(
      *
      * @throws ProcessCanceledException if the user has canceled
      */
+    /**
+     * Runs the invocation on the calling thread with no progress indicator, for short reads the user
+     * did not start. Must not be called on the event dispatch thread.
+     */
+    fun runWithoutProgress(project: Project): T {
+        val process = environment.spawn(prepareSpec(project))
+        return compute(project, process) {}
+    }
+
     fun run(project: Project): T {
         val spec = prepareSpec(project)
         val logsService = project.service<MirrordLogsService>()
@@ -1132,3 +1149,10 @@ private class MirrordWarningHandler(private val service: MirrordProjectService) 
         notification.fire()
     }
 }
+
+/**
+ * Reads the process's stderr on a pooled thread while the caller reads stdout, so a process that
+ * fills one pipe while the other is being read cannot stall both.
+ */
+private fun drainStderr(process: Process): CompletableFuture<String> =
+    CompletableFuture.supplyAsync({ process.errorStream.bufferedReader().readText() }, AppExecutorUtil.getAppExecutorService())

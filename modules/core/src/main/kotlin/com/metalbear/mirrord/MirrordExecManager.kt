@@ -181,7 +181,7 @@ class MirrordExecManager(private val service: MirrordProjectService) {
                 MirrordLogger.logger.debug("MirrordExecManager.start: MirrordVerifiedConfig: $it")
                 // With a config file this is the first CLI call of a session, so an expired login
                 // shows up here before `ls` or `ext` run.
-                loginExpired?.let { expired -> throw MirrordLoginExpiredError(expired.message, expired.url, environment) }
+                loginExpired?.let { expired -> throw MirrordLoginExpiredError(expired.message, expired.url, environment, projectEnvVars) }
                 if (isError()) {
                     MirrordLogger.logger.debug("MirrordExecManager.start: invalid config error")
                     throw InvalidConfigException(it.value, "Validation failed for config")
