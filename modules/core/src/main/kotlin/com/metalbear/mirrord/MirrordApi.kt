@@ -148,7 +148,12 @@ data class IdeMessage(val id: String, val level: NotificationLevel, val text: St
     }
 }
 
-data class Error(val message: String, val severity: String, val causes: List<String>, val help: String, val labels: List<String>, val related: List<String>)
+/**
+ * The final error of `mirrord ls`, `ext` and `container-ext`, printed on stderr as JSON.
+ *
+ * @param code Set on errors the plugin acts on, such as [LOGIN_EXPIRED_CODE]; older CLIs never set it.
+ */
+data class Error(val message: String, val severity: String, val causes: List<String>, val help: String, val labels: List<String>, val related: List<String>, val code: String? = null)
 
 data class MirrordExecution(
     val environment: MutableMap<String, String>,
@@ -561,6 +566,99 @@ class MirrordApi(private val service: MirrordProjectService, private val project
     }
 
     /**
+     * `mirrord whoami -o json`: the operator logins, or what to tell the user when it fails, since a
+     * CLI older than `-o json` exits with its usage error.
+     */
+    private class MirrordWhoamiTask(cli: TargetPath, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<WhoamiResult>(cli, "whoami", null, projectEnvVars, environment) {
+        init {
+            output = "json"
+        }
+
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): WhoamiResult {
+            val stdout = process.inputStream.bufferedReader().readText()
+            val stderr = process.errorStream.bufferedReader().readText()
+            process.waitFor()
+            val whoami = if (process.exitValue() == 0) parseWhoami(stdout) else null
+            if (whoami != null) {
+                return WhoamiResult(whoami, null)
+            }
+            MirrordLogger.logger.info("mirrord whoami -o json gave no logins: exit ${process.exitValue()}, stderr: $stderr")
+            return WhoamiResult(null, whoamiFailure(stderr))
+        }
+    }
+
+    /**
+     * `mirrord logout --url <url>`, returning the line it prints.
+     */
+    private class MirrordLogoutTask(cli: TargetPath, url: String, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment) : MirrordCliTask<String>(cli, "logout", listOf("--url", url), projectEnvVars, environment) {
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): String {
+            val stdout = process.inputStream.bufferedReader().readText()
+            val stderr = process.errorStream.bufferedReader().readText()
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw MirrordError("mirrord logout failed: ${cliErrorText(stderr)}")
+            }
+            return stdout.trim()
+        }
+    }
+
+    /**
+     * `mirrord login --url <url>`: opens the browser and waits until the developer signs in, which
+     * the CLI bounds itself, so this task is not cut short by the task timeout setting.
+     *
+     * @param onApprovalUrl Gets the login page, for when the browser did not open.
+     * @return The CLI's final message: who is logged in and until when.
+     */
+    private class MirrordLoginTask(cli: TargetPath, url: String, projectEnvVars: Map<String, String>?, environment: MirrordEnvironment, private val onApprovalUrl: (String) -> Unit) : MirrordCliTask<String?>(cli, "login", listOf("--url", url), projectEnvVars, environment) {
+        override val boundedByTaskTimeout = false
+
+        override fun compute(project: Project, process: Process, setText: (String) -> Unit): String? {
+            setText("Waiting for the login in your browser")
+            var finalMessage: String? = null
+            for (line in process.inputStream.reader().buffered().lines()) {
+                val message = try {
+                    Gson().fromJson(line, Message::class.java)
+                } catch (e: Throwable) {
+                    MirrordLogger.logger.debug("mirrord login printed a line that is not a progress message: $line", e)
+                    continue
+                } ?: continue
+                when {
+                    message.type == MessageType.NewTask -> approvalUrl(message.name)?.let(onApprovalUrl)
+                    message.type == MessageType.FinishedTask && message.name == LOGIN_TASK && message.success == true -> finalMessage = message.message as? String
+                    else -> {}
+                }
+            }
+            val stderr = process.errorStream.bufferedReader().readText()
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw MirrordError("mirrord login failed: ${cliErrorText(stderr)}")
+            }
+            return finalMessage
+        }
+    }
+
+    /**
+     * Runs `mirrord whoami -o json`.
+     */
+    fun whoami(cli: TargetPath, environment: MirrordEnvironment): WhoamiResult {
+        return MirrordWhoamiTask(cli, projectEnvVars, environment).run(service.project)
+    }
+
+    /**
+     * Runs `mirrord logout --url <url>` and returns what it printed.
+     */
+    fun logout(cli: TargetPath, url: String, environment: MirrordEnvironment): String {
+        return MirrordLogoutTask(cli, url, projectEnvVars, environment).run(service.project)
+    }
+
+    /**
+     * Runs `mirrord login --url <url>` and returns its final message.
+     */
+    fun login(cli: TargetPath, url: String, environment: MirrordEnvironment, onApprovalUrl: (String) -> Unit): String? {
+        return MirrordLoginTask(cli, url, projectEnvVars, environment, onApprovalUrl).run(service.project)
+    }
+
+    /**
      * Executes the `mirrord verify-config [path]` task.
      *
      * @return String containing a json with either a success + warnings, or the verified config errors.
@@ -762,8 +860,14 @@ private abstract class MirrordCliTask<T>(
         if (endsExecution) {
             logsService.onMirrordExecutionEnd()
         }
-        throw MirrordError.fromStdErr(stdErr)
+        throw MirrordError.fromStdErr(stdErr, environment)
     }
+
+    /**
+     * Whether the task timeout setting ends this task. A task that waits on the developer, such as
+     * a browser login, turns it off and relies on its own bound.
+     */
+    protected open val boundedByTaskTimeout = true
 
     var target: String? = null
     var namespace: String? = null
@@ -913,7 +1017,7 @@ private abstract class MirrordCliTask<T>(
             })
 
             try {
-                env.get(taskTimeoutMinutes, TimeUnit.MINUTES)
+                if (boundedByTaskTimeout) env.get(taskTimeoutMinutes, TimeUnit.MINUTES) else env.get()
             } catch (e: ExecutionException) {
                 throw e.cause ?: e
             } catch (e: CancellationException) {

@@ -168,6 +168,24 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
         }
     }
 
+    private class ShowLoginsAction(text: String) : AnAction(text) {
+        override fun actionPerformed(e: AnActionEvent) {
+            e.project?.service<MirrordLoginService>()?.showLogins()
+        }
+    }
+
+    private class LogInAction : AnAction("Log In to an Operator...") {
+        override fun actionPerformed(e: AnActionEvent) {
+            e.project?.service<MirrordLoginService>()?.login()
+        }
+    }
+
+    private class LogOutAction : AnAction("Log Out of an Operator...") {
+        override fun actionPerformed(e: AnActionEvent) {
+            e.project?.service<MirrordLoginService>()?.logout()
+        }
+    }
+
     private class NavigateToMirrodForTeamsIntroAction : AnAction("Try It Now") {
         override fun actionPerformed(e: AnActionEvent) {
             BrowserUtil.browse(MIRRORD_FOR_TEAMS_URL)
@@ -199,6 +217,15 @@ class MirrordDropDown : TogglePopupAction(), DumbAware {
             add(SelectActiveConfigAction())
             add(SettingsAction())
             add(GeneralSettingsAction())
+
+            // The logins are read in the background, so the menu shows the last ones read, with the
+            // summary computed now, and the next opening shows the new ones.
+            val login = project.service<MirrordLoginService>()
+            login.refresh()
+            addSeparator("Operator Login")
+            add(ShowLoginsAction(login.summary() ?: "Show Logins"))
+            add(LogInAction())
+            add(LogOutAction())
 
             if (!MirrordSettingsState.instance.mirrordState.operatorUsed) {
                 addSeparator("mirrord for Teams")
