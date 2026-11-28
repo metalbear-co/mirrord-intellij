@@ -86,6 +86,9 @@ open class MirrordSettingsState : PersistentStateComponent<MirrordSettingsState.
         var enabledByDefault: Boolean = false
         var taskTimeoutMinutes: Int = DEFAULT_TASK_TIMEOUT_MINUTES
 
+        /** The operator URL last logged in to from the plugin, offered in the next Log In prompt. */
+        var lastLoginUrl: String = ""
+
         /** When on, every mirrord run enables trace logging in mirrord's processes. */
         var troubleshootingLogsEnabled: Boolean = false
 
